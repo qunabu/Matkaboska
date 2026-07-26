@@ -2,7 +2,7 @@ name = "meal-planner"
 main = "src/worker/index.ts"
 compatibility_date = "2024-11-01"
 compatibility_flags = ["nodejs_compat"]
-account_id = "b754865d6ccf05c90d33e35f213c7214"
+account_id = "e17e41cc82bda15dfa63960aa172fb87"
 
 [assets]
 directory = "./dist"
@@ -12,12 +12,12 @@ not_found_handling = "single-page-application"
 [[d1_databases]]
 binding = "DB"
 database_name = "meal-planner-db"
-database_id = "94ac6488-e034-44ee-8f16-cd31e43c03c9"
+database_id = "50adfe28-424d-4102-868a-e37a2e848023"
 migrations_dir = "migrations"
 
 [[kv_namespaces]]
 binding = "KV"
-id = "05153056f66c4668ac86a2b354b3b31f"
+id = "dae0613d015d49df860352b55e62e573"
 
 [vars]
 APP_VERSION = "dev"

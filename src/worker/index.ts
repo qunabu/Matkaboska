@@ -60,7 +60,7 @@ export default {
     return res
   },
 
-  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
+  async scheduled(_event: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
     if (!env.VAPID_PRIVATE_KEY) return
 
     const db = getDb(env.DB)

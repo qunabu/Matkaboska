@@ -10,6 +10,7 @@ const app = new Hono<{ Bindings: Env }>()
 function parseSupplement(row: typeof supplements.$inferSelect): Supplement {
   return {
     ...row,
+    kind: row.kind as Supplement['kind'],
     schedule: JSON.parse(row.schedule) as SupSchedule,
   }
 }

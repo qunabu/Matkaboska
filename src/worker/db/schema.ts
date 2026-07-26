@@ -7,23 +7,23 @@ export const recipes = sqliteTable('recipes', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   title: text('title').notNull(),
   slug: text('slug').notNull().unique(),
-  category: text('category').notNull(),           // breakfast|main|snack|classic
+  category: text('category').notNull(),
   servings: integer('servings').notNull().default(1),
   prep_minutes: integer('prep_minutes'),
-  ingredients: text('ingredients').notNull().default('[]'),    // JSON
-  steps: text('steps').notNull().default('[]'),               // JSON
-  tags: text('tags').notNull().default('[]'),                 // JSON
+  ingredients: text('ingredients').notNull().default('[]'),
+  steps: text('steps').notNull().default('[]'),
+  tags: text('tags').notNull().default('[]'),
   is_seafood: integer('is_seafood', { mode: 'boolean' }).notNull().default(false),
   source: text('source'),
-  macros: text('macros'),                                      // JSON|null
-  macros_confidence: text('macros_confidence'),               // low|medium|high|null
+  macros: text('macros'),
+  macros_confidence: text('macros_confidence'),
   macros_assumptions: text('macros_assumptions'),
   created_at: integer('created_at').notNull().default(unixNow),
   updated_at: integer('updated_at').notNull().default(unixNow),
-}, (t) => [
-  index('recipe_category_idx').on(t.category),
-  index('recipe_slug_idx').on(t.slug),
-])
+}, (t) => ({
+  recipe_category_idx: index('recipe_category_idx').on(t.category),
+  recipe_slug_idx: index('recipe_slug_idx').on(t.slug),
+}))
 
 export const recipe_notes = sqliteTable('recipe_notes', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -34,16 +34,16 @@ export const recipe_notes = sqliteTable('recipe_notes', {
 
 export const meal_plan_entries = sqliteTable('meal_plan_entries', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  date: text('date').notNull(),                               // YYYY-MM-DD
-  meal_type: text('meal_type').notNull(),                     // breakfast|lunch|dinner|snack
+  date: text('date').notNull(),
+  meal_type: text('meal_type').notNull(),
   recipe_id: integer('recipe_id').references(() => recipes.id, { onDelete: 'set null' }),
   servings: real('servings').notNull().default(1),
   batch_group: text('batch_group'),
   is_leftover: integer('is_leftover', { mode: 'boolean' }).notNull().default(false),
-  status: text('status').notNull().default('planned'),        // planned|eaten|skipped
-}, (t) => [
-  index('plan_date_idx').on(t.date),
-])
+  status: text('status').notNull().default('planned'),
+}, (t) => ({
+  plan_date_idx: index('plan_date_idx').on(t.date),
+}))
 
 export const food_log = sqliteTable('food_log', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -56,9 +56,9 @@ export const food_log = sqliteTable('food_log', {
   carbs_g: real('carbs_g'),
   fat_g: real('fat_g'),
   portion: text('portion'),
-}, (t) => [
-  index('food_log_date_idx').on(t.date),
-])
+}, (t) => ({
+  food_log_date_idx: index('food_log_date_idx').on(t.date),
+}))
 
 export const water_log = sqliteTable('water_log', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -82,9 +82,9 @@ export const supplement_log = sqliteTable('supplement_log', {
   supplement_id: integer('supplement_id').notNull().references(() => supplements.id, { onDelete: 'cascade' }),
   taken_at: integer('taken_at').notNull().default(unixNow),
   date: text('date').notNull(),
-}, (t) => [
-  index('suplog_date_idx').on(t.date),
-])
+}, (t) => ({
+  suplog_date_idx: index('suplog_date_idx').on(t.date),
+}))
 
 export const shopping_lists = sqliteTable('shopping_lists', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -101,13 +101,13 @@ export const shopping_items = sqliteTable('shopping_items', {
   name: text('name').notNull(),
   quantity: real('quantity'),
   unit: text('unit'),
-  category: text('category').notNull().default('other'),      // produce|dairy|pantry|frozen|other
+  category: text('category').notNull().default('other'),
   checked: integer('checked', { mode: 'boolean' }).notNull().default(false),
-  source: text('source').notNull().default('manual'),         // generated|manual
+  source: text('source').notNull().default('manual'),
   sort_order: integer('sort_order').notNull().default(0),
-}, (t) => [
-  index('shopping_items_list_idx').on(t.list_id),
-])
+}, (t) => ({
+  shopping_items_list_idx: index('shopping_items_list_idx').on(t.list_id),
+}))
 
 export const reminders = sqliteTable('reminders', {
   id: integer('id').primaryKey({ autoIncrement: true }),

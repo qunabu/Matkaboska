@@ -10,6 +10,7 @@ const app = new Hono<{ Bindings: Env }>()
 function parseRecipe(row: typeof recipes.$inferSelect): Recipe {
   return {
     ...row,
+    category: row.category as Recipe['category'],
     ingredients: JSON.parse(row.ingredients) as Ingredient[],
     steps: JSON.parse(row.steps) as string[],
     tags: JSON.parse(row.tags) as string[],

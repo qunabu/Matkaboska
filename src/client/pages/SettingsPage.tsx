@@ -64,7 +64,7 @@ export default function SettingsPage() {
 
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(pubKey),
+        applicationServerKey: urlBase64ToUint8Array(pubKey).buffer as ArrayBuffer,
       })
       await pushApi.subscribe(sub.toJSON() as PushSubscriptionJSON)
     } catch (err) {
