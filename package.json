@@ -12,7 +12,8 @@
     "db:migrate:local": "wrangler d1 migrations apply meal-planner-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply meal-planner-db --remote",
     "db:seed": "node scripts/seed.mjs",
-    "type-check": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit"
+    "type-check": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
+    "postinstall": "node scripts/gen-icons.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.7",
