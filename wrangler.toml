@@ -1,0 +1,30 @@
+name = "meal-planner"
+main = "src/worker/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+account_id = "b754865d6ccf05c90d33e35f213c7214"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "meal-planner-db"
+database_id = "94ac6488-e034-44ee-8f16-cd31e43c03c9"
+migrations_dir = "migrations"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "05153056f66c4668ac86a2b354b3b31f"
+
+[vars]
+APP_VERSION = "dev"
+ANTHROPIC_MODEL = "claude-sonnet-4-6"
+VAPID_PUBLIC_KEY = ""
+ACCESS_AUD = ""
+ACCESS_TEAM_DOMAIN = ""
+
+[triggers]
+crons = ["*/15 * * * *"]

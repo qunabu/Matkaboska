@@ -1,0 +1,43 @@
+{
+  "name": "meal-planner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run build:watch\" \"wrangler dev\"",
+    "build:watch": "vite build --watch",
+    "build": "APP_VERSION=$(git rev-parse --short HEAD 2>/dev/null || echo dev)-$(date +%s) vite build",
+    "deploy": "npm run build && wrangler d1 migrations apply meal-planner-db --remote && wrangler deploy --var APP_VERSION:$(git rev-parse --short HEAD 2>/dev/null || echo dev)-$(date +%s)",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate:local": "wrangler d1 migrations apply meal-planner-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply meal-planner-db --remote",
+    "db:seed": "node scripts/seed.mjs",
+    "type-check": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
+    "postinstall": "node scripts/gen-icons.mjs"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.62.7",
+    "drizzle-orm": "^0.36.4",
+    "hono": "^4.6.16",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.0.2",
+    "workbox-window": "^7.3.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241224.0",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.0",
+    "drizzle-kit": "^0.28.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.6",
+    "vite-plugin-pwa": "^0.21.1",
+    "wrangler": "^4.0.0"
+  }
+}
