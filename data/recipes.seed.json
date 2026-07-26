@@ -544,9 +544,19 @@
         "unit": "g"
       },
       {
-        "name": "warzywa (cukinia, marchew, papryka)",
-        "amount": "",
-        "unit": "do smaku"
+        "name": "cukinia",
+        "amount": "1",
+        "unit": "szt"
+      },
+      {
+        "name": "marchew",
+        "amount": "1",
+        "unit": "szt"
+      },
+      {
+        "name": "papryka",
+        "amount": "1",
+        "unit": "szt"
       }
     ],
     "steps": [
@@ -1760,9 +1770,19 @@
         "unit": "łyżki"
       },
       {
-        "name": "warzywa do maczania (marchew, papryka, ogórek)",
-        "amount": "",
-        "unit": "do smaku"
+        "name": "marchew",
+        "amount": "1",
+        "unit": "szt"
+      },
+      {
+        "name": "papryka",
+        "amount": "1",
+        "unit": "szt"
+      },
+      {
+        "name": "ogórek",
+        "amount": "1",
+        "unit": "szt"
       }
     ],
     "steps": [

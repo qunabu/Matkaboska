@@ -80,6 +80,31 @@ function guessCategory(name: string): ShopCategory {
   return 'other'
 }
 
+// Map common Polish declension/variant forms to one canonical name so the same
+// produce merges on the list (e.g. "marchewka"/"marchewki" → "marchew").
+const LEMMAS: Record<string, string> = {
+  marchewka: 'marchew', marchewki: 'marchew',
+  cebule: 'cebula',
+  ziemniaki: 'ziemniak',
+  pomidory: 'pomidor', pomidorki: 'pomidorki koktajlowe',
+  jajka: 'jajko',
+  banany: 'banan',
+  ogórki: 'ogórek',
+  papryki: 'papryka', 'papryka czerwona': 'papryka',
+  cukinie: 'cukinia',
+  bakłażany: 'bakłażan',
+  cytryny: 'cytryna',
+}
+
+// Normalise an ingredient name for aggregation so variants of the same item
+// merge on the shopping list: drop parenthetical qualifiers ("mleko (lub napój
+// roślinny)" → "mleko", "czosnek (starty)" → "czosnek"), collapse whitespace,
+// then apply the lemma map above.
+function normalizeName(name: string): string {
+  const clean = name.replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim()
+  return LEMMAS[clean.toLowerCase()] ?? clean
+}
+
 // POST /api/shopping-lists/generate
 app.post('/generate', async (c) => {
   const body = await c.req.json()
@@ -97,23 +122,25 @@ app.post('/generate', async (c) => {
     .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
     .where(between(meal_plan_entries.date, from, to))
 
-  // Aggregate ingredients
-  const aggregated = new Map<string, { quantity: number; unit: string; category: ShopCategory }>()
+  // Aggregate ingredients (merge by normalised name + unit).
+  const aggregated = new Map<string, { name: string; quantity: number; unit: string; category: ShopCategory }>()
   for (const { entry, recipe } of planRows) {
     if (!recipe) continue
     const ingredients = JSON.parse(recipe.ingredients) as Ingredient[]
     for (const ing of ingredients) {
-      if (!ing.name) continue
-      const key = `${ing.name.toLowerCase()}__${ing.unit}`
+      const clean = normalizeName(ing.name || '')
+      if (!clean) continue
+      const key = `${clean.toLowerCase()}__${ing.unit}`
       const qty = parseFloat(ing.amount) || 0
       const existing = aggregated.get(key)
       if (existing) {
         existing.quantity += qty * entry.servings
       } else {
         aggregated.set(key, {
+          name: clean,
           quantity: qty * entry.servings,
           unit: ing.unit,
-          category: guessCategory(ing.name),
+          category: guessCategory(clean),
         })
       }
     }
@@ -129,8 +156,7 @@ app.post('/generate', async (c) => {
 
   let sortOrder = 0
   const itemsToInsert = []
-  for (const [key, { quantity, unit, category }] of aggregated) {
-    const name = key.split('__')[0]
+  for (const { name, quantity, unit, category } of aggregated.values()) {
     itemsToInsert.push({
       list_id: list.id,
       name,

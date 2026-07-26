@@ -1,4 +1,51 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#16a34a"/>
-  <text x="256" y="360" font-size="280" text-anchor="middle" font-family="Apple Color Emoji, Segoe UI Emoji, sans-serif" fill="white">🥗</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tęczowa Madonna">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a1c5e"/>
+      <stop offset="1" stop-color="#160f38"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- Rainbow halo — Mary -->
+  <g>
+    <circle cx="256" cy="192" r="150" fill="#e40303"/>
+    <circle cx="256" cy="192" r="131" fill="#ff8c00"/>
+    <circle cx="256" cy="192" r="112" fill="#ffed00"/>
+    <circle cx="256" cy="192" r="93"  fill="#178a3a"/>
+    <circle cx="256" cy="192" r="74"  fill="#0a63d8"/>
+    <circle cx="256" cy="192" r="55"  fill="#7a1fa2"/>
+  </g>
+
+  <!-- Mantle / robe -->
+  <path d="M256 250 C 150 250 118 330 112 474 L 400 474 C 394 330 362 250 256 250 Z" fill="#16235f"/>
+  <path d="M256 286 C 198 286 176 350 172 474 L 340 474 C 336 350 314 286 256 286 Z" fill="#243592"/>
+  <!-- gold hem -->
+  <path d="M124 470 L 388 470" stroke="#e9c65a" stroke-width="7" stroke-linecap="round"/>
+  <path d="M256 292 L 256 466" stroke="#e9c65a" stroke-width="5" opacity="0.8"/>
+
+  <!-- Veil framing the face -->
+  <ellipse cx="256" cy="190" rx="84" ry="98" fill="#16235f"/>
+  <ellipse cx="256" cy="190" rx="84" ry="98" fill="none" stroke="#e9c65a" stroke-width="4"/>
+
+  <!-- Face (Black Madonna) -->
+  <ellipse cx="256" cy="198" rx="57" ry="70" fill="#4b352c"/>
+  <!-- serene features -->
+  <path d="M232 190 q 8 8 18 0" stroke="#2c1e18" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M262 190 q 8 8 18 0" stroke="#2c1e18" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M247 236 q 9 6 18 0" stroke="#2c1e18" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <!-- gold Marian star on veil -->
+  <path d="M256 116 l6 13 14 2 -10 10 3 14 -13 -7 -13 7 3 -14 -10 -10 14 -2 z" fill="#e9c65a"/>
+
+  <!-- Baby Jesus with mini rainbow halo, cradled on the left arm -->
+  <g>
+    <circle cx="196" cy="356" r="44" fill="#e40303"/>
+    <circle cx="196" cy="356" r="37" fill="#ff8c00"/>
+    <circle cx="196" cy="356" r="30" fill="#ffed00"/>
+    <circle cx="196" cy="356" r="23" fill="#178a3a"/>
+    <circle cx="196" cy="356" r="16" fill="#0a63d8"/>
+  </g>
+  <path d="M196 336 C 168 336 156 372 156 420 L 236 420 C 236 372 224 336 196 336 Z" fill="#efe3c2"/>
+  <ellipse cx="196" cy="356" rx="26" ry="30" fill="#4b352c"/>
 </svg>
