@@ -125,11 +125,11 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                   />
                   <span className={`flex-1 text-sm ${item.checked ? 'text-gray-300 line-through' : 'text-gray-900 dark:text-gray-100'}`}>
                     {item.name}
-                    {item.quantity && (
+                    {item.quantity ? (
                       <span className="ml-1 text-xs text-gray-400">
                         {item.quantity} {item.unit}
                       </span>
-                    )}
+                    ) : null}
                   </span>
                   <button
                     onClick={() => deleteMutation.mutate(item.id)}

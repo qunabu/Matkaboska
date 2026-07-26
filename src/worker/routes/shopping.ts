@@ -134,8 +134,10 @@ app.post('/generate', async (c) => {
     itemsToInsert.push({
       list_id: list.id,
       name,
-      quantity: Math.round(quantity * 10) / 10,
-      unit: unit || null,
+      // Ingredients with no numeric amount ("garść", "do smaku") aggregate to 0
+      // — store null so the UI shows just the name, not a meaningless "0".
+      quantity: quantity > 0 ? Math.round(quantity * 10) / 10 : null,
+      unit: quantity > 0 ? (unit || null) : null,
       category,
       source: 'generated' as const,
       sort_order: sortOrder++,
