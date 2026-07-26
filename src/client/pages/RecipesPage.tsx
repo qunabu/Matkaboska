@@ -98,8 +98,11 @@ export default function RecipesPage() {
                 {recipe.prep_minutes && <span>· {recipe.prep_minutes} {pl.common.minutes}</span>}
                 {recipe.is_seafood && <span>🐟</span>}
                 {recipe.macros && (
-                  <span className="font-medium text-orange-500">
-                    {recipe.macros.kcal} kcal
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span className="font-medium text-orange-500">{Math.round(recipe.macros.kcal)} kcal</span>
+                    <span className="text-blue-500">{Math.round(recipe.macros.protein_g)}g B</span>
+                    <span className="text-yellow-600 dark:text-yellow-500">{Math.round(recipe.macros.carbs_g)}g W</span>
+                    <span className="text-red-400">{Math.round(recipe.macros.fat_g)}g T</span>
                   </span>
                 )}
               </div>

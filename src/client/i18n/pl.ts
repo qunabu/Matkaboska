@@ -76,6 +76,12 @@ const pl = {
     waterGlasses: 'szklanek',
     macroSummary: 'Podsumowanie makroskładników',
     recipeFallback: 'Przepis #',
+    addOwnFood: 'Dodaj własne jedzenie',
+    ownFoodPlaceholder: 'np. kanapka z serem i pomidorem',
+    estimating: 'Szacowanie makroskładników…',
+    estimateAdd: 'Oszacuj i dodaj',
+    loggedToday: 'Zjedzone dziś',
+    estimateFailed: 'Nie udało się oszacować — spróbuj ponownie lub dodaj w zakładce Dziennik.',
   },
 
   recipes: {

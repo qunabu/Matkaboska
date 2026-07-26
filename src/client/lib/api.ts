@@ -54,6 +54,8 @@ export const foodLogApi = {
   summary: (date: string) => req<DailySummary>(`/food-log/summary?date=${date}`),
   add: (data: Partial<FoodLogEntry> & { servings?: number }) =>
     req<FoodLogEntry>('/food-log', { method: 'POST', body: JSON.stringify(data) }),
+  estimate: (data: { description: string; date?: string; portion?: string }) =>
+    req<FoodLogEntry>('/food-log/estimate', { method: 'POST', body: JSON.stringify(data) }),
   delete: (id: number) => req<ApiOk>(`/food-log/${id}`, { method: 'DELETE' }),
 }
 

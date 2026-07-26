@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { planApi, waterApi, foodLogApi, settingsApi, todayDate } from '../lib/api'
 import pl from '../i18n/pl'
@@ -81,6 +82,81 @@ function WaterTracker() {
   )
 }
 
+function CustomFood() {
+  const qc = useQueryClient()
+  const [desc, setDesc] = useState('')
+
+  const { data: log } = useQuery({
+    queryKey: ['food-log', today],
+    queryFn: () => foodLogApi.list(today),
+  })
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['food-log', today] })
+    qc.invalidateQueries({ queryKey: ['food-log-summary', today] })
+  }
+
+  const estimateMutation = useMutation({
+    mutationFn: (description: string) => foodLogApi.estimate({ description, date: today }),
+    onSuccess: () => { setDesc(''); refresh() },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => foodLogApi.delete(id),
+    onSuccess: refresh,
+  })
+
+  const entries = log?.items ?? []
+  const submit = () => { if (desc.trim()) estimateMutation.mutate(desc.trim()) }
+
+  return (
+    <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+      <h2 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">🍽 {pl.today.addOwnFood}</h2>
+      <div className="flex gap-2">
+        <input
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          placeholder={pl.today.ownFoodPlaceholder}
+          disabled={estimateMutation.isPending}
+          className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-primary-400 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+        />
+        <button
+          onClick={submit}
+          disabled={estimateMutation.isPending || !desc.trim()}
+          className="whitespace-nowrap rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+        >
+          {estimateMutation.isPending ? pl.today.estimating : pl.today.estimateAdd}
+        </button>
+      </div>
+      {estimateMutation.isError && (
+        <p className="mt-2 text-xs text-red-500">{pl.today.estimateFailed}</p>
+      )}
+
+      {entries.length > 0 && (
+        <div className="mt-3 space-y-1.5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{pl.today.loggedToday}</p>
+          {entries.map((e) => (
+            <div key={e.id} className="flex items-center justify-between gap-2 text-sm">
+              <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{e.description ?? '—'}</span>
+              <span className="whitespace-nowrap text-xs text-gray-400">
+                {Math.round(e.kcal ?? 0)} kcal · {Math.round(e.protein_g ?? 0)}g B
+              </span>
+              <button
+                onClick={() => deleteMutation.mutate(e.id)}
+                className="text-gray-300 hover:text-red-400"
+                aria-label="Usuń"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function TodayPage() {
   const qc = useQueryClient()
 
@@ -102,7 +178,13 @@ export default function TodayPage() {
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: PlanStatus }) =>
       planApi.setStatus(id, status),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['plan', today, today] }),
+    onSuccess: () => {
+      // Refresh the plan AND the daily macro totals — marking a meal eaten now
+      // writes it to the food log, so the summary above must refetch.
+      qc.invalidateQueries({ queryKey: ['plan', today, today] })
+      qc.invalidateQueries({ queryKey: ['food-log-summary', today] })
+      qc.invalidateQueries({ queryKey: ['food-log', today] })
+    },
   })
 
   const entries = planData?.items ?? []
@@ -134,6 +216,9 @@ export default function TodayPage() {
           </div>
         </div>
       )}
+
+      {/* Add own food (AI macro estimate) */}
+      <CustomFood />
 
       {/* Water */}
       <WaterTracker />

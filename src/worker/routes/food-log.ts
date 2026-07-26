@@ -33,6 +33,76 @@ app.get('/summary', async (c) => {
   return c.json(summary)
 })
 
+// POST /api/food-log/estimate
+// Estimate macros for a free-text food description via Anthropic, then log it.
+// Falls back to a 422 (needs_manual) if no API key is configured or the model
+// can't produce a usable estimate — the client then offers manual entry.
+app.post('/estimate', async (c) => {
+  const parsed = z.object({
+    description: z.string().min(1),
+    date: z.string().optional(),
+    portion: z.string().nullable().optional(),
+  }).safeParse(await c.req.json())
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
+  const { description, date, portion } = parsed.data
+
+  if (!c.env.ANTHROPIC_API_KEY) {
+    return c.json({ error: 'needs_manual', message: 'Brak klucza API — wpisz makroskładniki ręcznie.' }, 422)
+  }
+
+  const macros = await estimateFoodMacros(c.env, description)
+  if (!macros) {
+    return c.json({ error: 'needs_manual', message: 'Nie udało się oszacować — wpisz makroskładniki ręcznie.' }, 422)
+  }
+
+  const db = getDb(c.env.DB)
+  const [row] = await db.insert(food_log).values({
+    date: date ?? todayDate(),
+    description,
+    recipe_id: null,
+    kcal: Math.round(macros.kcal),
+    protein_g: Math.round(macros.protein_g * 10) / 10,
+    carbs_g: Math.round(macros.carbs_g * 10) / 10,
+    fat_g: Math.round(macros.fat_g * 10) / 10,
+    portion: portion ?? 'custom',
+  }).returning()
+
+  return c.json(row, 201)
+})
+
+async function estimateFoodMacros(env: Env, description: string) {
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
+        max_tokens: 200,
+        system: 'You are a nutrition estimator. Estimate macros for the TOTAL portion the user describes (in Polish or English). Return ONLY valid JSON, no prose, no code fences.',
+        messages: [{
+          role: 'user',
+          content: `Oszacuj makroskładniki dla zjedzonej porcji: "${description}".\nZwróć dokładnie ten JSON:\n{"kcal":0,"protein_g":0,"carbs_g":0,"fat_g":0}`,
+        }],
+      }),
+    })
+    if (!response.ok) return null
+    const data = await response.json() as { content: Array<{ text: string }> }
+    const text = (data.content?.[0]?.text ?? '').replace(/```json|```/g, '').trim()
+    const parsed = JSON.parse(text)
+    const R = z.object({
+      kcal: z.number(), protein_g: z.number(), carbs_g: z.number(), fat_g: z.number(),
+    })
+    const result = R.safeParse(parsed)
+    return result.success ? result.data : null
+  } catch {
+    return null
+  }
+}
+
 // POST /api/food-log
 app.post('/', async (c) => {
   const body = await c.req.json()

@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
-import { eq, and, between, sql } from 'drizzle-orm'
+import { eq, and, between } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, meal_plan_entries, recipes } from '../db/index'
+import { getDb, meal_plan_entries, recipes, food_log } from '../db/index'
 import type { Env } from '../types'
-import type { MealPlanEntry, Ingredient, Macros } from '../../shared/types'
+import type { MealPlanEntry, Macros } from '../../shared/types'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -83,6 +83,10 @@ app.put('/:date/:meal_type', async (c) => {
 })
 
 // PATCH /api/plan/:id/status
+// Marking an entry "eaten" logs it into the food_log (macros prefilled from the
+// recipe, scaled by servings) so the daily totals update. The auto-created row
+// is tagged `plan:<id>` in `portion` so it can be removed if the entry is later
+// un-eaten or skipped — keeping the food log idempotent with the plan.
 app.patch('/:id/status', async (c) => {
   const id = Number(c.req.param('id'))
   const { status } = z.object({ status: z.enum(['planned', 'eaten', 'skipped']) }).parse(await c.req.json())
@@ -92,6 +96,29 @@ app.patch('/:id/status', async (c) => {
     .where(eq(meal_plan_entries.id, id))
     .returning()
   if (!row) return c.json({ error: 'Not found' }, 404)
+
+  const tag = `plan:${id}`
+  // Always clear any previous auto-log for this entry first (idempotent).
+  await db.delete(food_log).where(eq(food_log.portion, tag))
+
+  if (status === 'eaten' && row.recipe_id) {
+    const [recipe] = await db.select().from(recipes).where(eq(recipes.id, row.recipe_id))
+    if (recipe?.macros) {
+      const m = JSON.parse(recipe.macros) as Macros
+      const mult = row.servings ?? 1
+      await db.insert(food_log).values({
+        date: row.date,
+        description: recipe.title,
+        recipe_id: recipe.id,
+        kcal: Math.round(m.kcal * mult),
+        protein_g: Math.round(m.protein_g * mult * 10) / 10,
+        carbs_g: Math.round(m.carbs_g * mult * 10) / 10,
+        fat_g: Math.round(m.fat_g * mult * 10) / 10,
+        portion: tag,
+      })
+    }
+  }
+
   return c.json(parsePlanRow(row))
 })
 

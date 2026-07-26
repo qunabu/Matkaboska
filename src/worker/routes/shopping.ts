@@ -142,8 +142,12 @@ app.post('/generate', async (c) => {
     })
   }
 
-  if (itemsToInsert.length > 0) {
-    await db.insert(shopping_items).values(itemsToInsert)
+  // D1 allows at most 100 bound parameters per query. Drizzle binds 8 columns
+  // per row for this insert (incl. the `checked` default), so cap each batch at
+  // 10 rows (80 params) to stay safely under the limit.
+  const CHUNK = 10
+  for (let i = 0; i < itemsToInsert.length; i += CHUNK) {
+    await db.insert(shopping_items).values(itemsToInsert.slice(i, i + CHUNK))
   }
 
   const items = await db.select().from(shopping_items).where(eq(shopping_items.list_id, list.id))
