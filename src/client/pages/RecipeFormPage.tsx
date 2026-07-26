@@ -5,7 +5,7 @@ import { recipesApi } from '../lib/api'
 import pl from '../i18n/pl'
 import type { Ingredient, Category } from '../../shared/types'
 
-const CATEGORIES: Category[] = ['breakfast', 'lunch', 'dinner', 'snack', 'soup', 'salad', 'smoothie', 'dessert', 'other']
+const CATEGORIES: Category[] = ['breakfast', 'main', 'snack', 'classic']
 const catLabel = (c: Category) => pl.recipes.categories[c as keyof typeof pl.recipes.categories] ?? c
 
 interface FormState {
@@ -23,7 +23,7 @@ interface FormState {
 
 const emptyForm: FormState = {
   title: '',
-  category: 'lunch',
+  category: 'main',
   servings: 2,
   prep_minutes: '',
   ingredients: [{ name: '', amount: '', unit: '' }],

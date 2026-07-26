@@ -1,4 +1,4 @@
-export type Category = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'soup' | 'salad' | 'smoothie' | 'dessert' | 'other'
+export type Category = 'breakfast' | 'main' | 'snack' | 'classic'
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 export type PlanStatus = 'planned' | 'eaten' | 'skipped'
 export type SupKind = 'supplement' | 'medication'

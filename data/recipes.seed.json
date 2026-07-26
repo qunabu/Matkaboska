@@ -1,0 +1,1238 @@
+[
+  {
+    "slug": "s1-owsianka-proteinowa",
+    "title": "Owsianka proteinowa",
+    "category": "breakfast",
+    "servings": 1,
+    "prep_minutes": 10,
+    "ingredients": [
+      { "name": "płatki owsiane", "amount": "60", "unit": "g" },
+      { "name": "mleko (lub napój roślinny)", "amount": "250", "unit": "ml" },
+      { "name": "odżywka białkowa (waniliowa)", "amount": "1", "unit": "kawałek" },
+      { "name": "banan", "amount": "1", "unit": "szt" },
+      { "name": "masło orzechowe", "amount": "1", "unit": "łyżka" },
+      { "name": "owoce (np. borówki)", "amount": "", "unit": "garść" }
+    ],
+    "steps": [
+      "Wsyp płatki do małego garnka i zalej mlekiem.",
+      "Gotuj na średnim ogniu ok. 4–5 min, cały czas mieszając, aż zgęstnieje.",
+      "Zdejmij z ognia i odczekaj 1 minutę (do gorącego odżywka się zważy). Wmieszaj odżywkę białkową.",
+      "Przełóż do miski. Na wierzch pokrojony banan, masło orzechowe i owoce."
+    ],
+    "tags": ["wegetariańskie", "szybkie", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 40,
+    "macros": { "kcal": 620, "protein_g": 40, "carbs_g": 70, "fat_g": 18, "fiber_g": 9 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "s2-jajecznica-z-tostem",
+    "title": "Jajecznica z tostem",
+    "category": "breakfast",
+    "servings": 1,
+    "prep_minutes": 10,
+    "ingredients": [
+      { "name": "jajka", "amount": "3", "unit": "szt" },
+      { "name": "masło", "amount": "1", "unit": "łyżeczka" },
+      { "name": "szczypiorek", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieprz", "amount": "", "unit": "do smaku" },
+      { "name": "chleb pełnoziarnisty", "amount": "2", "unit": "kromki" },
+      { "name": "pomidor", "amount": "1", "unit": "szt" },
+      { "name": "skyr", "amount": "150", "unit": "g" }
+    ],
+    "steps": [
+      "Roztrzep jajka widelcem w misce ze szczyptą soli.",
+      "Rozgrzej patelnię na średnim ogniu, roztop masło.",
+      "Wlej jajka. Po ok. 30 s zacznij delikatnie mieszać łopatką i zgarniać z brzegów do środka.",
+      "Smaż 2–3 min, aż się zetną, ale będą jeszcze wilgotne. Zdejmij od razu (na patelni „dojdą”).",
+      "Podaj z tostem, pokrojonym pomidorem i skyrem obok."
+    ],
+    "tags": ["wegetariańskie", "szybkie", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 40,
+    "macros": { "kcal": 520, "protein_g": 40, "carbs_g": 40, "fat_g": 22, "fiber_g": 6 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "s3-nalesniki-proteinowe-z-twarogiem",
+    "title": "Naleśniki proteinowe z twarogiem",
+    "category": "breakfast",
+    "servings": 2,
+    "prep_minutes": 20,
+    "ingredients": [
+      { "name": "jajka", "amount": "2", "unit": "szt" },
+      { "name": "twaróg półtłusty", "amount": "150", "unit": "g" },
+      { "name": "mąka (lub płatki owsiane zmielone)", "amount": "4", "unit": "łyżki" },
+      { "name": "mleko", "amount": "100", "unit": "ml" },
+      { "name": "sól", "amount": "", "unit": "szczypta" },
+      { "name": "olej do smażenia", "amount": "", "unit": "do smaku" },
+      { "name": "twaróg do nadzienia", "amount": "150", "unit": "g" },
+      { "name": "miód", "amount": "1", "unit": "łyżeczka" },
+      { "name": "owoce", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Zmiksuj blenderem jajka, twaróg, mąkę, mleko i sól na gładkie ciasto (albo dokładnie roztrzep widelcem).",
+      "Rozgrzej patelnię na średnim ogniu, posmaruj cienko olejem (np. ręcznikiem papierowym).",
+      "Wlej chochlę ciasta, rozprowadź po patelni. Smaż ok. 1,5–2 min, aż spód się zetnie, przewróć i smaż drugą stronę 1 min.",
+      "Twaróg na nadzienie wymieszaj z miodem. Nałóż na naleśnik, zawiń, podaj z owocami."
+    ],
+    "tags": ["wegetariańskie", "szybkie", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 40,
+    "macros": { "kcal": 480, "protein_g": 40, "carbs_g": 42, "fat_g": 16, "fiber_g": 3 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "s4-jogurt-proteinowy-z-orzechami",
+    "title": "Jogurt proteinowy z orzechami",
+    "category": "breakfast",
+    "servings": 1,
+    "prep_minutes": 5,
+    "ingredients": [
+      { "name": "jogurt proteinowy (skyr pitny lub gęsty)", "amount": "200", "unit": "g" },
+      { "name": "orzechy", "amount": "", "unit": "garść" },
+      { "name": "owoce", "amount": "", "unit": "do smaku" },
+      { "name": "granola", "amount": "1", "unit": "łyżka" },
+      { "name": "gofry proteinowe (opcjonalnie)", "amount": "2", "unit": "szt" }
+    ],
+    "steps": [
+      "Przełóż jogurt do miski.",
+      "Dorzuć orzechy, owoce i granolę. Gotowe. (Gofry ewentualnie obok.)"
+    ],
+    "tags": ["wegetariańskie", "szybkie", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 35,
+    "macros": { "kcal": 420, "protein_g": 35, "carbs_g": 32, "fat_g": 16, "fiber_g": 4 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "s5-placki-z-cukinii",
+    "title": "Placki z cukinii",
+    "category": "breakfast",
+    "servings": 2,
+    "prep_minutes": 25,
+    "ingredients": [
+      { "name": "cukinia", "amount": "300", "unit": "g" },
+      { "name": "jajka", "amount": "2", "unit": "szt" },
+      { "name": "mąka", "amount": "4", "unit": "łyżki" },
+      { "name": "starty ser żółty lub feta", "amount": "3", "unit": "łyżki" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieprz", "amount": "", "unit": "do smaku" },
+      { "name": "olej do smażenia", "amount": "", "unit": "do smaku" },
+      { "name": "jogurt naturalny do podania", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Zetrzyj cukinię na tarce (grube oczka). Posól, odczekaj 5 min i odciśnij wodę rękami (ważne, żeby placki się trzymały).",
+      "Dodaj jajka, mąkę, ser, pieprz. Wymieszaj na gęstą masę.",
+      "Rozgrzej olej na patelni (średni ogień). Nakładaj łyżką porcje, spłaszczaj.",
+      "Smaż 3 min z jednej strony, przewróć, 2–3 min z drugiej, aż będą złote. Podaj z jogurtem."
+    ],
+    "tags": ["wegetariańskie", "szybkie"],
+    "is_seafood": false,
+    "known_protein_g": 28,
+    "macros": { "kcal": 380, "protein_g": 28, "carbs_g": 30, "fat_g": 18, "fiber_g": 4 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "s6-omlet-ze-szpinakiem-i-serem",
+    "title": "Omlet ze szpinakiem i serem",
+    "category": "breakfast",
+    "servings": 1,
+    "prep_minutes": 10,
+    "ingredients": [
+      { "name": "jajka", "amount": "3", "unit": "szt" },
+      { "name": "świeży szpinak", "amount": "", "unit": "garść" },
+      { "name": "ser (żółty lub feta)", "amount": "30", "unit": "g" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieprz", "amount": "", "unit": "do smaku" },
+      { "name": "masło", "amount": "1", "unit": "łyżeczka" },
+      { "name": "chleb", "amount": "1", "unit": "kromki" }
+    ],
+    "steps": [
+      "Roztrzep jajka ze szczyptą soli.",
+      "Roztop masło na patelni (średni ogień), wrzuć szpinak i mieszaj ok. 1 min, aż zwiędnie.",
+      "Zalej jajkami. Gdy spód się zetnie (ok. 2 min), posyp serem na połowie.",
+      "Złóż omlet na pół łopatką, zsuń na talerz. Podaj z chlebem."
+    ],
+    "tags": ["wegetariańskie", "szybkie", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 34,
+    "macros": { "kcal": 420, "protein_g": 34, "carbs_g": 20, "fat_g": 24, "fiber_g": 3 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "makaron-z-bolonskim-z-soczewicy",
+    "title": "Makaron z bolońskim z czerwonej soczewicy",
+    "category": "main",
+    "servings": 3,
+    "prep_minutes": 35,
+    "ingredients": [
+      { "name": "czerwona soczewica", "amount": "200", "unit": "g" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "marchewki", "amount": "2", "unit": "szt" },
+      { "name": "czosnek", "amount": "2", "unit": "ząbki" },
+      { "name": "pomidory krojone", "amount": "1", "unit": "puszka" },
+      { "name": "koncentrat pomidorowy", "amount": "1", "unit": "łyżka" },
+      { "name": "woda", "amount": "500", "unit": "ml" },
+      { "name": "oliwa", "amount": "2", "unit": "łyżki" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieprz", "amount": "", "unit": "do smaku" },
+      { "name": "suszone oregano", "amount": "1", "unit": "łyżeczka" },
+      { "name": "makaron pełnoziarnisty", "amount": "300", "unit": "g" },
+      { "name": "parmezan do posypania", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Cebulę pokrój w drobną kostkę, marchew zetrzyj na tarce, czosnek posiekaj.",
+      "Rozgrzej oliwę w dużym garnku (średni ogień). Wrzuć cebulę i marchew, smaż 5 min mieszając. Dodaj czosnek, smaż 30 s.",
+      "Dodaj koncentrat, wymieszaj (10 s), potem pomidory z puszki, wodę i opłukaną soczewicę. Dopraw oregano, solą, pieprzem.",
+      "Gotuj pod przykryciem ok. 20 min na małym ogniu, mieszając co jakiś czas, aż soczewica będzie miękka, a sos gęsty. Jak za gęsty — dolej wody.",
+      "W międzyczasie ugotuj makaron wg opakowania w osolonej wodzie. Odcedź.",
+      "Podaj sos na makaronie, posyp parmezanem. Resztę sosu schłodź — starczy na kolejne dni (odgrzej z odrobiną wody)."
+    ],
+    "tags": ["wegetariańskie", "prep", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 34,
+    "macros": { "kcal": 560, "protein_g": 34, "carbs_g": 85, "fat_g": 12, "fiber_g": 14 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "tofu-zmieniajace-zycie",
+    "title": "Tofu zmieniające życie",
+    "category": "main",
+    "servings": 3,
+    "prep_minutes": 35,
+    "ingredients": [
+      { "name": "tofu twarde", "amount": "400", "unit": "g" },
+      { "name": "mąka ziemniaczana (lub zwykła)", "amount": "2", "unit": "łyżki" },
+      { "name": "olej", "amount": "3", "unit": "łyżki" },
+      { "name": "sos sojowy", "amount": "3", "unit": "łyżki" },
+      { "name": "miód", "amount": "1", "unit": "łyżka" },
+      { "name": "czosnek (starty)", "amount": "1", "unit": "ząbki" },
+      { "name": "ocet ryżowy lub sok z cytryny", "amount": "1", "unit": "łyżeczka" },
+      { "name": "kasza gryczana", "amount": "200", "unit": "g" },
+      { "name": "warzywa (cukinia, marchew, papryka)", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Tofu odciśnij: owiń w ręcznik papierowy, dociśnij czymś ciężkim na 10 min (pozbywa się wody, będzie chrupiące).",
+      "Pokrój tofu w kostkę ok. 2 cm. Obtocz w mące ziemniaczanej (najłatwiej: włóż do miski z mąką i delikatnie potrząśnij).",
+      "Rozgrzej olej na patelni (średni-mocny ogień). Smaż tofu ok. 8–10 min, obracając, aż będzie złote i chrupiące ze wszystkich stron.",
+      "Wymieszaj składniki marynaty. Wlej na patelnię z tofu, smaż 1–2 min, aż sos zgęstnieje i oblepi kostki. Zdejmij.",
+      "Kaszę ugotuj wg opakowania. Warzywa pokrój, podsmaż na oddzielnej patelni 8–10 min. Podaj razem."
+    ],
+    "tags": ["wegetariańskie", "prep", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 32,
+    "macros": { "kcal": 540, "protein_g": 32, "carbs_g": 60, "fat_g": 20, "fiber_g": 8 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "curry-warzywne-z-ciecierzyca",
+    "title": "Curry warzywne z ciecierzycą",
+    "category": "main",
+    "servings": 3,
+    "prep_minutes": 35,
+    "ingredients": [
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "czosnek", "amount": "2", "unit": "ząbki" },
+      { "name": "imbir (opcjonalnie)", "amount": "1", "unit": "kawałek" },
+      { "name": "ciecierzyca", "amount": "1", "unit": "puszka" },
+      { "name": "mleko kokosowe", "amount": "1", "unit": "puszka" },
+      { "name": "pomidory", "amount": "1", "unit": "puszka" },
+      { "name": "marchewki", "amount": "2", "unit": "szt" },
+      { "name": "papryka", "amount": "1", "unit": "szt" },
+      { "name": "szpinak", "amount": "", "unit": "garść" },
+      { "name": "łagodne curry w proszku", "amount": "2", "unit": "łyżeczki" },
+      { "name": "kurkuma", "amount": "1", "unit": "łyżeczka" },
+      { "name": "olej", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "ryż", "amount": "250", "unit": "g" }
+    ],
+    "steps": [
+      "Cebulę i czosnek posiekaj, imbir zetrzyj. Marchew i paprykę pokrój w kostkę.",
+      "Podsmaż cebulę na oleju 5 min, dodaj czosnek, imbir, curry i kurkumę — smaż 30 s (aż zapachnie).",
+      "Dodaj pomidory, mleko kokosowe, marchew i paprykę. Gotuj pod przykryciem 15 min na małym ogniu.",
+      "Dorzuć odcedzoną ciecierzycę i szpinak, gotuj jeszcze 5 min. Dopraw solą.",
+      "Ryż ugotuj osobno wg opakowania. Podaj razem. (Chili — na talerzu dla siebie.)"
+    ],
+    "tags": ["wegetariańskie", "wegańskie", "prep", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 28,
+    "macros": { "kcal": 620, "protein_g": 28, "carbs_g": 80, "fat_g": 22, "fiber_g": 12 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "vege-moussaka",
+    "title": "Vege moussaka z soczewicą",
+    "category": "main",
+    "servings": 4,
+    "prep_minutes": 55,
+    "ingredients": [
+      { "name": "bakłażany", "amount": "2", "unit": "szt" },
+      { "name": "ziemniaki", "amount": "3", "unit": "szt" },
+      { "name": "czerwona soczewica", "amount": "150", "unit": "g" },
+      { "name": "pomidory", "amount": "1", "unit": "puszka" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "czosnek", "amount": "2", "unit": "ząbki" },
+      { "name": "oliwa", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "oregano", "amount": "", "unit": "do smaku" },
+      { "name": "masło", "amount": "40", "unit": "g" },
+      { "name": "mąka", "amount": "40", "unit": "g" },
+      { "name": "mleko", "amount": "500", "unit": "ml" },
+      { "name": "starty ser", "amount": "50", "unit": "g" },
+      { "name": "gałka muszkatołowa", "amount": "", "unit": "szczypta" }
+    ],
+    "steps": [
+      "Bakłażany i ziemniaki pokrój w plastry ok. 0,5 cm. Ułóż na blaszce, skrop oliwą, posól. Piecz w 200°C ok. 20 min (aż zmiękną).",
+      "Sos: podsmaż cebulę i czosnek na oliwie 5 min, dodaj pomidory, opłukaną soczewicę, 200 ml wody, oregano, sól. Gotuj 20 min, aż soczewica zmięknie.",
+      "Beszamel: rozpuść masło w garnku, wsyp mąkę, mieszaj 1 min. Powoli wlewaj mleko, cały czas mieszając trzepaczką, aż zgęstnieje (5 min). Zdejmij, wmieszaj ser i szczyptę gałki.",
+      "W naczyniu żaroodpornym układaj warstwami: ziemniaki → sos z soczewicą → bakłażan → sos → na wierzch beszamel.",
+      "Piecz w 190°C ok. 25 min, aż wierzch się zezłoci. Odczekaj 10 min przed krojeniem."
+    ],
+    "tags": ["wegetariańskie", "prep", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 34,
+    "macros": { "kcal": 560, "protein_g": 34, "carbs_g": 60, "fat_g": 22, "fiber_g": 12 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "dhal-z-czerwonej-soczewicy",
+    "title": "Dhal z czerwonej soczewicy",
+    "category": "main",
+    "servings": 3,
+    "prep_minutes": 30,
+    "ingredients": [
+      { "name": "czerwona soczewica", "amount": "200", "unit": "g" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "czosnek", "amount": "2", "unit": "ząbki" },
+      { "name": "kurkuma", "amount": "1", "unit": "łyżeczka" },
+      { "name": "kmin rzymski", "amount": "0.5", "unit": "łyżeczka" },
+      { "name": "mleko kokosowe", "amount": "1", "unit": "puszka" },
+      { "name": "woda", "amount": "600", "unit": "ml" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "olej", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Podsmaż posiekaną cebulę na oleju 5 min, dodaj czosnek i przyprawy, smaż 30 s.",
+      "Wsyp opłukaną soczewicę, zalej wodą i mlekiem kokosowym.",
+      "Gotuj bez przykrycia ok. 20 min na małym ogniu, mieszając, aż soczewica się rozpadnie i powstanie gęsta „zupa”. Dosól.",
+      "Podawaj z ryżem i/lub warzywami (patrz aloo gobi)."
+    ],
+    "tags": ["wegetariańskie", "wegańskie", "prep"],
+    "is_seafood": false,
+    "known_protein_g": 20,
+    "macros": { "kcal": 420, "protein_g": 20, "carbs_g": 45, "fat_g": 18, "fiber_g": 10 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "lagodne-aloo-gobi",
+    "title": "Łagodne aloo gobi",
+    "category": "main",
+    "servings": 3,
+    "prep_minutes": 35,
+    "ingredients": [
+      { "name": "kalafior", "amount": "1", "unit": "szt" },
+      { "name": "ziemniaki", "amount": "4", "unit": "szt" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "kurkuma", "amount": "1", "unit": "łyżeczka" },
+      { "name": "łagodne curry", "amount": "0.5", "unit": "łyżeczka" },
+      { "name": "olej", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "groszek (opcjonalnie)", "amount": "", "unit": "garść" }
+    ],
+    "steps": [
+      "Kalafior podziel na różyczki, ziemniaki pokrój w kostkę.",
+      "Podsmaż cebulę na oleju 5 min, dodaj przyprawy (30 s).",
+      "Dorzuć ziemniaki i kalafior, wymieszaj z przyprawami. Podlej ½ szklanki wody, przykryj.",
+      "Duś ok. 20 min na małym ogniu, mieszając od czasu do czasu, aż warzywa zmiękną. Dosól."
+    ],
+    "tags": ["wegetariańskie", "wegańskie", "prep"],
+    "is_seafood": false,
+    "known_protein_g": 8,
+    "macros": { "kcal": 260, "protein_g": 8, "carbs_g": 42, "fat_g": 7, "fiber_g": 8 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "pieczona-feta-z-makaronem",
+    "title": "Pieczona feta z makaronem",
+    "category": "main",
+    "servings": 2,
+    "prep_minutes": 30,
+    "ingredients": [
+      { "name": "feta", "amount": "200", "unit": "g" },
+      { "name": "pomidorki koktajlowe", "amount": "400", "unit": "g" },
+      { "name": "czosnek", "amount": "3", "unit": "ząbki" },
+      { "name": "oliwa", "amount": "3", "unit": "łyżki" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieprz", "amount": "", "unit": "do smaku" },
+      { "name": "oregano", "amount": "", "unit": "do smaku" },
+      { "name": "makaron", "amount": "200", "unit": "g" },
+      { "name": "rukola lub bazylia", "amount": "", "unit": "garść" }
+    ],
+    "steps": [
+      "Do naczynia żaroodpornego włóż całą kostkę fety na środek, dookoła pomidorki i rozgnieciony czosnek. Skrop oliwą, posyp oregano i pieprzem.",
+      "Piecz w 200°C ok. 25 min, aż feta zmięknie, a pomidorki popękają.",
+      "W tym czasie ugotuj makaron w osolonej wodzie, odcedź (zostaw pół szklanki wody z gotowania).",
+      "Rozgnieć fetę z pomidorami widelcem na sos, wymieszaj z makaronem (jak za gęsty — dolej wody z gotowania). Dorzuć rukolę."
+    ],
+    "tags": ["wegetariańskie", "prep", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 28,
+    "macros": { "kcal": 620, "protein_g": 28, "carbs_g": 70, "fat_g": 28, "fiber_g": 6 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "miska-z-ciecierzyca-tabbouleh-hummus",
+    "title": "Miska z pieczoną ciecierzycą + tabbouleh + hummus",
+    "category": "main",
+    "servings": 3,
+    "prep_minutes": 40,
+    "ingredients": [
+      { "name": "ciecierzyca", "amount": "2", "unit": "puszka" },
+      { "name": "oliwa", "amount": "2", "unit": "łyżki" },
+      { "name": "słodka papryka", "amount": "1", "unit": "łyżeczka" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "kasza bulgur", "amount": "150", "unit": "g" },
+      { "name": "natka pietruszki", "amount": "1", "unit": "pęczek" },
+      { "name": "pomidory", "amount": "2", "unit": "szt" },
+      { "name": "ogórek", "amount": "0.5", "unit": "szt" },
+      { "name": "sok z cytryny", "amount": "", "unit": "do smaku" },
+      { "name": "hummus", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Ciecierzycę odcedź, osusz ręcznikiem. Wymieszaj z oliwą, papryką i solą. Rozłóż na blaszce.",
+      "Piecz w 200°C ok. 25 min, mieszając w połowie, aż będzie lekko chrupiąca.",
+      "Bulgur zalej wrzątkiem (2:1), przykryj, odstaw 10 min, aż wchłonie wodę. Wymieszaj widelcem.",
+      "Natkę, pomidory i ogórka drobno posiekaj. Wymieszaj z bulgurem, sokiem z cytryny, oliwą i solą.",
+      "Nałóż do miski: tabbouleh, pieczoną ciecierzycę i łyżkę hummusu."
+    ],
+    "tags": ["wegetariańskie", "wegańskie", "prep", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 30,
+    "macros": { "kcal": 560, "protein_g": 30, "carbs_g": 75, "fat_g": 18, "fiber_g": 16 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "kasza-z-tofu-stir-fry",
+    "title": "Kasza z tofu stir-fry",
+    "category": "main",
+    "servings": 3,
+    "prep_minutes": 30,
+    "ingredients": [
+      { "name": "tofu twarde", "amount": "400", "unit": "g" },
+      { "name": "kasza (jaglana lub gryczana)", "amount": "200", "unit": "g" },
+      { "name": "marchewki", "amount": "2", "unit": "szt" },
+      { "name": "papryka", "amount": "1", "unit": "szt" },
+      { "name": "groszek lub fasolka szparagowa", "amount": "", "unit": "garść" },
+      { "name": "sos sojowy", "amount": "3", "unit": "łyżki" },
+      { "name": "miód", "amount": "1", "unit": "łyżka" },
+      { "name": "olej", "amount": "", "unit": "do smaku" },
+      { "name": "czosnek", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Kaszę ugotuj wg opakowania.",
+      "Tofu odciśnij (jak wyżej), pokrój w kostkę, podsmaż na oleju 8–10 min, aż będzie złote.",
+      "Warzywa pokrój w słupki. Dorzuć na patelnię do tofu, smaż 5 min (mają zostać lekko chrupkie).",
+      "Dodaj sos sojowy, miód i starty czosnek, wymieszaj (1 min). Połącz z kaszą."
+    ],
+    "tags": ["wegetariańskie", "prep", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 34,
+    "macros": { "kcal": 540, "protein_g": 34, "carbs_g": 62, "fat_g": 18, "fiber_g": 9 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "pasta-z-bialej-fasoli-kalafior-awokado",
+    "title": "Pasta z białej fasoli + pieczony kalafior + sałatka z awokado",
+    "category": "main",
+    "servings": 3,
+    "prep_minutes": 35,
+    "ingredients": [
+      { "name": "biała fasola", "amount": "1", "unit": "puszka" },
+      { "name": "oliwa", "amount": "2", "unit": "łyżki" },
+      { "name": "czosnek", "amount": "1", "unit": "ząbki" },
+      { "name": "sok z cytryny", "amount": "0.5", "unit": "szt" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieprz", "amount": "", "unit": "do smaku" },
+      { "name": "kalafior", "amount": "1", "unit": "szt" },
+      { "name": "awokado", "amount": "1", "unit": "szt" },
+      { "name": "czarna fasola", "amount": "1", "unit": "puszka" },
+      { "name": "pomidorki", "amount": "", "unit": "garść" },
+      { "name": "sok z limonki/cytryny", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Fasolę odcedź, zblenduj z oliwą, czosnkiem, cytryną i solą na gładką pastę (można też rozgnieść widelcem).",
+      "Kalafior podziel na różyczki, wymieszaj z oliwą i solą, piecz w 200°C ok. 25 min.",
+      "Awokado i pomidorki pokrój, wymieszaj z odcedzoną czarną fasolą, skrop sokiem z limonki, posól.",
+      "Podaj pastę na pieczywie lub jako dip, obok kalafior i sałatkę."
+    ],
+    "tags": ["wegetariańskie", "wegańskie", "prep", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 30,
+    "macros": { "kcal": 520, "protein_g": 30, "carbs_g": 55, "fat_g": 22, "fiber_g": 18 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "szakszuka-z-ciecierzyca",
+    "title": "Szakszuka z ciecierzycą",
+    "category": "main",
+    "servings": 2,
+    "prep_minutes": 25,
+    "ingredients": [
+      { "name": "jajka", "amount": "4", "unit": "szt" },
+      { "name": "pomidory", "amount": "1", "unit": "puszka" },
+      { "name": "ciecierzyca", "amount": "0.5", "unit": "puszka" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "papryka", "amount": "1", "unit": "szt" },
+      { "name": "czosnek", "amount": "1", "unit": "ząbki" },
+      { "name": "słodka papryka", "amount": "1", "unit": "łyżeczka" },
+      { "name": "oliwa", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieczywo", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Podsmaż na patelni pokrojoną cebulę i paprykę 5 min, dodaj czosnek i słodką paprykę (30 s).",
+      "Wlej pomidory, dorzuć ciecierzycę, dopraw solą. Duś 8 min, aż zgęstnieje.",
+      "Zrób łyżką 4 wgłębienia, wbij w nie po jajku. Przykryj patelnię.",
+      "Gotuj 5–7 min, aż białka się zetną, a żółtka pozostaną lejące (lub dłużej, jeśli wolisz ścięte). Podaj z pieczywem."
+    ],
+    "tags": ["wegetariańskie", "szybkie", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 30,
+    "macros": { "kcal": 460, "protein_g": 30, "carbs_g": 40, "fat_g": 20, "fiber_g": 10 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "hiszpanska-tortilla",
+    "title": "Hiszpańska tortilla",
+    "category": "main",
+    "servings": 2,
+    "prep_minutes": 30,
+    "ingredients": [
+      { "name": "jajka", "amount": "5", "unit": "szt" },
+      { "name": "ziemniaki", "amount": "3", "unit": "szt" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "oliwa", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "sałatka obok", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Ziemniaki obierz, pokrój w cienkie plastry. Cebulę w piórka.",
+      "Rozgrzej sporo oliwy na patelni, wrzuć ziemniaki i cebulę, smaż na średnim ogniu 12–15 min, aż zmiękną (nie mają się przypalić — mieszaj). Odcedź nadmiar oliwy.",
+      "Roztrzep jajka z solą, dodaj ziemniaki, wymieszaj.",
+      "Wlej wszystko na patelnię (odrobina oliwy), smaż 5 min na małym ogniu, aż spód się zetnie.",
+      "Nakryj talerzem, odwróć patelnię, zsuń tortillę z powrotem drugą stroną, smaż jeszcze 3–4 min. Podaj z sałatką."
+    ],
+    "tags": ["wegetariańskie", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 30,
+    "macros": { "kcal": 520, "protein_g": 30, "carbs_g": 42, "fat_g": 26, "fiber_g": 5 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "risotto-z-groszkiem-i-szpinakiem",
+    "title": "Risotto z groszkiem i szpinakiem",
+    "category": "main",
+    "servings": 2,
+    "prep_minutes": 35,
+    "ingredients": [
+      { "name": "ryż do risotto (arborio)", "amount": "200", "unit": "g" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "bulion warzywny (gorący)", "amount": "700", "unit": "ml" },
+      { "name": "groszek (mrożony)", "amount": "150", "unit": "g" },
+      { "name": "szpinak", "amount": "", "unit": "garść" },
+      { "name": "parmezan", "amount": "50", "unit": "g" },
+      { "name": "masło", "amount": "1", "unit": "łyżka" },
+      { "name": "oliwa", "amount": "", "unit": "do smaku" },
+      { "name": "edamame (opcjonalnie)", "amount": "100", "unit": "g" }
+    ],
+    "steps": [
+      "Podsmaż posiekaną cebulę na oliwie 5 min. Wsyp ryż, mieszaj 1 min (ma się „oszklić”).",
+      "Dolewaj gorący bulion po jednej chochli, cały czas mieszając. Kolejną chochlę dodawaj, gdy poprzednia wsiąknie. Tak ok. 18 min.",
+      "Pod koniec dodaj groszek, szpinak i edamame, gotuj 3 min.",
+      "Zdejmij z ognia, wmieszaj masło i parmezan. Dopraw. Risotto ma być kremowe, nie suche."
+    ],
+    "tags": ["wegetariańskie"],
+    "is_seafood": false,
+    "known_protein_g": 26,
+    "macros": { "kcal": 560, "protein_g": 26, "carbs_g": 78, "fat_g": 18, "fiber_g": 7 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "krewetki-smazone-z-warzywami",
+    "title": "Krewetki smażone z warzywami i ryżem",
+    "category": "main",
+    "servings": 2,
+    "prep_minutes": 25,
+    "ingredients": [
+      { "name": "krewetki (obrane, mogą być mrożone – rozmroź)", "amount": "300", "unit": "g" },
+      { "name": "papryka", "amount": "1", "unit": "szt" },
+      { "name": "cukinia", "amount": "1", "unit": "szt" },
+      { "name": "groszek cukrowy", "amount": "", "unit": "garść" },
+      { "name": "czosnek", "amount": "2", "unit": "ząbki" },
+      { "name": "sos sojowy", "amount": "2", "unit": "łyżki" },
+      { "name": "sok z cytryny", "amount": "0.5", "unit": "szt" },
+      { "name": "olej", "amount": "", "unit": "do smaku" },
+      { "name": "ryż", "amount": "150", "unit": "g" }
+    ],
+    "steps": [
+      "Ryż ugotuj wg opakowania.",
+      "Warzywa pokrój w słupki. Podsmaż na oleju (mocniejszy ogień) 5 min, ciągle mieszając.",
+      "Dorzuć krewetki i czosnek, smaż 3–4 min, aż krewetki zrobią się różowe (nie dłużej, bo stwardnieją).",
+      "Dodaj sos sojowy i cytrynę, wymieszaj. Podaj z ryżem."
+    ],
+    "tags": ["owoce morza", "szybkie", "wysokobiałkowe"],
+    "is_seafood": true,
+    "known_protein_g": 40,
+    "macros": { "kcal": 480, "protein_g": 40, "carbs_g": 55, "fat_g": 10, "fiber_g": 5 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "pieczony-losos-z-warzywami",
+    "title": "Pieczony łosoś z warzywami",
+    "category": "main",
+    "servings": 2,
+    "prep_minutes": 35,
+    "ingredients": [
+      { "name": "filety łososia (po ~150 g)", "amount": "2", "unit": "szt" },
+      { "name": "ziemniaki", "amount": "4", "unit": "szt" },
+      { "name": "brokuł", "amount": "1", "unit": "szt" },
+      { "name": "marchewki", "amount": "2", "unit": "szt" },
+      { "name": "oliwa", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieprz", "amount": "", "unit": "do smaku" },
+      { "name": "cytryna", "amount": "0.5", "unit": "szt" }
+    ],
+    "steps": [
+      "Ziemniaki pokrój w ćwiartki, marchew w słupki. Wymieszaj z oliwą i solą, rozłóż na blaszce. Piecz 200°C przez 15 min.",
+      "Dołóż na blaszkę różyczki brokułu i filety łososia (skórą do dołu). Skrop oliwą i cytryną, posól, popieprz.",
+      "Piecz jeszcze 15 min, aż łosoś będzie łatwo się rozdzielał widelcem, a warzywa miękkie."
+    ],
+    "tags": ["ryba", "wysokobiałkowe"],
+    "is_seafood": true,
+    "known_protein_g": 40,
+    "macros": { "kcal": 540, "protein_g": 40, "carbs_g": 45, "fat_g": 22, "fiber_g": 8 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "p1-batony-bialkowe-orzechowe",
+    "title": "Batony białkowe orzechowe",
+    "category": "snack",
+    "servings": 10,
+    "prep_minutes": 20,
+    "ingredients": [
+      { "name": "płatki owsiane", "amount": "150", "unit": "g" },
+      { "name": "masło orzechowe (gładkie)", "amount": "120", "unit": "g" },
+      { "name": "miód lub syrop klonowy", "amount": "80", "unit": "g" },
+      { "name": "odżywka białkowa", "amount": "60", "unit": "g" },
+      { "name": "orzechy posiekane (nerkowce/migdały/włoskie)", "amount": "80", "unit": "g" },
+      { "name": "mleko (jeśli masa za sucha)", "amount": "3", "unit": "łyżki" },
+      { "name": "gorzka czekolada (opcjonalnie)", "amount": "50", "unit": "g" }
+    ],
+    "steps": [
+      "W dużej misce wymieszaj płatki, odżywkę i posiekane orzechy.",
+      "Masło orzechowe i miód lekko podgrzej (30 s w mikrofali lub w garnku), żeby się dobrze łączyły. Wlej do miski.",
+      "Wymieszaj wszystko łyżką na kleistą masę. Jeśli jest za sucha i się nie skleja — dolej łyżkę mleka na raz, aż da się uformować.",
+      "Formę (ok. 20×20 cm) wyłóż papierem do pieczenia. Przełóż masę i mocno ubij dłonią lub łyżką na równą warstwę (im mocniej, tym lepiej się trzymają).",
+      "Opcjonalnie: rozpuść czekoladę (30 s w mikrofali, wymieszaj) i rozprowadź po wierzchu.",
+      "Wstaw do lodówki na min. 2 godziny. Pokrój na batony ostrym nożem. Przechowuj w lodówce do 7 dni (albo zamroź)."
+    ],
+    "tags": ["wegetariańskie", "szybkie"],
+    "is_seafood": false,
+    "known_protein_g": 11,
+    "macros": { "kcal": 220, "protein_g": 11, "carbs_g": 20, "fat_g": 11, "fiber_g": 3 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "p2-skyr-z-orzechami",
+    "title": "Skyr z orzechami",
+    "category": "snack",
+    "servings": 1,
+    "prep_minutes": 5,
+    "ingredients": [
+      { "name": "skyr", "amount": "150", "unit": "g" },
+      { "name": "orzechy", "amount": "", "unit": "garść" },
+      { "name": "owoce", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Skyr 150 g + garść orzechów + owoce. Wymieszaj, gotowe."
+    ],
+    "tags": ["wegetariańskie", "szybkie"],
+    "is_seafood": false,
+    "known_protein_g": 18,
+    "macros": { "kcal": 220, "protein_g": 18, "carbs_g": 14, "fat_g": 10, "fiber_g": 2 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "p3-hummus-z-warzywami",
+    "title": "Hummus z warzywami",
+    "category": "snack",
+    "servings": 4,
+    "prep_minutes": 10,
+    "ingredients": [
+      { "name": "ciecierzyca", "amount": "1", "unit": "puszka" },
+      { "name": "tahini (pasta sezamowa)", "amount": "2", "unit": "łyżki" },
+      { "name": "oliwa", "amount": "2", "unit": "łyżki" },
+      { "name": "sok z cytryny", "amount": "0.5", "unit": "szt" },
+      { "name": "czosnek", "amount": "1", "unit": "ząbki" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "woda", "amount": "4", "unit": "łyżki" },
+      { "name": "warzywa do maczania (marchew, papryka, ogórek)", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Ciecierzycę odcedź (zachowaj trochę zalewy).",
+      "Zblenduj ciecierzycę z tahini, oliwą, cytryną, czosnkiem i solą. Dolewaj wodę (lub zalewę) po łyżce, aż będzie gładki i kremowy.",
+      "Podaj z warzywami pokrojonymi w słupki."
+    ],
+    "tags": ["wegetariańskie", "wegańskie", "szybkie"],
+    "is_seafood": false,
+    "known_protein_g": 10,
+    "macros": { "kcal": 220, "protein_g": 10, "carbs_g": 22, "fat_g": 11, "fiber_g": 7 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "p4-koktajl-proteinowy",
+    "title": "Koktajl proteinowy",
+    "category": "snack",
+    "servings": 1,
+    "prep_minutes": 5,
+    "ingredients": [
+      { "name": "mleko", "amount": "250", "unit": "ml" },
+      { "name": "odżywka białkowa", "amount": "1", "unit": "kawałek" },
+      { "name": "banan", "amount": "1", "unit": "szt" },
+      { "name": "masło orzechowe", "amount": "1", "unit": "łyżka" }
+    ],
+    "steps": [
+      "250 ml mleka + 1 miarka odżywki + 1 banan + łyżka masła orzechowego. Zblenduj."
+    ],
+    "tags": ["wegetariańskie", "szybkie", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 34,
+    "macros": { "kcal": 400, "protein_g": 34, "carbs_g": 40, "fat_g": 12, "fiber_g": 4 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "p5-twarog-z-rzodkiewka",
+    "title": "Twaróg z rzodkiewką",
+    "category": "snack",
+    "servings": 1,
+    "prep_minutes": 5,
+    "ingredients": [
+      { "name": "twaróg", "amount": "150", "unit": "g" },
+      { "name": "jogurt", "amount": "", "unit": "do smaku" },
+      { "name": "rzodkiewka", "amount": "", "unit": "do smaku" },
+      { "name": "szczypiorek", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Twaróg 150 g rozgnieć widelcem z odrobiną jogurtu, dodaj pokrojoną rzodkiewkę i szczypiorek, posól."
+    ],
+    "tags": ["wegetariańskie", "szybkie"],
+    "is_seafood": false,
+    "known_protein_g": 24,
+    "macros": { "kcal": 180, "protein_g": 24, "carbs_g": 8, "fat_g": 6, "fiber_g": 1 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "zapiekany-makaron-z-soczewica",
+    "title": "Zapiekany makaron z soczewicą i warzywami",
+    "category": "main",
+    "servings": 4,
+    "prep_minutes": 50,
+    "ingredients": [
+      { "name": "makaron (np. penne)", "amount": "300", "unit": "g" },
+      { "name": "czerwona soczewica", "amount": "150", "unit": "g" },
+      { "name": "pomidory", "amount": "1", "unit": "puszka" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "czosnek", "amount": "2", "unit": "ząbki" },
+      { "name": "cukinia", "amount": "1", "unit": "szt" },
+      { "name": "starty ser", "amount": "150", "unit": "g" },
+      { "name": "oliwa", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "oregano", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Ugotuj makaron o 2 min krócej niż podano na opakowaniu (dojdzie w piekarniku). Odcedź.",
+      "Podsmaż posiekaną cebulę i czosnek na oliwie 5 min. Dodaj pokrojoną cukinię, smaż 5 min.",
+      "Wlej pomidory, dodaj opłukaną soczewicę i szklankę wody. Duś 15 min, aż soczewica zmięknie. Dopraw oregano i solą.",
+      "Wymieszaj sos z makaronem, przełóż do naczynia żaroodpornego, posyp serem.",
+      "Piecz w 190°C ok. 20 min, aż ser się zezłoci."
+    ],
+    "tags": ["wegetariańskie", "prep", "wysokobiałkowe"],
+    "is_seafood": false,
+    "known_protein_g": 32,
+    "macros": { "kcal": 600, "protein_g": 32, "carbs_g": 82, "fat_g": 18, "fiber_g": 12 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "gulasz-z-ciecierzycy-i-batata",
+    "title": "Gulasz z ciecierzycy i batata",
+    "category": "main",
+    "servings": 3,
+    "prep_minutes": 40,
+    "ingredients": [
+      { "name": "ciecierzyca", "amount": "2", "unit": "puszka" },
+      { "name": "batat (słodki ziemniak)", "amount": "1", "unit": "szt" },
+      { "name": "pomidory", "amount": "1", "unit": "puszka" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "czosnek", "amount": "2", "unit": "ząbki" },
+      { "name": "słodka papryka", "amount": "1", "unit": "łyżeczka" },
+      { "name": "kumin", "amount": "0.5", "unit": "łyżeczka" },
+      { "name": "woda", "amount": "300", "unit": "ml" },
+      { "name": "oliwa", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Batata obierz i pokrój w kostkę. Cebulę i czosnek posiekaj.",
+      "Podsmaż cebulę na oliwie 5 min, dodaj czosnek i przyprawy (30 s).",
+      "Dodaj pomidory, wodę i batata. Gotuj pod przykryciem 15 min.",
+      "Dorzuć odcedzoną ciecierzycę, gotuj jeszcze 10 min, aż batat będzie miękki. Dosól. Podaj z ryżem lub pieczywem."
+    ],
+    "tags": ["wegetariańskie", "wegańskie", "prep"],
+    "is_seafood": false,
+    "known_protein_g": 26,
+    "macros": { "kcal": 480, "protein_g": 26, "carbs_g": 70, "fat_g": 12, "fiber_g": 16 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "frittata-warzywna-z-feta",
+    "title": "Frittata warzywna z fetą",
+    "category": "main",
+    "servings": 4,
+    "prep_minutes": 35,
+    "ingredients": [
+      { "name": "jajka", "amount": "8", "unit": "szt" },
+      { "name": "cukinia", "amount": "1", "unit": "szt" },
+      { "name": "papryka", "amount": "1", "unit": "szt" },
+      { "name": "pomidorki", "amount": "", "unit": "garść" },
+      { "name": "feta", "amount": "100", "unit": "g" },
+      { "name": "szczypiorek", "amount": "", "unit": "do smaku" },
+      { "name": "oliwa", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieprz", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Rozgrzej piekarnik do 190°C. Warzywa pokrój w kostkę.",
+      "Na patelni żaroodpornej (lub przełóż potem do formy) podsmaż warzywa na oliwie 6–8 min.",
+      "Roztrzep jajka z solą i pieprzem, zalej warzywa. Pokrusz fetę na wierzch, posyp szczypiorkiem.",
+      "Wstaw patelnię/formę do piekarnika na 15–18 min, aż jajka się zetną. Krój jak pizzę."
+    ],
+    "tags": ["wegetariańskie", "prep"],
+    "is_seafood": false,
+    "known_protein_g": 26,
+    "macros": { "kcal": 360, "protein_g": 26, "carbs_g": 12, "fat_g": 24, "fiber_g": 3 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "leczo-z-tofu",
+    "title": "Leczo z tofu",
+    "category": "main",
+    "servings": 3,
+    "prep_minutes": 35,
+    "ingredients": [
+      { "name": "tofu twarde", "amount": "400", "unit": "g" },
+      { "name": "papryki (różne kolory)", "amount": "3", "unit": "szt" },
+      { "name": "cebule", "amount": "2", "unit": "szt" },
+      { "name": "pomidory", "amount": "1", "unit": "puszka" },
+      { "name": "słodka papryka", "amount": "1", "unit": "łyżeczka" },
+      { "name": "oliwa", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieczywo lub ryż", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Tofu odciśnij, pokrój w kostkę, podsmaż na oleju 8 min na złoto. Zdejmij na talerz.",
+      "Na tej samej patelni podsmaż cebulę 5 min, dodaj pokrojoną paprykę, smaż 5 min.",
+      "Wlej pomidory, dopraw słodką papryką i solą. Duś 10 min.",
+      "Wrzuć tofu z powrotem, wymieszaj, pogrzej 2 min. Podaj z pieczywem lub ryżem."
+    ],
+    "tags": ["wegetariańskie", "wegańskie", "prep"],
+    "is_seafood": false,
+    "known_protein_g": 28,
+    "macros": { "kcal": 420, "protein_g": 28, "carbs_g": 30, "fat_g": 20, "fiber_g": 8 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "zupa-krem-z-czerwonej-soczewicy",
+    "title": "Zupa krem z czerwonej soczewicy",
+    "category": "main",
+    "servings": 3,
+    "prep_minutes": 30,
+    "ingredients": [
+      { "name": "czerwona soczewica", "amount": "200", "unit": "g" },
+      { "name": "marchewki", "amount": "2", "unit": "szt" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "czosnek", "amount": "1", "unit": "ząbki" },
+      { "name": "kurkuma", "amount": "1", "unit": "łyżeczka" },
+      { "name": "bulion warzywny", "amount": "1000", "unit": "ml" },
+      { "name": "oliwa", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "jogurt do podania (opcjonalnie)", "amount": "1", "unit": "łyżka" }
+    ],
+    "steps": [
+      "Podsmaż posiekaną cebulę i marchew na oliwie 5 min. Dodaj czosnek i kurkumę (30 s).",
+      "Wsyp opłukaną soczewicę, zalej bulionem. Gotuj 20 min, aż wszystko miękkie.",
+      "Zblenduj na gładki krem. Dosól. Podaj z kleksem jogurtu i pieczywem (dla białka dorzuć jajko na twardo)."
+    ],
+    "tags": ["wegetariańskie", "prep"],
+    "is_seafood": false,
+    "known_protein_g": 18,
+    "macros": { "kcal": 320, "protein_g": 18, "carbs_g": 45, "fat_g": 8, "fiber_g": 9 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "placki-z-ciecierzycy-socca",
+    "title": "Placki z ciecierzycy (socca) z warzywami",
+    "category": "main",
+    "servings": 2,
+    "prep_minutes": 25,
+    "ingredients": [
+      { "name": "mąka z ciecierzycy", "amount": "150", "unit": "g" },
+      { "name": "woda", "amount": "300", "unit": "ml" },
+      { "name": "oliwa", "amount": "3", "unit": "łyżki" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "jogurt do podania", "amount": "", "unit": "do smaku" },
+      { "name": "sałatka, warzywa", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Wymieszaj mąkę z wodą, oliwą i solą na gładkie ciasto (jak na naleśniki). Odstaw na 10 min.",
+      "Rozgrzej patelnię z odrobiną oliwy (średni ogień). Wlej cienką warstwę ciasta.",
+      "Smaż ok. 3 min, aż spód się zetnie, przewróć, smaż 2 min. Powtórz.",
+      "Podaj z jogurtem i warzywami. (Dla większego białka podaj z jajkiem lub fetą.)"
+    ],
+    "tags": ["wegetariańskie", "wegańskie", "szybkie"],
+    "is_seafood": false,
+    "known_protein_g": 20,
+    "macros": { "kcal": 380, "protein_g": 20, "carbs_g": 42, "fat_g": 16, "fiber_g": 9 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "kotlety-jaglane-z-tofu",
+    "title": "Kotlety jaglane z tofu",
+    "category": "main",
+    "servings": 3,
+    "prep_minutes": 40,
+    "ingredients": [
+      { "name": "kasza jaglana", "amount": "150", "unit": "g" },
+      { "name": "tofu", "amount": "200", "unit": "g" },
+      { "name": "marchewka (starta)", "amount": "1", "unit": "szt" },
+      { "name": "mąka", "amount": "2", "unit": "łyżki" },
+      { "name": "jajko", "amount": "1", "unit": "szt" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieprz", "amount": "", "unit": "do smaku" },
+      { "name": "słodka papryka", "amount": "1", "unit": "łyżeczka" },
+      { "name": "olej do smażenia", "amount": "", "unit": "do smaku" },
+      { "name": "bułka tarta (opcjonalnie)", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Kaszę ugotuj wg opakowania, odstaw do przestygnięcia.",
+      "Tofu rozgnieć widelcem. Wymieszaj z kaszą, startą marchewką, jajkiem, mąką i przyprawami na masę, którą da się formować (jak za luźna — dodaj mąki lub bułki tartej).",
+      "Uformuj kotlety, obtocz w bułce tartej.",
+      "Smaż na oleju po 3–4 min z każdej strony, aż będą złote. Podaj z warzywami lub sałatką."
+    ],
+    "tags": ["wegetariańskie", "prep"],
+    "is_seafood": false,
+    "known_protein_g": 24,
+    "macros": { "kcal": 440, "protein_g": 24, "carbs_g": 52, "fat_g": 16, "fiber_g": 6 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "falafel-pieczony",
+    "title": "Falafel pieczony",
+    "category": "classic",
+    "servings": 3,
+    "prep_minutes": 40,
+    "ingredients": [
+      { "name": "sucha ciecierzyca (namoczona 8–12 h)", "amount": "250", "unit": "g" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "czosnek", "amount": "2", "unit": "ząbki" },
+      { "name": "natka pietruszki", "amount": "1", "unit": "pęczek" },
+      { "name": "kumin", "amount": "1", "unit": "łyżeczka" },
+      { "name": "mielona kolendra", "amount": "1", "unit": "łyżeczka" },
+      { "name": "mąka", "amount": "3", "unit": "łyżki" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "oliwa", "amount": "2", "unit": "łyżki" }
+    ],
+    "steps": [
+      "Namoczoną ciecierzycę odcedź i osusz (jest twarda, surowa — tak ma być).",
+      "Zmiel w blenderze ciecierzycę z cebulą, czosnkiem, natką i przyprawami na grubą, wilgotną masę (nie na gładko).",
+      "Wmieszaj mąkę i sól. Odstaw na 10 min. Formuj małe kulki lub spłaszczone placuszki.",
+      "Ułóż na blaszce z papierem, posmaruj/skrop oliwą. Piecz w 200°C ok. 25 min, w połowie obróć, aż będą złote.",
+      "Podaj z hummusem, pitą i sałatką. (Można też usmażyć na patelni na większej ilości oleju.)"
+    ],
+    "tags": ["wegetariańskie", "wegańskie", "do pracy"],
+    "is_seafood": false,
+    "known_protein_g": 18,
+    "macros": { "kcal": 360, "protein_g": 18, "carbs_g": 45, "fat_g": 12, "fiber_g": 12 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "burgery-z-czarnej-fasoli",
+    "title": "Burgery z czarnej fasoli",
+    "category": "classic",
+    "servings": 3,
+    "prep_minutes": 30,
+    "ingredients": [
+      { "name": "czarna fasola", "amount": "2", "unit": "puszka" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "jajko", "amount": "1", "unit": "szt" },
+      { "name": "bułka tarta lub zmielone płatki owsiane", "amount": "4", "unit": "łyżki" },
+      { "name": "słodka papryka", "amount": "1", "unit": "łyżeczka" },
+      { "name": "kumin", "amount": "0.5", "unit": "łyżeczka" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "olej", "amount": "", "unit": "do smaku" },
+      { "name": "bułki, warzywa, jogurt/sos do podania", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Fasolę odcedź, osusz i rozgnieć widelcem (część może zostać w kawałkach — będzie się lepiej trzymać).",
+      "Cebulę drobno posiekaj. Dodaj do fasoli razem z jajkiem, bułką tartą i przyprawami. Wymieszaj na masę do formowania (za luźna — dodaj bułki tartej).",
+      "Uformuj kotlety. Smaż na oleju po 3–4 min z każdej strony (lub piecz 200°C ~20 min).",
+      "Podaj w bułce z warzywami i sosem, albo z ryżem/sałatką."
+    ],
+    "tags": ["wegetariańskie", "do pracy"],
+    "is_seafood": false,
+    "known_protein_g": 20,
+    "macros": { "kcal": 420, "protein_g": 20, "carbs_g": 60, "fat_g": 10, "fiber_g": 16 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "jajecznica-z-tofu-scramble",
+    "title": "Jajecznica z tofu (tofu scramble)",
+    "category": "classic",
+    "servings": 2,
+    "prep_minutes": 15,
+    "ingredients": [
+      { "name": "tofu twarde", "amount": "200", "unit": "g" },
+      { "name": "kurkuma (dla koloru)", "amount": "0.5", "unit": "łyżeczka" },
+      { "name": "płatki drożdżowe (opcjonalnie)", "amount": "1", "unit": "łyżka" },
+      { "name": "szpinak", "amount": "", "unit": "garść" },
+      { "name": "pomidorek", "amount": "1", "unit": "szt" },
+      { "name": "olej", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieprz", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Tofu odciśnij z wody i rozkrusz palcami/widelcem na kawałki jak jajecznica.",
+      "Rozgrzej olej na patelni. Wrzuć tofu, kurkumę, sól i pieprz, smaż 5 min, mieszając.",
+      "Dodaj szpinak i pokrojony pomidorek, smaż jeszcze 2 min. Podaj z pieczywem."
+    ],
+    "tags": ["wegetariańskie", "wegańskie", "szybkie", "do pracy"],
+    "is_seafood": false,
+    "known_protein_g": 20,
+    "macros": { "kcal": 260, "protein_g": 20, "carbs_g": 10, "fat_g": 16, "fiber_g": 4 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "marynowany-tempeh",
+    "title": "Marynowany tempeh",
+    "category": "classic",
+    "servings": 2,
+    "prep_minutes": 25,
+    "ingredients": [
+      { "name": "tempeh", "amount": "200", "unit": "g" },
+      { "name": "sos sojowy", "amount": "3", "unit": "łyżki" },
+      { "name": "miód/syrop klonowy", "amount": "1", "unit": "łyżka" },
+      { "name": "czosnek (starty)", "amount": "1", "unit": "ząbki" },
+      { "name": "olej", "amount": "1", "unit": "łyżeczka" },
+      { "name": "warzywa i ryż do podania", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Tempeh pokrój w plastry ok. 0,5 cm. (Jeśli lubisz łagodniejszy smak, wrzuć plastry na 5 min do wrzątku — to usuwa goryczkę.)",
+      "Wymieszaj marynatę, zalej tempeh, odstaw na 10 min.",
+      "Smaż na patelni z odrobiną oleju po 3–4 min z każdej strony, aż się zezłoci; pod koniec wlej resztę marynaty, żeby oblepiła plastry.",
+      "Podaj z ryżem i podsmażonymi warzywami."
+    ],
+    "tags": ["wegetariańskie", "szybkie", "wysokobiałkowe", "do pracy"],
+    "is_seafood": false,
+    "known_protein_g": 30,
+    "macros": { "kcal": 380, "protein_g": 30, "carbs_g": 24, "fat_g": 18, "fiber_g": 6 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "grillowane-halloumi",
+    "title": "Grillowane halloumi z warzywami",
+    "category": "classic",
+    "servings": 2,
+    "prep_minutes": 20,
+    "ingredients": [
+      { "name": "halloumi", "amount": "225", "unit": "g" },
+      { "name": "cukinia", "amount": "1", "unit": "szt" },
+      { "name": "papryka", "amount": "1", "unit": "szt" },
+      { "name": "oliwa", "amount": "", "unit": "do smaku" },
+      { "name": "pieprz", "amount": "", "unit": "do smaku" },
+      { "name": "sok z cytryny", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Halloumi pokrój w plastry ok. 1 cm. Warzywa w słupki.",
+      "Rozgrzej patelnię (średni-mocny ogień) z odrobiną oliwy. Smaż halloumi po 1,5–2 min z każdej strony, aż się zezłoci (uważaj — szybko się przypala).",
+      "Na drugiej patelni podsmaż warzywa 6–8 min. Skrop wszystko cytryną. Najlepsze prosto z patelni."
+    ],
+    "tags": ["wegetariańskie", "szybkie"],
+    "is_seafood": false,
+    "known_protein_g": 22,
+    "macros": { "kcal": 360, "protein_g": 22, "carbs_g": 12, "fat_g": 26, "fiber_g": 3 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "gigantes-biala-fasola",
+    "title": "Gigantes — biała fasola po grecku",
+    "category": "classic",
+    "servings": 3,
+    "prep_minutes": 40,
+    "ingredients": [
+      { "name": "duża biała fasola (jaś)", "amount": "2", "unit": "puszka" },
+      { "name": "pomidory (lub passata)", "amount": "1", "unit": "puszka" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "czosnek", "amount": "2", "unit": "ząbki" },
+      { "name": "oliwa", "amount": "3", "unit": "łyżki" },
+      { "name": "oregano", "amount": "1", "unit": "łyżeczka" },
+      { "name": "koperek lub natka", "amount": "1", "unit": "pęczek" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieprz", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Podsmaż posiekaną cebulę na oliwie 5 min, dodaj czosnek (30 s).",
+      "Wlej pomidory, dodaj oregano, sól, pieprz i ½ szklanki wody. Gotuj 10 min.",
+      "Dodaj odcedzoną fasolę, delikatnie wymieszaj. Przełóż do naczynia żaroodpornego.",
+      "Piecz w 190°C ok. 20 min, aż sos zgęstnieje. Posyp posiekaną zieleniną. Dobre na ciepło i na zimno."
+    ],
+    "tags": ["wegetariańskie", "wegańskie", "do pracy"],
+    "is_seafood": false,
+    "known_protein_g": 18,
+    "macros": { "kcal": 420, "protein_g": 18, "carbs_g": 55, "fat_g": 14, "fiber_g": 16 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "kotlety-z-soczewicy",
+    "title": "Kotlety z soczewicy",
+    "category": "classic",
+    "servings": 3,
+    "prep_minutes": 35,
+    "ingredients": [
+      { "name": "zielona lub brązowa soczewica", "amount": "200", "unit": "g" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "jajko", "amount": "1", "unit": "szt" },
+      { "name": "bułka tarta", "amount": "4", "unit": "łyżki" },
+      { "name": "słodka papryka", "amount": "1", "unit": "łyżeczka" },
+      { "name": "kumin", "amount": "0.5", "unit": "łyżeczka" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "pieprz", "amount": "", "unit": "do smaku" },
+      { "name": "olej", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Soczewicę ugotuj wg opakowania (ok. 20 min), aż miękka, odcedź i lekko przestudź.",
+      "Rozgnieć widelcem (nie na gładko). Dodaj drobno posiekaną cebulę, jajko, bułkę tartą i przyprawy.",
+      "Wymieszaj na masę do formowania. Uformuj kotlety.",
+      "Smaż na oleju po 3–4 min z każdej strony na złoto. Podaj z kaszą i warzywami."
+    ],
+    "tags": ["wegetariańskie", "do pracy"],
+    "is_seafood": false,
+    "known_protein_g": 20,
+    "macros": { "kcal": 400, "protein_g": 20, "carbs_g": 55, "fat_g": 10, "fiber_g": 14 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "lagodny-palak-paneer",
+    "title": "Szpinak z serem — łagodny palak paneer",
+    "category": "classic",
+    "servings": 2,
+    "prep_minutes": 25,
+    "ingredients": [
+      { "name": "mrożony szpinak (lub 2 duże pęczki świeżego)", "amount": "400", "unit": "g" },
+      { "name": "twardy twaróg (albo paneer/feta)", "amount": "200", "unit": "g" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "czosnek", "amount": "2", "unit": "ząbki" },
+      { "name": "kurkuma", "amount": "0.5", "unit": "łyżeczka" },
+      { "name": "łagodna garam masala", "amount": "0.5", "unit": "łyżeczka" },
+      { "name": "śmietanka lub jogurt", "amount": "100", "unit": "ml" },
+      { "name": "olej", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "ryż do podania", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Twaróg pokrój w kostkę, podsmaż na oleju na złoto, zdejmij.",
+      "Podsmaż cebulę i czosnek 5 min, dodaj przyprawy (30 s).",
+      "Dodaj szpinak (mrożony rozmroź wcześniej), duś 5 min. Zblenduj na gładko lub zostaw jak jest.",
+      "Wmieszaj śmietankę/jogurt i kostki twarogu, pogrzej 2 min (nie gotuj mocno, żeby się nie zwarzyło). Dosól. Podaj z ryżem."
+    ],
+    "tags": ["wegetariańskie", "szybkie", "do pracy"],
+    "is_seafood": false,
+    "known_protein_g": 25,
+    "macros": { "kcal": 380, "protein_g": 25, "carbs_g": 18, "fat_g": 22, "fiber_g": 6 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  },
+  {
+    "slug": "lagodne-chili-sin-carne",
+    "title": "Łagodne chili sin carne",
+    "category": "classic",
+    "servings": 4,
+    "prep_minutes": 35,
+    "ingredients": [
+      { "name": "czerwona fasola", "amount": "1", "unit": "puszka" },
+      { "name": "czarna fasola", "amount": "1", "unit": "puszka" },
+      { "name": "czerwona soczewica", "amount": "100", "unit": "g" },
+      { "name": "pomidory", "amount": "1", "unit": "puszka" },
+      { "name": "kukurydza", "amount": "1", "unit": "puszka" },
+      { "name": "cebula", "amount": "1", "unit": "szt" },
+      { "name": "czosnek", "amount": "2", "unit": "ząbki" },
+      { "name": "słodka papryka", "amount": "1", "unit": "łyżeczka" },
+      { "name": "kumin", "amount": "0.5", "unit": "łyżeczka" },
+      { "name": "woda", "amount": "400", "unit": "ml" },
+      { "name": "olej", "amount": "", "unit": "do smaku" },
+      { "name": "sól", "amount": "", "unit": "do smaku" },
+      { "name": "ryż do podania", "amount": "", "unit": "do smaku" }
+    ],
+    "steps": [
+      "Podsmaż cebulę i czosnek na oleju 5 min, dodaj przyprawy (30 s). (Ostre chili trzymaj osobno — dosypiesz sobie na talerz.)",
+      "Wlej pomidory i wodę, dodaj opłukaną soczewicę. Gotuj 15 min.",
+      "Dodaj odcedzoną fasolę i kukurydzę, gotuj jeszcze 10 min, aż zgęstnieje. Dosól. Podaj z ryżem."
+    ],
+    "tags": ["wegetariańskie", "wegańskie", "do pracy"],
+    "is_seafood": false,
+    "known_protein_g": 22,
+    "macros": { "kcal": 440, "protein_g": 22, "carbs_g": 68, "fat_g": 8, "fiber_g": 18 },
+    "macros_confidence": "medium",
+    "macros_assumptions": "kcal/węgle/tłuszcz szacowane; białko wg przepisu"
+  }
+]

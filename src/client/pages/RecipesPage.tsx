@@ -8,13 +8,9 @@ import type { Category } from '../../shared/types'
 const CATEGORIES: { value: Category | ''; label: string }[] = [
   { value: '', label: pl.recipes.all },
   { value: 'breakfast', label: pl.recipes.categories.breakfast },
-  { value: 'lunch', label: pl.recipes.categories.lunch },
-  { value: 'dinner', label: pl.recipes.categories.dinner },
+  { value: 'main', label: pl.recipes.categories.main },
   { value: 'snack', label: pl.recipes.categories.snack },
-  { value: 'soup', label: pl.recipes.categories.soup },
-  { value: 'salad', label: pl.recipes.categories.salad },
-  { value: 'smoothie', label: pl.recipes.categories.smoothie },
-  { value: 'dessert', label: pl.recipes.categories.dessert },
+  { value: 'classic', label: pl.recipes.categories.classic },
 ]
 
 export default function RecipesPage() {

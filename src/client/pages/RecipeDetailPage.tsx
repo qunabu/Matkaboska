@@ -58,7 +58,7 @@ export default function RecipeDetailPage() {
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{recipe.title}</h1>
           <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
-            <span>{recipe.category}</span>
+            <span>{pl.recipes.categories[recipe.category as keyof typeof pl.recipes.categories] ?? recipe.category}</span>
             {recipe.prep_minutes && <span>· {recipe.prep_minutes} {pl.common.minutes}</span>}
             <span>· {recipe.servings} {pl.common.serving}</span>
             {recipe.is_seafood && <span>🐟</span>}
