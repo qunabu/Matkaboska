@@ -75,6 +75,7 @@ const pl = {
     waterTitle: 'Woda',
     waterGlasses: 'szklanek',
     macroSummary: 'Podsumowanie makroskładników',
+    recipeFallback: 'Przepis #',
   },
 
   recipes: {
@@ -185,12 +186,14 @@ const pl = {
     carbs: 'Węglowodany',
     fat: 'Tłuszcze',
     portion: 'Porcja',
+    manual: 'Ręcznie',
     fromRecipe: 'Z przepisu',
     selectRecipe: 'Wybierz przepis',
     servings: 'Porcji',
     summary: 'Podsumowanie dnia',
     noEntries: 'Brak wpisów',
     deleteEntry: 'Usuń wpis',
+    entryFallback: 'Wpis #',
     goals: 'Cele',
     progress: 'Postęp',
     water: {
