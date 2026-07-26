@@ -180,11 +180,11 @@ async function encryptPayload(plaintext: string, p256dhBase64: string, authBase6
   const recipientPublicKey = base64UrlToBuffer(p256dhBase64)
 
   // Generate ephemeral key pair
-  const ephemeral = await crypto.subtle.generateKey(
+  const ephemeralPair = await crypto.subtle.generateKey(
     { name: 'ECDH', namedCurve: 'P-256' },
     true, ['deriveKey', 'deriveBits'],
-  )
-  const ephemeralPublicKeyBuffer = await crypto.subtle.exportKey('raw', ephemeral.publicKey)
+  ) as CryptoKeyPair
+  const ephemeralPublicKeyBuffer = await crypto.subtle.exportKey('raw', ephemeralPair.publicKey) as ArrayBuffer
 
   // Import recipient public key
   const recipientKey = await crypto.subtle.importKey(
@@ -195,8 +195,8 @@ async function encryptPayload(plaintext: string, p256dhBase64: string, authBase6
 
   // Derive shared secret
   const sharedSecret = await crypto.subtle.deriveBits(
-    { name: 'ECDH', public: recipientKey },
-    ephemeral.privateKey, 256,
+    { name: 'ECDH', $public: recipientKey } as unknown as Parameters<SubtleCrypto['deriveBits']>[0],
+    ephemeralPair.privateKey, 256,
   )
 
   // Generate salt

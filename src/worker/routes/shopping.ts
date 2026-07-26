@@ -17,6 +17,7 @@ app.get('/', async (c) => {
     const items = await db.select().from(shopping_items).where(eq(shopping_items.list_id, list.id))
     withCounts.push({
       ...list,
+      type: list.type as ShoppingList['type'],
       item_count: items.length,
       checked_count: items.filter(i => i.checked).length,
     })
