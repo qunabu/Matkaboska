@@ -1,0 +1,17 @@
+# Copy to .dev.vars and fill in real values (never commit .dev.vars)
+
+# Anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-sonnet-4-6
+
+# Web Push (VAPID)
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:you@example.com
+
+# Cloudflare Access JWT validation — leave empty for local dev (auth is skipped)
+ACCESS_AUD=
+ACCESS_TEAM_DOMAIN=
+
+# Set by build; override locally if needed
+APP_VERSION=dev
