@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { planApi, waterApi, foodLogApi, todayDate } from '../lib/api'
+import { planApi, waterApi, foodLogApi, settingsApi, todayDate } from '../lib/api'
 import pl from '../i18n/pl'
 import type { MealType, PlanStatus } from '../../shared/types'
 
@@ -94,6 +94,11 @@ export default function TodayPage() {
     queryFn: () => foodLogApi.summary(today),
   })
 
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingsApi.get(),
+  })
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: PlanStatus }) =>
       planApi.setStatus(id, status),
@@ -122,8 +127,8 @@ export default function TodayPage() {
             {pl.today.macroSummary}
           </h2>
           <div className="space-y-2">
-            <MacroBar label={`${pl.macros.kcal}`} value={summary.kcal} max={2300} color="bg-orange-400" />
-            <MacroBar label={`${pl.macros.protein} (g)`} value={summary.protein_g} max={150} color="bg-blue-400" />
+            <MacroBar label={`${pl.macros.kcal}`} value={summary.kcal} max={settings?.kcal_target ?? 2300} color="bg-orange-400" />
+            <MacroBar label={`${pl.macros.protein} (g)`} value={summary.protein_g} max={settings?.protein_g_target ?? 150} color="bg-blue-400" />
             <MacroBar label={`${pl.macros.carbs} (g)`} value={summary.carbs_g} max={250} color="bg-yellow-400" />
             <MacroBar label={`${pl.macros.fat} (g)`} value={summary.fat_g} max={80} color="bg-red-400" />
           </div>
@@ -155,7 +160,7 @@ export default function TodayPage() {
                           entry.status === 'skipped' ? 'text-gray-300' :
                           'text-gray-900 dark:text-gray-100'
                         }`}>
-                          {entry.recipe?.title ?? `Przepis #${entry.recipe_id}`}
+                          {entry.recipe?.title ?? `${pl.today.recipeFallback}${entry.recipe_id}`}
                         </p>
                         {entry.recipe?.macros && (
                           <p className="text-xs text-gray-400">

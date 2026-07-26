@@ -15,7 +15,7 @@ function parseSupplement(row: typeof supplements.$inferSelect): Supplement {
   }
 }
 
-function countDuesToday(schedule: SupSchedule, nowHH: string): number {
+function countDuesToday(schedule: SupSchedule): number {
   const now = new Date()
   const dayOfWeek = now.getDay()
   if (!schedule.days.includes(dayOfWeek)) return 0
@@ -33,11 +33,27 @@ app.get('/', async (c) => {
     const supp = parseSupplement(row)
     const takenToday = logs.filter(l => l.supplement_id === row.id).length
     const schedule = supp.schedule
-    const dueToday = countDuesToday(schedule, '')
+    const dueToday = countDuesToday(schedule)
     return { ...supp, taken_today: takenToday, doses_due: dueToday }
   })
 
   return c.json({ items, total: items.length })
+})
+
+// GET /api/supplements/log?date=  (must come before /:id to avoid shadowing)
+app.get('/log', async (c) => {
+  const date = c.req.query('date') ?? todayDate()
+  const db = getDb(c.env.DB)
+  const rows = await db.select().from(supplement_log).where(eq(supplement_log.date, date))
+  return c.json({ items: rows, total: rows.length })
+})
+
+// DELETE /api/supplements/log/:logId  (must come before /:id)
+app.delete('/log/:logId', async (c) => {
+  const id = Number(c.req.param('logId'))
+  const db = getDb(c.env.DB)
+  await db.delete(supplement_log).where(eq(supplement_log.id, id))
+  return c.json({ ok: true })
 })
 
 // GET /api/supplements/:id
@@ -119,21 +135,6 @@ app.post('/:id/log', async (c) => {
   return c.json(row, 201)
 })
 
-// DELETE /api/supplements/log/:logId
-app.delete('/log/:logId', async (c) => {
-  const id = Number(c.req.param('logId'))
-  const db = getDb(c.env.DB)
-  await db.delete(supplement_log).where(eq(supplement_log.id, id))
-  return c.json({ ok: true })
-})
-
-// GET /api/supplements/log?date=
-app.get('/log', async (c) => {
-  const date = c.req.query('date') ?? todayDate()
-  const db = getDb(c.env.DB)
-  const rows = await db.select().from(supplement_log).where(eq(supplement_log.date, date))
-  return c.json({ items: rows, total: rows.length })
-})
 
 function todayDate() {
   return new Date().toISOString().slice(0, 10)

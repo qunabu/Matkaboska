@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { foodLogApi, waterApi, recipesApi } from '../lib/api'
+import { foodLogApi, waterApi, recipesApi, settingsApi } from '../lib/api'
 import pl from '../i18n/pl'
 
 function todayDate() {
@@ -81,7 +81,7 @@ function AddEntryForm({ date, onClose, onSaved }: AddEntryFormProps) {
             onClick={() => setMode('manual')}
             className={`flex-1 rounded-lg py-2 text-sm font-medium ${mode === 'manual' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-700'}`}
           >
-            Ręcznie
+            {pl.tracking.manual}
           </button>
           <button
             onClick={() => setMode('recipe')}
@@ -183,6 +183,11 @@ export default function TrackingPage() {
     queryFn: () => foodLogApi.summary(date),
   })
 
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingsApi.get(),
+  })
+
   const { data: water } = useQuery({
     queryKey: ['water', date],
     queryFn: () => waterApi.get(date),
@@ -234,8 +239,8 @@ export default function TrackingPage() {
         <div className="mb-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
           <h2 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">{pl.tracking.summary}</h2>
           <div className="space-y-2">
-            <MacroProgressBar label="kcal" value={summary.kcal} max={2300} color="bg-orange-400" />
-            <MacroProgressBar label={`${pl.macros.protein} g`} value={summary.protein_g} max={150} color="bg-blue-400" />
+            <MacroProgressBar label="kcal" value={summary.kcal} max={settings?.kcal_target ?? 2300} color="bg-orange-400" />
+            <MacroProgressBar label={`${pl.macros.protein} g`} value={summary.protein_g} max={settings?.protein_g_target ?? 150} color="bg-blue-400" />
             <MacroProgressBar label={`${pl.macros.carbs} g`} value={summary.carbs_g} max={250} color="bg-yellow-400" />
             <MacroProgressBar label={`${pl.macros.fat} g`} value={summary.fat_g} max={80} color="bg-red-400" />
           </div>
@@ -283,7 +288,7 @@ export default function TrackingPage() {
           >
             <div>
               <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                {entry.description ?? `Wpis #${entry.id}`}
+                {entry.description ?? `${pl.tracking.entryFallback}${entry.id}`}
               </p>
               {(entry.kcal || entry.protein_g) && (
                 <p className="text-xs text-gray-400">
