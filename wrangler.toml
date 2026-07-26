@@ -13,6 +13,7 @@ not_found_handling = "single-page-application"
 binding = "DB"
 database_name = "meal-planner-db"
 database_id = "94ac6488-e034-44ee-8f16-cd31e43c03c9"
+migrations_dir = "migrations"
 
 [[kv_namespaces]]
 binding = "KV"

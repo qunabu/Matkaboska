@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { lazy, Suspense, useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { UpdateBanner, ForceUpdateScreen } from './components/UpdateBanner'
 import { usePwaUpdate } from './hooks/usePwaUpdate'
 import pl from './i18n/pl'
+
+declare const __APP_VERSION__: string
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -14,44 +16,20 @@ const queryClient = new QueryClient({
   },
 })
 
-// ── Placeholder screens ──────────────────────────────────────────────────────
+const TodayPage = lazy(() => import('./pages/TodayPage'))
+const RecipesPage = lazy(() => import('./pages/RecipesPage'))
+const RecipeDetailPage = lazy(() => import('./pages/RecipeDetailPage'))
+const RecipeFormPage = lazy(() => import('./pages/RecipeFormPage'))
+const PlanPage = lazy(() => import('./pages/PlanPage'))
+const ShoppingPage = lazy(() => import('./pages/ShoppingPage'))
+const TrackingPage = lazy(() => import('./pages/TrackingPage'))
+const SupplementsPage = lazy(() => import('./pages/SupplementsPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
-function TodayScreen() {
+function PageFallback() {
   return (
-    <div className="p-4">
-      <h1 className="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.today.title}</h1>
-      <p className="text-gray-500">{pl.today.noMeals}</p>
-    </div>
-  )
-}
-
-function PlaceholderScreen({ title }: { title: string }) {
-  return (
-    <div className="p-4">
-      <h1 className="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">{title}</h1>
-      <p className="text-gray-500">Wkrótce…</p>
-    </div>
-  )
-}
-
-function SettingsScreen() {
-  return (
-    <div className="p-4">
-      <h1 className="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">
-        {pl.settings.title}
-      </h1>
-      <div className="space-y-4">
-        <section>
-          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
-            {pl.settings.about}
-          </h2>
-          <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              {pl.common.appVersion}: <span className="font-mono">{__APP_VERSION__}</span>
-            </p>
-          </div>
-        </section>
-      </div>
+    <div className="flex items-center justify-center p-8 text-gray-400">
+      {pl.common.loading}
     </div>
   )
 }
@@ -71,13 +49,10 @@ const navItems = [
 function BottomNav() {
   const location = useLocation()
 
-  // Show only 5 items on mobile, cycling based on current route
-  const primaryItems = navItems.slice(0, 5)
-  const isOverflow = navItems.slice(5).some((i) => location.pathname.startsWith(i.to))
-
-  const displayItems = isOverflow
-    ? [...navItems.slice(0, 4), navItems.find((i) => location.pathname.startsWith(i.to))!]
-    : primaryItems
+  const overflowItem = navItems.slice(5).find((i) => location.pathname.startsWith(i.to))
+  const displayItems = overflowItem
+    ? [...navItems.slice(0, 4), overflowItem]
+    : navItems.slice(0, 5)
 
   return (
     <nav
@@ -85,7 +60,7 @@ function BottomNav() {
       className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 md:hidden"
     >
       <div className="flex">
-        {displayItems.filter(Boolean).map((item) => (
+        {displayItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -98,14 +73,11 @@ function BottomNav() {
               }`
             }
           >
-            <span className="text-xl leading-none" aria-hidden="true">
-              {item.icon}
-            </span>
+            <span className="text-xl leading-none" aria-hidden="true">{item.icon}</span>
             <span>{item.label}</span>
           </NavLink>
         ))}
       </div>
-      {/* Safe area spacer for iOS home indicator */}
       <div className="h-safe-area-inset-bottom" />
     </nav>
   )
@@ -147,7 +119,6 @@ function AppShell() {
   const [dismissed, setDismissed] = useState(false)
   const [forceUpdate, setForceUpdate] = useState(false)
 
-  // Check if server requires a forced update
   useEffect(() => {
     async function check() {
       try {
@@ -185,15 +156,20 @@ function AppShell() {
       <SideNav />
       <div className="flex flex-1 flex-col overflow-hidden">
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-          <Routes>
-            <Route path="/" element={<TodayScreen />} />
-            <Route path="/recipes/*" element={<PlaceholderScreen title={pl.nav.recipes} />} />
-            <Route path="/plan/*" element={<PlaceholderScreen title={pl.nav.plan} />} />
-            <Route path="/shopping/*" element={<PlaceholderScreen title={pl.nav.shopping} />} />
-            <Route path="/tracking/*" element={<PlaceholderScreen title={pl.nav.tracking} />} />
-            <Route path="/supplements/*" element={<PlaceholderScreen title={pl.nav.supplements} />} />
-            <Route path="/settings" element={<SettingsScreen />} />
-          </Routes>
+          <Suspense fallback={<PageFallback />}>
+            <Routes>
+              <Route path="/" element={<TodayPage />} />
+              <Route path="/recipes" element={<RecipesPage />} />
+              <Route path="/recipes/new" element={<RecipeFormPage />} />
+              <Route path="/recipes/:id" element={<RecipeDetailPage />} />
+              <Route path="/recipes/:id/edit" element={<RecipeFormPage />} />
+              <Route path="/plan/*" element={<PlanPage />} />
+              <Route path="/shopping/*" element={<ShoppingPage />} />
+              <Route path="/tracking/*" element={<TrackingPage />} />
+              <Route path="/supplements/*" element={<SupplementsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
       <BottomNav />
