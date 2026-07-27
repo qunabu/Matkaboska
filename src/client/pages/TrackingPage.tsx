@@ -66,7 +66,10 @@ function WeekBars({ days, values, target, color }: {
 function WeekSummary({ date, kcalTarget, proteinTarget, waterTarget }: {
   date: string; kcalTarget: number; proteinTarget: number; waterTarget: number
 }) {
-  const days = Array.from({ length: 7 }, (_, i) => addDays(date, i - 6)) // 7 days ending on `date`
+  const [weekEnd, setWeekEnd] = useState(date) // last day of the shown week
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekEnd, i - 6)) // 7 days ending on weekEnd
+  const canForward = weekEnd < todayDate()
+  const fmt = (d: string) => { const x = new Date(d); return `${x.getDate()}.${x.getMonth() + 1}` }
 
   const summaries = useQueries({
     queries: days.map((d) => ({
@@ -99,7 +102,29 @@ function WeekSummary({ date, kcalTarget, proteinTarget, waterTarget }: {
 
   return (
     <div className="mb-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
-      <h2 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">📊 {pl.tracking.weekSummary}</h2>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="font-semibold text-gray-900 dark:text-gray-100">📊 {pl.tracking.weekSummary}</h2>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setWeekEnd(addDays(weekEnd, -7))}
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-sm dark:bg-gray-700"
+            aria-label="Poprzedni tydzień"
+          >
+            ‹
+          </button>
+          <span className="min-w-[86px] text-center text-xs text-gray-500 dark:text-gray-400">
+            {fmt(days[0])} – {fmt(days[6])}
+          </span>
+          <button
+            onClick={() => setWeekEnd((w) => { const n = addDays(w, 7); return n > todayDate() ? todayDate() : n })}
+            disabled={!canForward}
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-sm disabled:opacity-30 dark:bg-gray-700"
+            aria-label="Następny tydzień"
+          >
+            ›
+          </button>
+        </div>
+      </div>
       <div className="space-y-4">
         {charts.map((c) => (
           <div key={c.label}>
