@@ -25,17 +25,17 @@ function buildFriscoPrompt(listName: string, items: ShoppingItem[]): string {
   const snippet = [
     'const items = ' + JSON.stringify(names) + ';',
     "const c = Object.fromEntries(document.cookie.split('; ').map(x=>{const i=x.indexOf('=');return [x.slice(0,i),x.slice(i+1)]}));",
-    "const token = decodeURIComponent(c.sessionIdN||'');",
+    "const token = decodeURIComponent(c.sessionIdN||''); const uid = c.userIdN; const WAREHOUSE = 'GDA'; /* kod pocztowy 80-282 */",
     'const clean = r => { let s = r.split("(")[0]; const low = s.toLowerCase(); for (const sep of [" lub "," albo "," oraz ","/"]) { const i = low.indexOf(sep); if (i>=0){ s = s.slice(0,i); break; } } return s.split(" ").filter(Boolean).join(" ").trim(); };',
     'const added=[], notFound=[]; let ctx=null;',
     'for (const raw of items){ const q = clean(raw); try {',
     "  const sr = await fetch('/app/commerce/api/v1/offer/products/query?purpose=Listing&pageIndex=1&search='+encodeURIComponent(q)+'&includeFacets=false&deliveryMethod=Van&pageSize=24&language=pl&disableAutocorrect=false',{headers:{accept:'application/json'}}).then(r=>r.json());",
     '  ctx = sr.contextCookie || ctx; const prods = sr.products||[];',
-    '  const pick = prods.find(p=>p.product&&p.product.isAvailable) || prods[0];',
+    '  const pick = prods.find(p=>p.product&&p.product.isAvailable&&p.product.isStocked&&(p.product.stock==null||p.product.stock>0));',
     '  if (pick) added.push({raw, id:pick.productId, name:pick.product&&pick.product.name&&pick.product.name.pl}); else notFound.push(raw);',
     "} catch(e){ notFound.push(raw+' (blad)'); } }",
     'const seen=new Set(), products=[]; for (const a of added){ if(!seen.has(a.id)){ seen.add(a.id); products.push({productId:a.id, quantity:1}); } }',
-    "const put = await fetch('/app/commerce/api/v1/visitor/cart',{method:'PUT',headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token,'x-frisco-warehouse':c.warehouse||'','x-frisco-visitorid':c.sid||'','x-frisco-features':'MarginBoosting=1'},body:JSON.stringify({products, contextCookie:ctx})});",
+    "const put = await fetch('/app/commerce/api/v1/users/'+uid+'/cart',{method:'PUT',headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token,'x-frisco-warehouse':WAREHOUSE,'x-frisco-visitorid':c.sid||'','x-frisco-features':'MarginBoosting=1'},body:JSON.stringify({products, contextCookie:ctx})});",
     'JSON.stringify({ dodano: added.map(a=>a.raw+" -> "+a.name), nieZnaleziono: notFound, koszykStatus: put.status, liczbaProduktow: products.length }, null, 1)',
   ].join('\n')
 
