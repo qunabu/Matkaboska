@@ -9,15 +9,21 @@
  *   npm run frisco -- <listId>
  *
  * Config (.env, never committed — see .env.example):
- *   MBL_BASE_URL   default https://meal-planner.qunabu.workers.dev
- *   MBL_PIN        PIN gate for the app API (required to read the list)
- *   FRISCO_COOKIE  your Frisco cookie header, pasted from the browser
- *                  (DevTools → Network → any /app/commerce request → Request
- *                  Headers → Cookie). The access token lives ~10 min, so paste
- *                  a fresh one right before running.
+ *   MBL_BASE_URL          default https://meal-planner.qunabu.workers.dev
+ *   MBL_PIN               PIN gate for the app API (required to read the list)
+ *   FRISCO_REFRESH_TOKEN  (recommended) OAuth refresh token. Get it ONCE by
+ *                         running the connect/token password-grant curl in your
+ *                         own terminal and copying the `refresh_token` field
+ *                         from the JSON response. The script exchanges it for a
+ *                         fresh access token on every run — no password, no
+ *                         browser.
+ *   FRISCO_COOKIE         (fallback) your Frisco cookie header pasted from the
+ *                         browser; the access token in it lives ~10 min.
+ *   FRISCO_WAREHOUSE      default GDA
+ *   FRISCO_SID            optional x-frisco-visitorid
  *
- * What it does NOT do: log in with your password, and place/pay for the order.
- * You review the cart and check out yourself.
+ * What it does NOT do: log in with your password (you obtain the refresh token
+ * yourself), and place/pay for the order. You review the cart and check out.
  */
 
 import { readFileSync } from 'node:fs'
@@ -89,13 +95,69 @@ const clean = (raw) => {
 }
 const available = (p) => p && p.isAvailable && p.isStocked && (p.stock == null || p.stock > 0)
 
-async function fillFriscoCart(cookieHeader, names) {
-  const c = parseCookie(cookieHeader)
-  const token = decodeURIComponent(c.sessionIdN || '')
-  const uid = c.userIdN
-  const warehouse = c.warehouse || 'GDA'
-  const visitorId = c.sid || c['x-frisco-visitorid'] || ''
-  if (!token || !uid) throw new Error('FRISCO_COOKIE nie zawiera sessionIdN / userIdN — wklej pełne ciasteczko z przeglądarki.')
+const FRISCO = 'https://www.frisco.pl'
+const TOKEN_URL = `${FRISCO}/app/commerce/connect/token`
+
+// Decode the `sub` (user id) claim from a JWT access token — no verification,
+// just reading the payload.
+function jwtSub(token) {
+  try {
+    const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(Buffer.from(payload, 'base64').toString('utf8')).sub
+  } catch {
+    return null
+  }
+}
+
+// Exchange a refresh token for a fresh access token (OAuth refresh grant — no
+// password involved). Frisco issues refresh tokens with offline_access scope.
+async function refreshAccessToken(refreshToken) {
+  const res = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/x-www-form-urlencoded',
+      origin: FRISCO,
+      referer: `${FRISCO}/`,
+      'user-agent': UA,
+    },
+    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken }).toString(),
+  })
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`Odświeżenie tokenu nie powiodło się (${res.status}). Refresh token mógł wygasnąć — pobierz nowy. ${detail.slice(0, 200)}`)
+  }
+  const j = await res.json()
+  if (!j.access_token) throw new Error('Endpoint tokenu nie zwrócił access_token.')
+  return j
+}
+
+// Resolve a Frisco session from .env: prefer FRISCO_REFRESH_TOKEN (password-free,
+// re-usable), fall back to a pasted FRISCO_COOKIE.
+async function resolveFriscoSession(env) {
+  const warehouse = env.FRISCO_WAREHOUSE || 'GDA'
+  if (env.FRISCO_REFRESH_TOKEN) {
+    const t = await refreshAccessToken(env.FRISCO_REFRESH_TOKEN)
+    const token = t.access_token
+    const uid = jwtSub(token) || env.FRISCO_USER_ID
+    if (!uid) throw new Error('Nie udało się odczytać user id z tokenu — ustaw FRISCO_USER_ID w .env.')
+    if (t.refresh_token && t.refresh_token !== env.FRISCO_REFRESH_TOKEN) {
+      console.log('  (Frisco zwróciło nowy refresh_token — zaktualizuj FRISCO_REFRESH_TOKEN w .env, jeśli stary przestanie działać.)')
+    }
+    return { token, uid, warehouse, visitorId: env.FRISCO_SID || '' }
+  }
+  if (env.FRISCO_COOKIE) {
+    const c = parseCookie(env.FRISCO_COOKIE)
+    const token = decodeURIComponent(c.sessionIdN || '')
+    const uid = c.userIdN || jwtSub(token) || env.FRISCO_USER_ID
+    if (!token || !uid) throw new Error('FRISCO_COOKIE nie zawiera sessionIdN / userIdN — wklej pełne ciasteczko z przeglądarki.')
+    return { token, uid, warehouse, visitorId: env.FRISCO_SID || c.sid || '' }
+  }
+  throw new Error('Ustaw FRISCO_REFRESH_TOKEN (zalecane) albo FRISCO_COOKIE w .env.')
+}
+
+async function fillFriscoCart(session, names) {
+  const { token, uid, warehouse, visitorId } = session
 
   const base = 'https://www.frisco.pl'
   const common = {
@@ -117,7 +179,7 @@ async function fillFriscoCart(cookieHeader, names) {
 
   // 1) clear (PUT is a per-product upsert, not a whole-cart replace)
   const del = await clear()
-  if (!del.ok && del.status !== 204) throw new Error(`Czyszczenie koszyka nie powiodło się (${del.status}). Token może być nieważny — wklej świeży FRISCO_COOKIE.`)
+  if (!del.ok && del.status !== 204) throw new Error(`Czyszczenie koszyka nie powiodło się (${del.status}). Token może być nieważny — odśwież FRISCO_REFRESH_TOKEN / FRISCO_COOKIE.`)
 
   // 2) search each item, pick an available match
   const added = []
@@ -170,14 +232,19 @@ async function main() {
   }
   const base = (env.MBL_BASE_URL || 'https://meal-planner.qunabu.workers.dev').replace(/\/$/, '')
   if (!env.MBL_PIN) throw new Error('Brak MBL_PIN w .env.')
-  if (!env.FRISCO_COOKIE) throw new Error('Brak FRISCO_COOKIE w .env (wklej ciasteczko z przeglądarki).')
+  if (!env.FRISCO_REFRESH_TOKEN && !env.FRISCO_COOKIE) {
+    throw new Error('Ustaw FRISCO_REFRESH_TOKEN (zalecane) albo FRISCO_COOKIE w .env.')
+  }
 
   console.log(`→ Pobieram listę #${listId} z ${base} …`)
   const { name, names } = await fetchListFromApp(base, env.MBL_PIN, listId)
   console.log(`  „${name}" — ${names.length} pozycji do dodania.`)
 
+  console.log('→ Uwierzytelniam sesję Frisco …')
+  const session = await resolveFriscoSession(env)
+
   console.log('→ Napełniam koszyk Frisco …')
-  const r = await fillFriscoCart(env.FRISCO_COOKIE, names)
+  const r = await fillFriscoCart(session, names)
 
   console.log('\n===== WYNIK =====')
   console.log(`W koszyku (dostępne): ${r.inCart}`)
