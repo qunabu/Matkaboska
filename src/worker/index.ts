@@ -69,11 +69,25 @@ export default {
     }
 
     const assets = env.ASSETS as unknown as AssetsBinding
-    const res = await assets.fetch(request)
+    let res = await assets.fetch(request)
 
     if (res.status === 404) {
       const indexUrl = new URL('/index.html', url.origin)
-      return assets.fetch(new Request(indexUrl.toString(), { headers: request.headers }))
+      res = await assets.fetch(new Request(indexUrl.toString(), { headers: request.headers }))
+    }
+
+    // Never cache the service worker, the HTML shell, or the manifest, so the
+    // browser always sees the latest version and can update the PWA. Hashed
+    // JS/CSS assets keep their long-cache headers.
+    const ct = res.headers.get('content-type') || ''
+    const p = url.pathname
+    if (
+      p === '/sw.js' || p.endsWith('/sw.js') || p.startsWith('/workbox-') ||
+      p === '/push-sw.js' || p.endsWith('.webmanifest') || p === '/' || p.endsWith('.html') ||
+      ct.includes('text/html')
+    ) {
+      res = new Response(res.body, res)
+      res.headers.set('Cache-Control', 'no-store, must-revalidate')
     }
 
     return res

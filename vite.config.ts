@@ -35,7 +35,7 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         importScripts: ['/push-sw.js'], // Web Push + notificationclick handlers
-        globIgnores: ['**/push-sw.js'],
+        globIgnores: ['**/push-sw.js', '**/_headers'],
         runtimeCaching: [
           {
             // Never cache /api/version — always fetch from network

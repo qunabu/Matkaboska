@@ -1,0 +1,14 @@
+# Never cache the service worker, HTML shell, or manifest so the PWA can always
+# detect and apply a new version. Hashed JS/CSS assets keep default caching.
+/sw.js
+  Cache-Control: no-store, must-revalidate
+/push-sw.js
+  Cache-Control: no-store, must-revalidate
+/workbox-*.js
+  Cache-Control: no-store, must-revalidate
+/index.html
+  Cache-Control: no-store, must-revalidate
+/
+  Cache-Control: no-store, must-revalidate
+/manifest.webmanifest
+  Cache-Control: no-cache
