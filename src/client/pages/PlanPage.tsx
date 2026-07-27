@@ -108,6 +108,22 @@ export default function PlanPage() {
     return entries.find(e => e.date === date && e.meal_type === mealType)
   }
 
+  // Sum planned kcal + macros for a day from each entry's recipe macros × servings.
+  function dayTotals(date: string) {
+    let kcal = 0, protein_g = 0, carbs_g = 0, fat_g = 0
+    for (const e of entries) {
+      if (e.date !== date) continue
+      const m = e.recipe?.macros
+      if (!m) continue
+      const mult = e.servings ?? 1
+      kcal += (m.kcal ?? 0) * mult
+      protein_g += (m.protein_g ?? 0) * mult
+      carbs_g += (m.carbs_g ?? 0) * mult
+      fat_g += (m.fat_g ?? 0) * mult
+    }
+    return { kcal, protein_g, carbs_g, fat_g }
+  }
+
   return (
     <div className="mx-auto max-w-4xl p-4">
       <div className="mb-4 flex items-center justify-between">
@@ -186,6 +202,11 @@ export default function PlanPage() {
                             <p className="font-medium text-gray-800 line-clamp-2 dark:text-gray-200">
                               {entry.recipe?.title ?? `#${entry.recipe_id}`}
                             </p>
+                            {entry.recipe?.macros && (
+                              <p className="mt-0.5 text-[10px] text-gray-400">
+                                {Math.round(entry.recipe.macros.kcal * (entry.servings ?? 1))} kcal
+                              </p>
+                            )}
                             <button
                               onClick={() => clearMealMutation.mutate({ date, mealType })}
                               className="absolute right-1 top-1 text-gray-300 hover:text-red-400"
@@ -207,6 +228,26 @@ export default function PlanPage() {
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-gray-200 dark:border-gray-600">
+                <td className="py-2 pr-2 align-top text-xs font-semibold text-gray-500">
+                  {pl.plan.plannedTotal}
+                </td>
+                {dates.map(date => {
+                  const t = dayTotals(date)
+                  return (
+                    <td key={date} className="px-1 py-2 text-center align-top">
+                      <div className="text-xs font-semibold text-primary-600 dark:text-primary-400">
+                        {Math.round(t.kcal)} kcal
+                      </div>
+                      <div className="text-[10px] leading-tight text-gray-400">
+                        {Math.round(t.protein_g)}g B · {Math.round(t.carbs_g)}g W · {Math.round(t.fat_g)}g T
+                      </div>
+                    </td>
+                  )
+                })}
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}

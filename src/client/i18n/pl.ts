@@ -152,6 +152,7 @@ const pl = {
     noMeal: 'Brak posiłku',
     selectRecipe: 'Wybierz przepis',
     servingsForPlan: 'Porcje',
+    plannedTotal: 'Planowane',
     meals: {
       breakfast: 'Śniadanie',
       lunch: 'Obiad',
