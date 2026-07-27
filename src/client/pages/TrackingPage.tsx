@@ -37,7 +37,7 @@ function WeekBars({ days, values, target, color }: {
             const h = Math.max(Math.round((v / max) * 100), v > 0 ? 4 : 0)
             const hitTarget = target ? v >= target : false
             return (
-              <div key={i} className="flex flex-1 flex-col items-center justify-end gap-0.5">
+              <div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-0.5">
                 <span className="text-[9px] leading-none text-gray-400">{v > 0 ? Math.round(v) : ''}</span>
                 <div
                   className={`w-full rounded-t ${v > 0 ? (hitTarget ? 'bg-green-500' : color) : 'bg-gray-100 dark:bg-gray-700'}`}
@@ -127,6 +127,60 @@ function MacroProgressBar({ label, value, max, color }: { label: string; value: 
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
+// Macro donut (like Fitatu): segments sized by each macro's calorie share.
+function MacroDonut({ protein_g, carbs_g, fat_g, kcal, kcalTarget }: {
+  protein_g: number; carbs_g: number; fat_g: number; kcal: number; kcalTarget: number
+}) {
+  const segs = [
+    { label: pl.tracking.protein, g: protein_g, cal: protein_g * 4, color: '#60a5fa' },
+    { label: pl.tracking.carbs, g: carbs_g, cal: carbs_g * 4, color: '#facc15' },
+    { label: pl.tracking.fat, g: fat_g, cal: fat_g * 9, color: '#f87171' },
+  ]
+  const total = segs.reduce((s, x) => s + x.cal, 0)
+  const r = 54
+  const C = 2 * Math.PI * r
+  let start = 0
+
+  return (
+    <div className="flex flex-col items-center gap-5 sm:flex-row sm:justify-around">
+      <div className="relative h-40 w-40 shrink-0">
+        <svg viewBox="0 0 128 128" className="h-full w-full -rotate-90">
+          <circle cx="64" cy="64" r={r} fill="none" strokeWidth="16" className="stroke-gray-100 dark:stroke-gray-700" />
+          {total > 0 && segs.map((s, i) => {
+            const frac = s.cal / total
+            const dash = frac * C
+            const el = (
+              <circle
+                key={i} cx="64" cy="64" r={r} fill="none" stroke={s.color} strokeWidth="16"
+                strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={-start * C}
+              />
+            )
+            start += frac
+            return el
+          })}
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{Math.round(kcal)}</span>
+          <span className="text-[11px] text-gray-400">/ {kcalTarget} kcal</span>
+        </div>
+      </div>
+      <div className="w-full max-w-[16rem] space-y-1.5">
+        {segs.map((s, i) => {
+          const pct = total > 0 ? Math.round((s.cal / total) * 100) : 0
+          return (
+            <div key={i} className="flex items-center gap-2 text-sm">
+              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+              <span className="flex-1 text-gray-600 dark:text-gray-300">{s.label}</span>
+              <span className="font-medium text-gray-900 dark:text-gray-100">{Math.round(s.g)} g</span>
+              <span className="w-10 text-right text-gray-400">{pct}%</span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -367,11 +421,18 @@ export default function TrackingPage() {
         </button>
       </div>
 
-      {/* Macro summary */}
+      {/* Macro summary — donut + goal bars */}
       {summary && (
         <div className="mb-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
           <h2 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">{pl.tracking.summary}</h2>
-          <div className="space-y-2">
+          <MacroDonut
+            protein_g={summary.protein_g}
+            carbs_g={summary.carbs_g}
+            fat_g={summary.fat_g}
+            kcal={summary.kcal}
+            kcalTarget={settings?.kcal_target ?? 2300}
+          />
+          <div className="mt-4 space-y-2">
             <MacroProgressBar label="kcal" value={summary.kcal} max={settings?.kcal_target ?? 2300} color="bg-orange-400" />
             <MacroProgressBar label={`${pl.macros.protein} g`} value={summary.protein_g} max={settings?.protein_g_target ?? 150} color="bg-blue-400" />
             <MacroProgressBar label={`${pl.macros.carbs} g`} value={summary.carbs_g} max={250} color="bg-yellow-400" />
