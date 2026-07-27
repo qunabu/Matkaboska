@@ -11,9 +11,9 @@ export default defineConfig({
       strategies: 'generateSW',
       manifest: {
         id: '/?mbl',
-        name: 'Matka Boska LGBT — Tęczowa Madonna',
-        short_name: 'Matka Boska LGBT',
-        description: 'Tęczowa Madonna każe ci jeść, gotować i pić wodę 🌈',
+        name: 'Matka Boska 🌈',
+        short_name: 'Matka Boska 🌈',
+        description: 'Tęczowa Madonna każe ci jeść, gotować i pić wodę',
         lang: 'pl',
         theme_color: '#2a1c5e',
         background_color: '#160f38',

@@ -44,7 +44,7 @@ app.post('/test', async (c) => {
 
   const results = await Promise.allSettled(
     subs.map(sub => sendPushNotification(c.env, sub.endpoint, sub.p256dh, sub.auth, {
-      title: 'Matka Boska LGBT 🌈',
+      title: 'Matka Boska 🌈',
       body: 'Powiadomienia działają! 🙏',
       url: '/',
     }))

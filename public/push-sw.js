@@ -5,9 +5,9 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {}
   } catch (e) {
-    data = { title: 'Matka Boska LGBT 🌈', body: event.data ? event.data.text() : '' }
+    data = { title: 'Matka Boska 🌈', body: event.data ? event.data.text() : '' }
   }
-  const title = data.title || 'Matka Boska LGBT 🌈'
+  const title = data.title || 'Matka Boska 🌈'
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || '',

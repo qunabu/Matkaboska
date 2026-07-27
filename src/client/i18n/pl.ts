@@ -1,7 +1,7 @@
 const pl = {
   nav: {
-    appName: 'Matka Boska LGBT',
-    appTagline: 'Tęczowa Madonna 🌈',
+    appName: 'Matka Boska 🌈',
+    appTagline: 'Tęczowa Madonna',
     today: 'Dziś',
     recipes: 'Przepisy',
     plan: 'Plan',
@@ -14,7 +14,7 @@ const pl = {
   },
 
   auth: {
-    title: 'Matka Boska LGBT 🌈',
+    title: 'Matka Boska 🌈',
     setupTitle: 'Ustaw PIN dostępu',
     loginTitle: 'Podaj PIN',
     setupHint: 'Ustaw PIN (min. 4 znaki) — będzie potrzebny na każdym urządzeniu.',

@@ -150,14 +150,14 @@ export default function SettingsPage() {
       // whenever permission is granted, independent of server push / VAPID.
       if ('serviceWorker' in navigator) {
         const reg = await navigator.serviceWorker.ready
-        await reg.showNotification('Matka Boska LGBT 🌈', {
+        await reg.showNotification('Matka Boska 🌈', {
           body: 'Powiadomienia działają! 🙏',
           icon: '/icons/icon-192.png',
           badge: '/icons/icon-192.png',
           tag: 'mbl-test',
         })
       } else {
-        new Notification('Matka Boska LGBT 🌈', { body: 'Powiadomienia działają! 🙏', icon: '/icons/icon-192.png' })
+        new Notification('Matka Boska 🌈', { body: 'Powiadomienia działają! 🙏', icon: '/icons/icon-192.png' })
       }
       setTestMsg('sent')
       // Best-effort server push too (for real cron reminders, if VAPID is set).

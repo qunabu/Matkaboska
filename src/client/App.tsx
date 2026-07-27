@@ -121,7 +121,7 @@ function SideNav() {
   return (
     <aside className="hidden w-56 shrink-0 border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 md:flex md:flex-col">
       <div className="px-4 py-5">
-        <span className="block text-lg font-bold text-primary-600">🌈 {pl.nav.appName}</span>
+        <span className="block text-lg font-bold text-primary-600">{pl.nav.appName}</span>
         <span className="block text-xs text-gray-400">{pl.nav.appTagline}</span>
       </div>
       <nav className="flex-1 space-y-1 px-2">
