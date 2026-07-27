@@ -16,29 +16,41 @@ const CAT_LABELS: Record<ShopCategory, string> = {
 const CAT_ORDER: ShopCategory[] = ['produce', 'dairy', 'pantry', 'frozen', 'other']
 
 // Build a copy-paste prompt for Claude (with claude-in-chrome) to add the
-// list's items to a Frisco basket and report what it couldn't find.
+// list's items to a Frisco basket via Frisco's commerce API and report what it
+// couldn't find. Uses the search API + a single cart PUT (auth read from the
+// logged-in session cookie) — far more reliable than clicking product tiles.
 function buildFriscoPrompt(listName: string, items: ShoppingItem[]): string {
-  const active = items.filter((i) => !i.checked)
-  const lines = active.map((i) => {
-    const qty = i.quantity ? ` — ${i.quantity} ${i.unit ?? ''}`.trimEnd() : ''
-    return `- ${i.name}${qty}`
-  })
+  const names = items.filter((i) => !i.checked).map((i) => i.name)
+
+  const snippet = [
+    'const items = ' + JSON.stringify(names) + ';',
+    "const c = Object.fromEntries(document.cookie.split('; ').map(x=>{const i=x.indexOf('=');return [x.slice(0,i),x.slice(i+1)]}));",
+    "const token = decodeURIComponent(c.sessionIdN||'');",
+    'const clean = r => { let s = r.split("(")[0]; const low = s.toLowerCase(); for (const sep of [" lub "," albo "," oraz ","/"]) { const i = low.indexOf(sep); if (i>=0){ s = s.slice(0,i); break; } } return s.split(" ").filter(Boolean).join(" ").trim(); };',
+    'const added=[], notFound=[]; let ctx=null;',
+    'for (const raw of items){ const q = clean(raw); try {',
+    "  const sr = await fetch('/app/commerce/api/v1/offer/products/query?purpose=Listing&pageIndex=1&search='+encodeURIComponent(q)+'&includeFacets=false&deliveryMethod=Van&pageSize=24&language=pl&disableAutocorrect=false',{headers:{accept:'application/json'}}).then(r=>r.json());",
+    '  ctx = sr.contextCookie || ctx; const prods = sr.products||[];',
+    '  const pick = prods.find(p=>p.product&&p.product.isAvailable) || prods[0];',
+    '  if (pick) added.push({raw, id:pick.productId, name:pick.product&&pick.product.name&&pick.product.name.pl}); else notFound.push(raw);',
+    "} catch(e){ notFound.push(raw+' (blad)'); } }",
+    'const seen=new Set(), products=[]; for (const a of added){ if(!seen.has(a.id)){ seen.add(a.id); products.push({productId:a.id, quantity:1}); } }',
+    "const put = await fetch('/app/commerce/api/v1/visitor/cart',{method:'PUT',headers:{accept:'application/json','content-type':'application/json',authorization:'Bearer '+token,'x-frisco-warehouse':c.warehouse||'','x-frisco-visitorid':c.sid||'','x-frisco-features':'MarginBoosting=1'},body:JSON.stringify({products, contextCookie:ctx})});",
+    'JSON.stringify({ dodano: added.map(a=>a.raw+" -> "+a.name), nieZnaleziono: notFound, koszykStatus: put.status, liczbaProduktow: products.length }, null, 1)',
+  ].join('\n')
+
   return [
-    'Zamówienie Frisco — dodaj produkty do koszyka.',
+    `Dodaj produkty do mojego koszyka na Frisco (lista „${listName}", ${names.length} pozycji).`,
     '',
-    'Użyj narzędzia claude-in-chrome. Otwórz https://www.frisco.pl (jestem już zalogowany i mam ustawiony kod pocztowy).',
-    'Dla KAŻDEJ pozycji z listy poniżej:',
-    '1) wyszukaj produkt w wyszukiwarce Frisco,',
-    '2) dodaj do koszyka najlepiej pasujący, dostępny produkt (jeśli podano ilość — w tej ilości),',
-    '3) jeśli nie ma dobrego dopasowania lub produkt jest niedostępny — POMIŃ go i zapisz na liście brakujących.',
+    'Użyj claude-in-chrome. Otwórz https://www.frisco.pl — jestem zalogowany i mam ustawiony kod pocztowy.',
+    'Frisco ma własne API — użyj go zamiast klikania w produkty. W karcie Frisco uruchom poniższy kod przez narzędzie javascript_tool. Kod czyta token z sesji, wyszukuje każdą pozycję przez API Frisco, wybiera pierwszy DOSTĘPNY produkt i dodaje wszystko do koszyka jednym żądaniem PUT:',
     '',
-    'WAŻNE:',
-    '- NIE finalizuj zamówienia i NIE płać — zatrzymaj się na koszyku, dokończę sam.',
-    '- Na końcu podaj WYRAŹNĄ listę „NIE ZNALEZIONO / NIE DODANO" — to jest najważniejsze.',
-    '- Dodaj krótkie podsumowanie: ile pozycji dodano, ile pominięto.',
+    '```js',
+    snippet,
+    '```',
     '',
-    `Lista „${listName}" (${active.length} pozycji):`,
-    ...lines,
+    'Potem pokaż mi wynik: pole „nieZnaleziono" jako WYRAŹNĄ listę brakujących pozycji (najważniejsze) oraz skrótowo „dodano" (pozycja -> produkt).',
+    'WAŻNE: NIE finalizuj zamówienia i NIE płać — sprawdzę koszyk i kupię sam. PUT ustawia cały koszyk = ta lista (nie dubluje). Dopasowania bywają przybliżone, więc lista braków i mój przegląd koszyka są kluczowe.',
   ].join('\n')
 }
 
@@ -201,7 +213,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
               <textarea
                 readOnly
                 value={prompt}
-                rows={12}
+                rows={16}
                 onFocus={(e) => e.currentTarget.select()}
                 className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 font-mono text-xs text-gray-800 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
               />
