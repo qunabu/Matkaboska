@@ -15,10 +15,39 @@ const CAT_LABELS: Record<ShopCategory, string> = {
 
 const CAT_ORDER: ShopCategory[] = ['produce', 'dairy', 'pantry', 'frozen', 'other']
 
+// Build a copy-paste prompt for Claude (with claude-in-chrome) to add the
+// list's items to a Frisco basket and report what it couldn't find.
+function buildFriscoPrompt(listName: string, items: ShoppingItem[]): string {
+  const active = items.filter((i) => !i.checked)
+  const lines = active.map((i) => {
+    const qty = i.quantity ? ` — ${i.quantity} ${i.unit ?? ''}`.trim() : ''
+    return `- ${i.name}${qty}`
+  })
+  return [
+    'Zamówienie Frisco — dodaj produkty do koszyka.',
+    '',
+    'Użyj narzędzia claude-in-chrome. Otwórz https://www.frisco.pl (jestem już zalogowany i mam ustawiony kod pocztowy).',
+    'Dla KAŻDEJ pozycji z listy poniżej:',
+    '1) wyszukaj produkt w wyszukiwarce Frisco,',
+    '2) dodaj do koszyka najlepiej pasujący, dostępny produkt (jeśli podano ilość — w tej ilości),',
+    '3) jeśli nie ma dobrego dopasowania lub produkt jest niedostępny — POMIŃ go i zapisz na liście brakujących.',
+    '',
+    'WAŻNE:',
+    '- NIE finalizuj zamówienia i NIE płać — zatrzymaj się na koszyku, dokończę sam.',
+    '- Na końcu podaj WYRAŹNĄ listę „NIE ZNALEZIONO / NIE DODANO" — to jest najważniejsze.',
+    '- Dodaj krótkie podsumowanie: ile pozycji dodano, ile pominięto.',
+    '',
+    `Lista „${listName}" (${active.length} pozycji):`,
+    ...lines,
+  ].join('\n')
+}
+
 function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) {
   const qc = useQueryClient()
   const [newItem, setNewItem] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [showFrisco, setShowFrisco] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['shopping-list', listId],
@@ -63,14 +92,22 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
       <button onClick={onBack} className="mb-4 block text-sm text-gray-400 hover:text-gray-600">
         ← {pl.common.back}
       </button>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{data.name}</h1>
-        <button
-          onClick={() => setShowAdd(!showAdd)}
-          className="rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white"
-        >
-          + {pl.shopping.addItem}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => { setCopied(false); setShowFrisco(true) }}
+            className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white"
+          >
+            🛒 {pl.shopping.frisco}
+          </button>
+          <button
+            onClick={() => setShowAdd(!showAdd)}
+            className="rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white"
+          >
+            + {pl.shopping.addItem}
+          </button>
+        </div>
       </div>
 
       {showAdd && (
@@ -144,6 +181,43 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
           </div>
         )
       })}
+
+      {showFrisco && (() => {
+        const prompt = buildFriscoPrompt(data.name, items)
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-end bg-black/40 md:items-center md:justify-center"
+            onClick={() => setShowFrisco(false)}
+          >
+            <div
+              className="w-full max-h-[88vh] overflow-y-auto rounded-t-2xl bg-white p-4 md:max-w-lg md:rounded-2xl dark:bg-gray-900"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">🛒 {pl.shopping.friscoTitle}</h3>
+                <button onClick={() => setShowFrisco(false)} className="text-2xl leading-none text-gray-400">×</button>
+              </div>
+              <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">{pl.shopping.friscoHint}</p>
+              <textarea
+                readOnly
+                value={prompt}
+                rows={12}
+                onFocus={(e) => e.currentTarget.select()}
+                className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 font-mono text-xs text-gray-800 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
+              />
+              <button
+                onClick={async () => {
+                  try { await navigator.clipboard.writeText(prompt); setCopied(true); setTimeout(() => setCopied(false), 2000) }
+                  catch { /* clipboard blocked — user can select the text manually */ }
+                }}
+                className="mt-3 w-full rounded-xl bg-primary-600 py-2.5 text-sm font-semibold text-white"
+              >
+                {copied ? pl.shopping.friscoCopied : pl.shopping.friscoCopy}
+              </button>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

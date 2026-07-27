@@ -212,6 +212,11 @@ const pl = {
     deleteConfirm: 'Usunąć tę listę zakupów?',
     empty: 'Lista jest pusta',
     allChecked: 'Wszystko zakupione! 🎉',
+    frisco: 'Zamów przez Frisco',
+    friscoTitle: 'Prompt dla Claude (Frisco)',
+    friscoHint: 'Skopiuj i wklej Claude z włączonym claude-in-chrome (bądź zalogowany na Frisco). Claude doda produkty do koszyka i wypisze, czego nie znalazł. Zamówienie/płatność robisz sam.',
+    friscoCopy: 'Kopiuj prompt',
+    friscoCopied: 'Skopiowano ✓',
   },
 
   tracking: {
