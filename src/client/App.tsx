@@ -115,10 +115,36 @@ function SideNav() {
 
 // ── Root component ────────────────────────────────────────────────────────────
 
+interface InstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: string }>
+}
+
 function AppShell() {
   const { needRefresh, updateServiceWorker } = usePwaUpdate()
   const [dismissed, setDismissed] = useState(false)
   const [forceUpdate, setForceUpdate] = useState(false)
+  const [installEvt, setInstallEvt] = useState<InstallPromptEvent | null>(null)
+
+  useEffect(() => {
+    // Chrome/Android fire this when the PWA is installable; capture it so we can
+    // show our own install button (the browser no longer auto-prompts).
+    const onBIP = (e: Event) => { e.preventDefault(); setInstallEvt(e as InstallPromptEvent) }
+    const onInstalled = () => setInstallEvt(null)
+    window.addEventListener('beforeinstallprompt', onBIP)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBIP)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
+  }, [])
+
+  async function handleInstall() {
+    if (!installEvt) return
+    await installEvt.prompt()
+    await installEvt.userChoice.catch(() => {})
+    setInstallEvt(null)
+  }
 
   useEffect(() => {
     async function check() {
@@ -174,6 +200,14 @@ function AppShell() {
         </main>
       </div>
       <BottomNav />
+      {installEvt && (
+        <button
+          onClick={handleInstall}
+          className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2 rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg md:bottom-4"
+        >
+          📲 {pl.common.installApp}
+        </button>
+      )}
       {needRefresh && !dismissed && (
         <UpdateBanner
           onUpdate={handleUpdate}

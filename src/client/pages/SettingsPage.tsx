@@ -99,23 +99,37 @@ export default function SettingsPage() {
     },
   })
 
+  async function ensureSubscription(pubKey: string) {
+    if (!('serviceWorker' in navigator)) return
+    const reg = await navigator.serviceWorker.ready
+    let sub = await reg.pushManager.getSubscription()
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(pubKey).buffer as ArrayBuffer,
+      })
+    }
+    await pushApi.subscribe(sub.toJSON() as PushSubscriptionJSON)
+  }
+
+  // Register a push subscription automatically once permission is granted and
+  // the server VAPID public key is known.
+  useEffect(() => {
+    if (notifState === 'granted' && vapidKey) {
+      ensureSubscription(vapidKey).catch((err) => console.error('Auto-subscribe failed', err))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notifState, vapidKey])
+
   async function enableNotifications() {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return
 
     const perm = await Notification.requestPermission()
     setNotifState(perm as typeof notifState)
-    if (perm !== 'granted') return
+    if (perm !== 'granted' || !vapidKey) return
 
     try {
-      const reg = await navigator.serviceWorker.ready
-      const pubKey = vapidKey ?? ''
-      if (!pubKey) return
-
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(pubKey).buffer as ArrayBuffer,
-      })
-      await pushApi.subscribe(sub.toJSON() as PushSubscriptionJSON)
+      await ensureSubscription(vapidKey)
     } catch (err) {
       console.error('Push subscribe failed', err)
     }

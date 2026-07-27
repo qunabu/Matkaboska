@@ -40,6 +40,7 @@ const pl = {
     no: 'Nie',
     optional: 'opcjonalnie',
     minutes: 'min',
+    installApp: 'Zainstaluj aplikację',
     servings: 'porcje',
     serving: 'porcja',
     portions: 'porcji',

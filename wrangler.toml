@@ -22,7 +22,8 @@ id = "dae0613d015d49df860352b55e62e573"
 [vars]
 APP_VERSION = "dev"
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
-VAPID_PUBLIC_KEY = ""
+VAPID_PUBLIC_KEY = "BKq2zqGbmL2lz_d2G-rQhTGY6HwIL9rAk3ECLyhHufNBGhaH3kCSNTkw3OByN7nhE3a7MAL_r3yAzdfkx-6y_ug"
+VAPID_SUBJECT = "mailto:mateusz.wojczal@handsontable.com"
 ACCESS_AUD = ""
 ACCESS_TEAM_DOMAIN = ""
 

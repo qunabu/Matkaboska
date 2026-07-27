@@ -28,6 +28,7 @@ api.get('/api/version', (c) =>
     version: c.env.APP_VERSION || 'dev',
     builtAt: null,
     minSupported: null,
+    vapidPublicKey: c.env.VAPID_PUBLIC_KEY || null,
   })
 )
 

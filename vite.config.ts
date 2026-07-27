@@ -43,6 +43,8 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
         clientsClaim: false,
+        importScripts: ['/push-sw.js'], // Web Push + notificationclick handlers
+        globIgnores: ['**/push-sw.js'],
         runtimeCaching: [
           {
             // Never cache /api/version — always fetch from network
