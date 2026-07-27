@@ -10,9 +10,11 @@ export default defineConfig({
       injectRegister: false,
       strategies: 'generateSW',
       manifest: {
+        id: '/?mbl',
         name: 'Matka Boska LGBT — Tęczowa Madonna',
         short_name: 'Matka Boska LGBT',
         description: 'Tęczowa Madonna każe ci jeść, gotować i pić wodę 🌈',
+        lang: 'pl',
         theme_color: '#2a1c5e',
         background_color: '#160f38',
         display: 'standalone',
@@ -20,22 +22,10 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         icons: [
-          {
-            src: '/icons/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-          },
-          {
-            src: '/icons/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-          },
-          {
-            src: '/icons/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
