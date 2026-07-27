@@ -72,6 +72,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
   const [showAdd, setShowAdd] = useState(false)
   const [showFrisco, setShowFrisco] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [copiedCmd, setCopiedCmd] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['shopping-list', listId],
@@ -238,6 +239,25 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
               >
                 {copied ? pl.shopping.friscoCopied : pl.shopping.friscoCopy}
               </button>
+
+              <div className="mt-5 border-t border-gray-200 pt-4 dark:border-gray-700">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{pl.shopping.friscoNodeTitle}</h4>
+                <p className="mt-1 mb-2 text-xs text-gray-500 dark:text-gray-400">{pl.shopping.friscoNodeHint}</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 rounded-lg bg-gray-100 px-3 py-2 font-mono text-xs text-gray-800 dark:bg-gray-950 dark:text-gray-200">
+                    npm run frisco -- {listId}
+                  </code>
+                  <button
+                    onClick={async () => {
+                      try { await navigator.clipboard.writeText(`npm run frisco -- ${listId}`); setCopiedCmd(true); setTimeout(() => setCopiedCmd(false), 2000) }
+                      catch { /* clipboard blocked */ }
+                    }}
+                    className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200"
+                  >
+                    {copiedCmd ? pl.shopping.friscoCopied : pl.shopping.friscoCopy}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )

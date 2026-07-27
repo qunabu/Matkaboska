@@ -217,6 +217,8 @@ const pl = {
     friscoHint: 'Skopiuj i wklej Claude z włączonym claude-in-chrome (bądź zalogowany na Frisco). Claude doda produkty do koszyka i wypisze, czego nie znalazł. Zamówienie/płatność robisz sam.',
     friscoCopy: 'Kopiuj prompt',
     friscoCopied: 'Skopiowano ✓',
+    friscoNodeTitle: 'Albo w pełni automatycznie (Node)',
+    friscoNodeHint: 'Uruchom w terminalu projektu. Skrypt pobierze tę listę, napełni koszyk Frisco przez API i wypisze braki. Wymaga .env (MBL_PIN + FRISCO_COOKIE — patrz .env.example). Zamówienie składasz sam.',
   },
 
   tracking: {

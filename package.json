@@ -12,6 +12,7 @@
     "db:migrate:local": "wrangler d1 migrations apply meal-planner-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply meal-planner-db --remote",
     "db:seed": "node scripts/seed.mjs",
+    "frisco": "node scripts/frisco-cart.mjs",
     "type-check": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "postinstall": "node scripts/gen-icons.mjs"
   },
