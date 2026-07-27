@@ -377,16 +377,6 @@ export default function TrackingPage() {
     queryFn: () => settingsApi.get(),
   })
 
-  const { data: water } = useQuery({
-    queryKey: ['water', date],
-    queryFn: () => waterApi.get(date),
-  })
-
-  const waterMutation = useMutation({
-    mutationFn: (delta: number) => waterApi.update(date, { delta }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['water', date] }),
-  })
-
   const deleteEntry = useMutation({
     mutationFn: (id: number) => foodLogApi.delete(id),
     onSuccess: () => {
@@ -399,9 +389,6 @@ export default function TrackingPage() {
     qc.invalidateQueries({ queryKey: ['food-log', date] })
     qc.invalidateQueries({ queryKey: ['food-log-summary', date] })
   }
-
-  const glasses = water?.glasses ?? 0
-  const waterTarget = water?.target_glasses ?? 8
 
   return (
     <div className="mx-auto max-w-2xl p-4">
@@ -465,35 +452,6 @@ export default function TrackingPage() {
           </div>
         </div>
       )}
-
-      {/* Water */}
-      <div className="mb-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
-        <h2 className="mb-2 font-semibold text-gray-900 dark:text-gray-100">💧 {pl.tracking.water.title}</h2>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => waterMutation.mutate(-1)}
-            disabled={glasses === 0}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-lg disabled:opacity-30 dark:bg-gray-700"
-          >
-            −
-          </button>
-          <div className="flex flex-1 gap-1.5">
-            {Array.from({ length: waterTarget }, (_, i) => (
-              <div
-                key={i}
-                className={`h-5 flex-1 rounded-sm transition-colors ${i < glasses ? 'bg-blue-400' : 'bg-gray-200 dark:bg-gray-600'}`}
-              />
-            ))}
-          </div>
-          <span className="text-sm text-gray-500">{glasses}/{waterTarget}</span>
-          <button
-            onClick={() => waterMutation.mutate(1)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500 text-lg text-white"
-          >
-            +
-          </button>
-        </div>
-      </div>
 
       {/* Weekly charts */}
       <WeekSummary
