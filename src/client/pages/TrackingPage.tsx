@@ -10,27 +10,44 @@ function todayDate() {
 const SHORT_DAYS = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb']
 const dayLabel = (d: string) => SHORT_DAYS[new Date(d).getDay()]
 
-// Simple dependency-free bar chart for a 7-day series.
+// Simple dependency-free bar chart for a 7-day series, with a dashed target
+// line (goal) overlaid so you can compare tracking (bars) vs cel (line).
 function WeekBars({ days, values, target, color }: {
   days: string[]; values: number[]; target?: number; color: string
 }) {
-  const max = Math.max(target ?? 0, ...values, 1)
+  const headroom = target ? target * 1.15 : 1 // keep the target line below the top
+  const max = Math.max(headroom, ...values, 1)
   const today = todayDate()
+  const targetPct = target ? Math.min(100, (target / max) * 100) : null
   return (
     <div>
-      <div className="flex h-24 items-end gap-1">
-        {values.map((v, i) => {
-          const h = Math.max(Math.round((v / max) * 100), v > 0 ? 4 : 0)
-          return (
-            <div key={i} className="flex flex-1 flex-col items-center justify-end gap-0.5">
-              <span className="text-[9px] leading-none text-gray-400">{v > 0 ? Math.round(v) : ''}</span>
-              <div
-                className={`w-full rounded-t ${v > 0 ? color : 'bg-gray-100 dark:bg-gray-700'}`}
-                style={{ height: `${Math.max(h, 2)}%` }}
-              />
-            </div>
-          )
-        })}
+      <div className="relative h-24">
+        {targetPct != null && (
+          <div
+            className="pointer-events-none absolute inset-x-0 z-10 border-t border-dashed border-gray-500/70 dark:border-gray-300/60"
+            style={{ bottom: `${targetPct}%` }}
+          >
+            <span className="absolute right-0 -top-2.5 rounded bg-white px-1 text-[8px] font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-300">
+              cel {Math.round(target!)}
+            </span>
+          </div>
+        )}
+        <div className="flex h-full items-end gap-1">
+          {values.map((v, i) => {
+            const h = Math.max(Math.round((v / max) * 100), v > 0 ? 4 : 0)
+            const hitTarget = target ? v >= target : false
+            return (
+              <div key={i} className="flex flex-1 flex-col items-center justify-end gap-0.5">
+                <span className="text-[9px] leading-none text-gray-400">{v > 0 ? Math.round(v) : ''}</span>
+                <div
+                  className={`w-full rounded-t ${v > 0 ? (hitTarget ? 'bg-green-500' : color) : 'bg-gray-100 dark:bg-gray-700'}`}
+                  style={{ height: `${Math.max(h, 2)}%` }}
+                  title={hitTarget ? 'Cel osiągnięty' : undefined}
+                />
+              </div>
+            )
+          })}
+        </div>
       </div>
       <div className="mt-1 flex gap-1">
         {days.map((d) => (

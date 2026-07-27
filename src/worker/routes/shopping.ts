@@ -98,10 +98,15 @@ const LEMMAS: Record<string, string> = {
 
 // Normalise an ingredient name for aggregation so variants of the same item
 // merge on the shopping list: drop parenthetical qualifiers ("mleko (lub napój
-// roślinny)" → "mleko", "czosnek (starty)" → "czosnek"), collapse whitespace,
-// then apply the lemma map above.
+// roślinny)" → "mleko", "czosnek (starty)" → "czosnek"), drop trailing use
+// qualifiers ("olej do smażenia" → "olej", "jogurt do podania" → "jogurt"),
+// collapse whitespace, then apply the lemma map above.
 function normalizeName(name: string): string {
-  const clean = name.replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim()
+  const clean = name
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/\s+do\s+(smażenia|podania|maczania|dekoracji|smaku|posypania)\b.*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
   return LEMMAS[clean.toLowerCase()] ?? clean
 }
 
@@ -122,27 +127,22 @@ app.post('/generate', async (c) => {
     .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
     .where(between(meal_plan_entries.date, from, to))
 
-  // Aggregate ingredients (merge by normalised name + unit).
-  const aggregated = new Map<string, { name: string; quantity: number; unit: string; category: ShopCategory }>()
+  // Aggregate ingredients by normalised name (one line per product). Quantities
+  // are summed per unit; different units for the same product are kept as
+  // separate running totals and the largest is shown, so "mleko" appears once.
+  const aggregated = new Map<string, { name: string; category: ShopCategory; units: Map<string, number> }>()
   for (const { entry, recipe } of planRows) {
     if (!recipe) continue
     const ingredients = JSON.parse(recipe.ingredients) as Ingredient[]
     for (const ing of ingredients) {
       const clean = normalizeName(ing.name || '')
       if (!clean) continue
-      const key = `${clean.toLowerCase()}__${ing.unit}`
-      const qty = parseFloat(ing.amount) || 0
-      const existing = aggregated.get(key)
-      if (existing) {
-        existing.quantity += qty * entry.servings
-      } else {
-        aggregated.set(key, {
-          name: clean,
-          quantity: qty * entry.servings,
-          unit: ing.unit,
-          category: guessCategory(clean),
-        })
-      }
+      const key = clean.toLowerCase()
+      const qty = (parseFloat(ing.amount) || 0) * entry.servings
+      let g = aggregated.get(key)
+      if (!g) { g = { name: clean, category: guessCategory(clean), units: new Map() }; aggregated.set(key, g) }
+      const u = ing.unit || ''
+      g.units.set(u, (g.units.get(u) || 0) + qty)
     }
   }
 
@@ -156,14 +156,20 @@ app.post('/generate', async (c) => {
 
   let sortOrder = 0
   const itemsToInsert = []
-  for (const { name, quantity, unit, category } of aggregated.values()) {
+  for (const { name, category, units } of aggregated.values()) {
+    // Pick the unit with the largest summed quantity as the one to display.
+    let bestUnit: string | null = null
+    let bestQty = 0
+    for (const [u, qv] of units) {
+      if (qv > bestQty) { bestQty = qv; bestUnit = u }
+    }
     itemsToInsert.push({
       list_id: list.id,
       name,
       // Ingredients with no numeric amount ("garść", "do smaku") aggregate to 0
       // — store null so the UI shows just the name, not a meaningless "0".
-      quantity: quantity > 0 ? Math.round(quantity * 10) / 10 : null,
-      unit: quantity > 0 ? (unit || null) : null,
+      quantity: bestQty > 0 ? Math.round(bestQty * 10) / 10 : null,
+      unit: bestQty > 0 ? (bestUnit || null) : null,
       category,
       source: 'generated' as const,
       sort_order: sortOrder++,
