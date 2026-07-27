@@ -122,6 +122,17 @@ app.patch('/:id/status', async (c) => {
   return c.json(parsePlanRow(row))
 })
 
+// DELETE /api/plan/entry/:id  — remove a single plan entry (grid supports
+// multiple entries per meal slot, e.g. several snacks per day)
+app.delete('/entry/:id', async (c) => {
+  const id = Number(c.req.param('id'))
+  const db = getDb(c.env.DB)
+  // Also drop any auto-created food_log row tied to this entry.
+  await db.delete(food_log).where(eq(food_log.portion, `plan:${id}`))
+  await db.delete(meal_plan_entries).where(eq(meal_plan_entries.id, id))
+  return c.json({ ok: true })
+})
+
 // DELETE /api/plan/:date/:meal_type
 app.delete('/:date/:meal_type', async (c) => {
   const date = c.req.param('date')

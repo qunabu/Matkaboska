@@ -93,6 +93,8 @@ const pl = {
     readyAdd: 'Dodaj produkt',
     readyHint: 'Zapisuje się w bazie produktów (Ustawienia) do ponownego użycia.',
     readyPickHint: 'Wybierz z listy, aby nie wpisywać makro ponownie.',
+    addFoodButton: 'Dodaj jedzenie lub produkt',
+    addFoodTitle: 'Dodaj do dziennika',
     mKcal: 'kcal',
     mProtein: 'B (g)',
     mCarbs: 'W (g)',

@@ -130,16 +130,30 @@ runSqlFile(sql, 'recipes')
 
 // --- Step 2: read back real recipe ids, grouped by category ---------------
 
-const rows = query('SELECT id, slug, category FROM recipes')
+const rows = query('SELECT id, slug, category, macros FROM recipes')
 const inCat = (...cats) => rows.filter(r => cats.includes(r.category))
 const nonEmpty = (p) => (p.length ? p : rows)
 const slugToId = new Map(rows.map(r => [r.slug, r.id]))
+const kcalOf = new Map(rows.map(r => {
+  let k = 0
+  try { k = JSON.parse(r.macros || '{}').kcal || 0 } catch {}
+  return [r.id, k]
+}))
 
 // Fixed daily protein boosters — always added to every day of the plan
 // (skyr + a scoop of protein powder) so the plan reliably approaches the
 // ~150 g protein target, per the source diet's "do 150 g" guidance.
 const EXTRA_SLUGS = ['skyr-men-protein', 'porcja-bialka-proteinowego']
 const dailyExtras = EXTRA_SLUGS.map(s => slugToId.get(s)).filter(Boolean)
+
+// Calorie top-up boosters so every day reaches the target band (min 2000,
+// aim ~2300 kcal). Varied protein/dairy snacks.
+const BOOSTER_SLUGS = ['p4-koktajl-proteinowy', 'p1-batony-bialkowe-orzechowe', 'twarog-owoce-granola', 'p2-skyr-z-orzechami', 'owsianka-z-bananem']
+const boosterPool = BOOSTER_SLUGS
+  .map(s => ({ id: slugToId.get(s), kcal: kcalOf.get(slugToId.get(s)) || 0 }))
+  .filter(b => b.id)
+const KCAL_MIN = 2000
+const KCAL_AIM = 2300
 
 const breakfastPool = nonEmpty(inCat('breakfast'))
 const snackPool = nonEmpty(inCat('snack').filter(r => !EXTRA_SLUGS.includes(r.slug)))
@@ -172,15 +186,29 @@ for (let day = 0; day < DAYS; day++) {
   const lunch = lunchPool[block % lunchPool.length]
   const dinner = dinnerPool[(block + dinnerOffset) % dinnerPool.length]
 
-  entries.push({ date, meal_type: 'breakfast', recipe_id: breakfastPool[day % breakfastPool.length].id, servings: 1, batch_group: null, is_leftover: 0 })
-  entries.push({ date, meal_type: 'lunch', recipe_id: lunch.id, servings: 1, batch_group: `obiad-${block}`, is_leftover: isLeftover })
-  entries.push({ date, meal_type: 'dinner', recipe_id: dinner.id, servings: 1, batch_group: `kolacja-${block}`, is_leftover: isLeftover })
-  entries.push({ date, meal_type: 'snack', recipe_id: snackPool[day % snackPool.length].id, servings: 1, batch_group: null, is_leftover: 0 })
-
-  // Always-present daily protein boosters (skyr + protein shake).
-  for (const id of dailyExtras) {
-    entries.push({ date, meal_type: 'snack', recipe_id: id, servings: 1, batch_group: null, is_leftover: 0 })
+  const dayEntries = []
+  let dayKcal = 0
+  const add = (meal_type, id, batch_group = null, lo = 0) => {
+    dayEntries.push({ date, meal_type, recipe_id: id, servings: 1, batch_group, is_leftover: lo })
+    dayKcal += kcalOf.get(id) || 0
   }
+
+  add('breakfast', breakfastPool[day % breakfastPool.length].id)
+  add('lunch', lunch.id, `obiad-${block}`, isLeftover)
+  add('dinner', dinner.id, `kolacja-${block}`, isLeftover)
+  add('snack', snackPool[day % snackPool.length].id)
+  for (const id of dailyExtras) add('snack', id) // skyr + protein shake
+
+  // Calorie floor: top up with boosters until the day reaches the target band
+  // (never below 2000 kcal, aiming ~2300). Stop once >= aim, or once >= min and
+  // the next booster would overshoot the upper bound.
+  for (let guard = 0; guard < 12 && boosterPool.length && dayKcal < KCAL_AIM; guard++) {
+    const b = boosterPool[(day + guard) % boosterPool.length]
+    if (dayKcal >= KCAL_MIN && dayKcal + b.kcal > 2500) break
+    add('snack', b.id)
+  }
+
+  entries.push(...dayEntries)
 }
 
 let planSql = ''
@@ -206,12 +234,22 @@ const [{ n: badBatches }] = query(
   `SELECT COUNT(*) AS n FROM (SELECT batch_group FROM meal_plan_entries WHERE batch_group IS NOT NULL GROUP BY batch_group HAVING COUNT(*) <> ${BLOCK_DAYS})`
 )
 
+// Daily planned kcal must never fall below the minimum.
+const [{ minK, maxK }] = query(
+  "SELECT MIN(dk) AS minK, MAX(dk) AS maxK FROM (SELECT e.date, SUM(COALESCE(json_extract(r.macros,'$.kcal'),0)) AS dk FROM meal_plan_entries e JOIN recipes r ON e.recipe_id = r.id GROUP BY e.date)"
+)
+
 console.log('\n─── Seed verification ───')
 console.log(`Recipes total: ${recipeTotal}`)
 for (const c of catCounts) console.log(`  ${c.category}: ${c.n}`)
 console.log(`Meal plan entries: ${planTotal}`)
 console.log(`Orphan plan entries (should be 0): ${orphans}`)
 console.log(`Batch groups not spanning ${BLOCK_DAYS} days (should be 0): ${badBatches}`)
+console.log(`Daily kcal range: ${Math.round(minK)}–${Math.round(maxK)} (min must be ≥ ${KCAL_MIN})`)
+if (Number(minK) < KCAL_MIN) {
+  console.error(`❌ Some day is below ${KCAL_MIN} kcal (min ${Math.round(minK)}).`)
+  process.exit(1)
+}
 if (Number(orphans) !== 0) {
   console.error('❌ Orphan meal_plan_entries detected — plan not fully reconciled.')
   process.exit(1)

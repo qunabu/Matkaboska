@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { planApi, recipesApi, todayDate, getWeekStart, weekDates, addDays } from '../lib/api'
 import pl from '../i18n/pl'
@@ -90,22 +91,21 @@ export default function PlanPage() {
     queryFn: () => planApi.list(weekStart, weekEnd),
   })
 
-  const setMealMutation = useMutation({
+  const appendMealMutation = useMutation({
     mutationFn: ({ date, mealType, recipeId, servings }: { date: string; mealType: MealType; recipeId: number; servings: number }) =>
-      planApi.set(date, mealType, { recipe_id: recipeId, servings }),
+      planApi.append(date, mealType, recipeId, servings),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['plan'] }),
   })
 
-  const clearMealMutation = useMutation({
-    mutationFn: ({ date, mealType }: { date: string; mealType: MealType }) =>
-      planApi.delete(date, mealType),
+  const deleteEntryMutation = useMutation({
+    mutationFn: (id: number) => planApi.deleteEntry(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['plan'] }),
   })
 
   const entries = data?.items ?? []
 
-  function getEntry(date: string, mealType: MealType) {
-    return entries.find(e => e.date === date && e.meal_type === mealType)
+  function getEntries(date: string, mealType: MealType) {
+    return entries.filter(e => e.date === date && e.meal_type === mealType)
   }
 
   // Sum planned kcal + macros for a day from each entry's recipe macros × servings.
@@ -186,42 +186,55 @@ export default function PlanPage() {
                     {mealLabel(mealType)}
                   </td>
                   {dates.map(date => {
-                    const entry = getEntry(date, mealType)
+                    const cellEntries = getEntries(date, mealType)
                     return (
-                      <td key={date} className="px-1 py-1">
-                        {entry ? (
-                          <div
-                            className={`relative min-h-[4rem] rounded-lg p-2 text-xs ${
-                              entry.status === 'eaten'
-                                ? 'bg-green-50 ring-1 ring-green-200 dark:bg-green-900/20 dark:ring-green-800/30'
-                                : entry.status === 'skipped'
-                                ? 'bg-gray-50 ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700'
-                                : 'bg-white ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700'
-                            }`}
-                          >
-                            <p className="font-medium text-gray-800 line-clamp-2 dark:text-gray-200">
-                              {entry.recipe?.title ?? `#${entry.recipe_id}`}
-                            </p>
-                            {entry.recipe?.macros && (
-                              <p className="mt-0.5 text-[10px] text-gray-400">
-                                {Math.round(entry.recipe.macros.kcal * (entry.servings ?? 1))} kcal
-                              </p>
-                            )}
-                            <button
-                              onClick={() => clearMealMutation.mutate({ date, mealType })}
-                              className="absolute right-1 top-1 text-gray-300 hover:text-red-400"
+                      <td key={date} className="px-1 py-1 align-top">
+                        <div className="space-y-1">
+                          {cellEntries.map(entry => (
+                            <div
+                              key={entry.id}
+                              className={`relative rounded-lg p-2 pr-5 text-xs ${
+                                entry.status === 'eaten'
+                                  ? 'bg-green-50 ring-1 ring-green-200 dark:bg-green-900/20 dark:ring-green-800/30'
+                                  : entry.status === 'skipped'
+                                  ? 'bg-gray-50 ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700'
+                                  : 'bg-white ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700'
+                              }`}
                             >
-                              ×
-                            </button>
-                          </div>
-                        ) : (
+                              {entry.recipe_id ? (
+                                <Link
+                                  to={`/recipes/${entry.recipe_id}`}
+                                  className="font-medium text-primary-700 line-clamp-2 hover:underline dark:text-primary-300"
+                                >
+                                  {entry.recipe?.title ?? `#${entry.recipe_id}`}
+                                </Link>
+                              ) : (
+                                <span className="font-medium text-gray-800 line-clamp-2 dark:text-gray-200">
+                                  {entry.recipe?.title ?? '—'}
+                                </span>
+                              )}
+                              {entry.recipe?.macros && (
+                                <p className="mt-0.5 text-[10px] text-gray-400">
+                                  {Math.round(entry.recipe.macros.kcal * (entry.servings ?? 1))} kcal
+                                </p>
+                              )}
+                              <button
+                                onClick={() => deleteEntryMutation.mutate(entry.id)}
+                                className="absolute right-1 top-1 text-gray-300 hover:text-red-400"
+                                aria-label={pl.common.delete}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
                           <button
                             onClick={() => setPicking({ date, mealType })}
-                            className="flex min-h-[4rem] w-full items-center justify-center rounded-lg border border-dashed border-gray-200 text-gray-300 hover:border-primary-300 hover:text-primary-400 dark:border-gray-700"
+                            className="flex w-full items-center justify-center rounded-lg border border-dashed border-gray-200 py-1.5 text-gray-300 hover:border-primary-300 hover:text-primary-400 dark:border-gray-700"
+                            aria-label={pl.plan.addMeal}
                           >
                             +
                           </button>
-                        )}
+                        </div>
                       </td>
                     )
                   })}
@@ -256,7 +269,7 @@ export default function PlanPage() {
         <RecipePicker
           onClose={() => setPicking(null)}
           onPick={(recipeId, servings) => {
-            setMealMutation.mutate({ date: picking.date, mealType: picking.mealType, recipeId, servings })
+            appendMealMutation.mutate({ date: picking.date, mealType: picking.mealType, recipeId, servings })
             setPicking(null)
           }}
         />

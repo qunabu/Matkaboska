@@ -273,6 +273,7 @@ function ReadyProduct() {
 
 export default function TodayPage() {
   const qc = useQueryClient()
+  const [showAdd, setShowAdd] = useState(false)
 
   const { data: planData, isLoading } = useQuery({
     queryKey: ['plan', today, today],
@@ -334,11 +335,13 @@ export default function TodayPage() {
         </div>
       )}
 
-      {/* Add own food (AI macro estimate) */}
-      <CustomFood />
-
-      {/* Add a ready-made product with macros (autocomplete + repository) */}
-      <ReadyProduct />
+      {/* Rarely-used: add own food / product via a bottom modal */}
+      <button
+        onClick={() => setShowAdd(true)}
+        className="w-full rounded-xl border border-dashed border-gray-300 py-3 text-sm font-medium text-primary-600 transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-gray-600 dark:text-primary-400 dark:hover:bg-primary-900/20"
+      >
+        ➕ {pl.today.addFoodButton}
+      </button>
 
       {/* Water */}
       <WaterTracker />
@@ -407,6 +410,26 @@ export default function TodayPage() {
             </div>
           </div>
         ))
+      )}
+
+      {/* Bottom-sheet modal: add own food (AI) + ready product */}
+      {showAdd && (
+        <div
+          className="fixed inset-0 z-50 flex items-end bg-black/40 md:items-center md:justify-center"
+          onClick={() => setShowAdd(false)}
+        >
+          <div
+            className="max-h-[88vh] w-full space-y-4 overflow-y-auto rounded-t-2xl bg-gray-50 p-4 md:max-w-lg md:rounded-2xl dark:bg-gray-950"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">{pl.today.addFoodTitle}</h2>
+              <button onClick={() => setShowAdd(false)} className="text-2xl leading-none text-gray-400 hover:text-gray-600">×</button>
+            </div>
+            <CustomFood />
+            <ReadyProduct />
+          </div>
+        </div>
       )}
     </div>
   )
