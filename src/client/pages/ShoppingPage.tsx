@@ -20,7 +20,7 @@ const CAT_ORDER: ShopCategory[] = ['produce', 'dairy', 'pantry', 'frozen', 'othe
 function buildFriscoPrompt(listName: string, items: ShoppingItem[]): string {
   const active = items.filter((i) => !i.checked)
   const lines = active.map((i) => {
-    const qty = i.quantity ? ` — ${i.quantity} ${i.unit ?? ''}`.trim() : ''
+    const qty = i.quantity ? ` — ${i.quantity} ${i.unit ?? ''}`.trimEnd() : ''
     return `- ${i.name}${qty}`
   })
   return [
