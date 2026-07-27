@@ -58,6 +58,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [notifState, setNotifState] = useState<'default' | 'granted' | 'denied'>('default')
   const [vapidKey, setVapidKey] = useState<string | null>(null)
+  const [testMsg, setTestMsg] = useState<'sent' | 'denied' | 'error' | 'unsupported' | null>(null)
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -121,7 +122,36 @@ export default function SettingsPage() {
   }
 
   async function sendTestNotification() {
-    await pushApi.test()
+    setTestMsg(null)
+    if (!('Notification' in window)) { setTestMsg('unsupported'); return }
+    try {
+      let perm = Notification.permission
+      if (perm !== 'granted') {
+        perm = await Notification.requestPermission()
+        setNotifState(perm as typeof notifState)
+      }
+      if (perm !== 'granted') { setTestMsg('denied'); return }
+
+      // Show a real notification locally via the service worker — this works
+      // whenever permission is granted, independent of server push / VAPID.
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.ready
+        await reg.showNotification('Matka Boska LGBT 🌈', {
+          body: 'Powiadomienia działają! 🙏',
+          icon: '/icons/icon-192.png',
+          badge: '/icons/icon-192.png',
+          tag: 'mbl-test',
+        })
+      } else {
+        new Notification('Matka Boska LGBT 🌈', { body: 'Powiadomienia działają! 🙏', icon: '/icons/icon-192.png' })
+      }
+      setTestMsg('sent')
+      // Best-effort server push too (for real cron reminders, if VAPID is set).
+      pushApi.test().catch(() => {})
+    } catch (err) {
+      console.error('Test notification failed', err)
+      setTestMsg('error')
+    }
   }
 
   if (isLoading) return <div className="p-4 text-gray-500">{pl.common.loading}</div>
@@ -196,12 +226,28 @@ export default function SettingsPage() {
             ) : notifState === 'denied' ? (
               <p className="text-sm text-red-500">{pl.settings.notificationsDenied}</p>
             ) : (
-              <button
-                onClick={enableNotifications}
-                className="w-full rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white"
-              >
-                🔔 {pl.settings.enableNotifications}
-              </button>
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={enableNotifications}
+                  className="flex-1 rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white"
+                >
+                  🔔 {pl.settings.enableNotifications}
+                </button>
+                <button
+                  onClick={sendTestNotification}
+                  className="rounded-lg bg-gray-100 px-3 py-2 text-xs text-gray-600 hover:bg-gray-200 dark:bg-gray-700"
+                >
+                  {pl.settings.testNotification}
+                </button>
+              </div>
+            )}
+            {testMsg && (
+              <p className={`mt-3 text-xs ${testMsg === 'sent' ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                {testMsg === 'sent' ? pl.settings.testSent
+                  : testMsg === 'denied' ? pl.settings.testDenied
+                  : testMsg === 'unsupported' ? pl.settings.testUnsupported
+                  : pl.settings.testError}
+              </p>
             )}
           </div>
         </section>
