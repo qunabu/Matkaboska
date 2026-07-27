@@ -133,9 +133,16 @@ runSqlFile(sql, 'recipes')
 const rows = query('SELECT id, slug, category FROM recipes')
 const inCat = (...cats) => rows.filter(r => cats.includes(r.category))
 const nonEmpty = (p) => (p.length ? p : rows)
+const slugToId = new Map(rows.map(r => [r.slug, r.id]))
+
+// Fixed daily protein boosters — always added to every day of the plan
+// (skyr + a scoop of protein powder) so the plan reliably approaches the
+// ~150 g protein target, per the source diet's "do 150 g" guidance.
+const EXTRA_SLUGS = ['skyr-men-protein', 'porcja-bialka-proteinowego']
+const dailyExtras = EXTRA_SLUGS.map(s => slugToId.get(s)).filter(Boolean)
 
 const breakfastPool = nonEmpty(inCat('breakfast'))
-const snackPool = nonEmpty(inCat('snack'))
+const snackPool = nonEmpty(inCat('snack').filter(r => !EXTRA_SLUGS.includes(r.slug)))
 const lunchPool = nonEmpty(inCat('main'))
 const dinnerPool = nonEmpty(inCat('main', 'classic'))
 
@@ -169,6 +176,11 @@ for (let day = 0; day < DAYS; day++) {
   entries.push({ date, meal_type: 'lunch', recipe_id: lunch.id, servings: 1, batch_group: `obiad-${block}`, is_leftover: isLeftover })
   entries.push({ date, meal_type: 'dinner', recipe_id: dinner.id, servings: 1, batch_group: `kolacja-${block}`, is_leftover: isLeftover })
   entries.push({ date, meal_type: 'snack', recipe_id: snackPool[day % snackPool.length].id, servings: 1, batch_group: null, is_leftover: 0 })
+
+  // Always-present daily protein boosters (skyr + protein shake).
+  for (const id of dailyExtras) {
+    entries.push({ date, meal_type: 'snack', recipe_id: id, servings: 1, batch_group: null, is_leftover: 0 })
+  }
 }
 
 let planSql = ''

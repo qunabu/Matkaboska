@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { planApi, waterApi, foodLogApi, settingsApi, todayDate } from '../lib/api'
+import { planApi, waterApi, foodLogApi, settingsApi, productsApi, todayDate } from '../lib/api'
 import pl from '../i18n/pl'
-import type { MealType, PlanStatus } from '../../shared/types'
+import type { MealType, PlanStatus, Product } from '../../shared/types'
 
 const today = todayDate()
 
@@ -157,6 +157,120 @@ function CustomFood() {
   )
 }
 
+function num(s: string): number | null {
+  const n = parseFloat(s.replace(',', '.'))
+  return isNaN(n) ? null : n
+}
+
+function ReadyProduct() {
+  const qc = useQueryClient()
+  const [name, setName] = useState('')
+  const [kcal, setKcal] = useState('')
+  const [protein, setProtein] = useState('')
+  const [carbs, setCarbs] = useState('')
+  const [fat, setFat] = useState('')
+  const [portion, setPortion] = useState('')
+  const [showSug, setShowSug] = useState(false)
+
+  const { data: sug } = useQuery({
+    queryKey: ['products', name],
+    queryFn: () => productsApi.list(name),
+    enabled: showSug && name.trim().length >= 1,
+  })
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const p = {
+        name: name.trim(),
+        kcal: num(kcal), protein_g: num(protein), carbs_g: num(carbs), fat_g: num(fat),
+        portion: portion.trim() || null,
+      }
+      await productsApi.create(p) // save/update the reusable repository entry
+      await foodLogApi.add({
+        description: p.portion ? `${p.name} (${p.portion})` : p.name,
+        kcal: p.kcal, protein_g: p.protein_g, carbs_g: p.carbs_g, fat_g: p.fat_g,
+        portion: 'product',
+      })
+    },
+    onSuccess: () => {
+      setName(''); setKcal(''); setProtein(''); setCarbs(''); setFat(''); setPortion(''); setShowSug(false)
+      qc.invalidateQueries({ queryKey: ['food-log', today] })
+      qc.invalidateQueries({ queryKey: ['food-log-summary', today] })
+      qc.invalidateQueries({ queryKey: ['products'] })
+    },
+  })
+
+  function pick(p: Product) {
+    setName(p.name)
+    setKcal(p.kcal?.toString() ?? '')
+    setProtein(p.protein_g?.toString() ?? '')
+    setCarbs(p.carbs_g?.toString() ?? '')
+    setFat(p.fat_g?.toString() ?? '')
+    setPortion(p.portion ?? '')
+    setShowSug(false)
+  }
+
+  const suggestions = (sug?.items ?? []).filter(p => p.name.toLowerCase() !== name.trim().toLowerCase())
+  const macroInput = 'w-full rounded-lg border border-gray-200 px-2 py-2 text-center text-sm outline-none focus:border-primary-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'
+
+  return (
+    <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+      <h2 className="mb-1 font-semibold text-gray-900 dark:text-gray-100">🛒 {pl.today.readyProduct}</h2>
+      <p className="mb-3 text-xs text-gray-400">{pl.today.readyPickHint}</p>
+
+      <div className="relative">
+        <input
+          value={name}
+          onChange={(e) => { setName(e.target.value); setShowSug(true) }}
+          onFocus={() => setShowSug(true)}
+          placeholder={pl.today.readyNamePlaceholder}
+          className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-primary-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+        />
+        {showSug && suggestions.length > 0 && (
+          <ul className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+            {suggestions.map((p) => (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  onClick={() => pick(p)}
+                  className="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  <span className="truncate text-gray-900 dark:text-gray-100">{p.name}</span>
+                  <span className="whitespace-nowrap text-xs text-gray-400">
+                    {p.kcal != null ? `${Math.round(p.kcal)} kcal` : ''}{p.protein_g != null ? ` · ${Math.round(p.protein_g)}g B` : ''}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="mt-2 grid grid-cols-4 gap-2">
+        <input inputMode="decimal" value={kcal} onChange={(e) => setKcal(e.target.value)} placeholder={pl.today.mKcal} className={macroInput} />
+        <input inputMode="decimal" value={protein} onChange={(e) => setProtein(e.target.value)} placeholder={pl.today.mProtein} className={macroInput} />
+        <input inputMode="decimal" value={carbs} onChange={(e) => setCarbs(e.target.value)} placeholder={pl.today.mCarbs} className={macroInput} />
+        <input inputMode="decimal" value={fat} onChange={(e) => setFat(e.target.value)} placeholder={pl.today.mFat} className={macroInput} />
+      </div>
+      <input
+        value={portion}
+        onChange={(e) => setPortion(e.target.value)}
+        placeholder={pl.today.readyPortion}
+        className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+      />
+
+      <button
+        onClick={() => addMutation.mutate()}
+        disabled={addMutation.isPending || !name.trim()}
+        className="mt-3 w-full rounded-xl bg-primary-600 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+      >
+        {pl.today.readyAdd}
+      </button>
+      <p className="mt-2 text-xs text-gray-400">{pl.today.readyHint}</p>
+    </div>
+  )
+}
+
 export default function TodayPage() {
   const qc = useQueryClient()
 
@@ -222,6 +336,9 @@ export default function TodayPage() {
 
       {/* Add own food (AI macro estimate) */}
       <CustomFood />
+
+      {/* Add a ready-made product with macros (autocomplete + repository) */}
+      <ReadyProduct />
 
       {/* Water */}
       <WaterTracker />

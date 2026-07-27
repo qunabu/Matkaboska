@@ -43,6 +43,17 @@ export interface Recipe {
   updated_at: number
 }
 
+export interface Product {
+  id: number
+  name: string
+  kcal: number | null
+  protein_g: number | null
+  carbs_g: number | null
+  fat_g: number | null
+  portion: string | null
+  created_at: number
+}
+
 export interface RecipeNote {
   id: number
   recipe_id: number

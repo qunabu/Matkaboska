@@ -1,7 +1,55 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { settingsApi, pushApi } from '../lib/api'
+import { settingsApi, pushApi, productsApi } from '../lib/api'
 import pl from '../i18n/pl'
+
+function ProductsRepo() {
+  const qc = useQueryClient()
+  const { data } = useQuery({ queryKey: ['products'], queryFn: () => productsApi.list() })
+  const del = useMutation({
+    mutationFn: (id: number) => productsApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
+  })
+  const items = data?.items ?? []
+  return (
+    <section>
+      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+        {pl.settings.products}
+      </h2>
+      <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+        {items.length === 0 ? (
+          <p className="p-4 text-sm text-gray-400">{pl.settings.productsEmpty}</p>
+        ) : (
+          <div className="divide-y divide-gray-50 dark:divide-gray-700">
+            {items.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-2 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-gray-800 dark:text-gray-200">{p.name}</p>
+                  <p className="text-xs text-gray-400">
+                    {[
+                      p.portion,
+                      p.kcal != null ? `${Math.round(p.kcal)} kcal` : null,
+                      p.protein_g != null ? `${Math.round(p.protein_g)}g B` : null,
+                      p.carbs_g != null ? `${Math.round(p.carbs_g)}g W` : null,
+                      p.fat_g != null ? `${Math.round(p.fat_g)}g T` : null,
+                    ].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => del.mutate(p.id)}
+                  className="shrink-0 text-gray-300 hover:text-red-400"
+                  aria-label={pl.common.delete}
+                >
+                  🗑
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
 
 declare const __APP_VERSION__: string
 
@@ -157,6 +205,9 @@ export default function SettingsPage() {
             )}
           </div>
         </section>
+
+        {/* Products repository */}
+        <ProductsRepo />
 
         {/* About */}
         <section>

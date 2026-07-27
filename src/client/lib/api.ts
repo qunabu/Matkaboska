@@ -1,7 +1,7 @@
 import type {
   Recipe, RecipeWithNotes, MealPlanEntry, FoodLogEntry, DailySummary,
   WaterLog, SupplementWithStatus, SupplementLog, ShoppingList, ShoppingItem,
-  Reminder, AppSettings, ApiList, ApiOk,
+  Reminder, AppSettings, ApiList, ApiOk, Product,
 } from '../../shared/types'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -57,6 +57,15 @@ export const foodLogApi = {
   estimate: (data: { description: string; date?: string; portion?: string }) =>
     req<FoodLogEntry>('/food-log/estimate', { method: 'POST', body: JSON.stringify(data) }),
   delete: (id: number) => req<ApiOk>(`/food-log/${id}`, { method: 'DELETE' }),
+}
+
+// ── Products (reusable ready-made products with macros) ────────────────────────
+
+export const productsApi = {
+  list: (search?: string) => req<ApiList<Product>>(`/products${search ? '?search=' + encodeURIComponent(search) : ''}`),
+  create: (data: Partial<Product>) => req<Product>('/products', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number, data: Partial<Product>) => req<Product>(`/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: number) => req<ApiOk>(`/products/${id}`, { method: 'DELETE' }),
 }
 
 // ── Water log ─────────────────────────────────────────────────────────────────

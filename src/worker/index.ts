@@ -7,6 +7,7 @@ import { planRouter } from './routes/plan'
 import { settingsRouter } from './routes/settings'
 import { shoppingRouter } from './routes/shopping'
 import { foodLogRouter } from './routes/food-log'
+import { productsRouter } from './routes/products'
 import { waterRouter } from './routes/water'
 import { supplementsRouter } from './routes/supplements'
 import { pushRouter, sendPushNotification } from './routes/push'
@@ -35,6 +36,7 @@ api.route('/api/plan', planRouter)
 api.route('/api/settings', settingsRouter)
 api.route('/api/shopping-lists', shoppingRouter)
 api.route('/api/food-log', foodLogRouter)
+api.route('/api/products', productsRouter)
 api.route('/api/water', waterRouter)
 api.route('/api/supplements', supplementsRouter)
 api.route('/api/push', pushRouter)

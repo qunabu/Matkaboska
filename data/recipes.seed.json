@@ -4062,5 +4062,79 @@
     },
     "macros_confidence": "high",
     "macros_assumptions": "Z poprzedniej wersji aplikacji; makra orientacyjne na porcję."
+  },
+  {
+    "slug": "skyr-men-protein",
+    "title": "Skyr Men Protein",
+    "category": "snack",
+    "servings": 1,
+    "prep_minutes": 1,
+    "ingredients": [
+      {
+        "name": "Skyr Men Protein",
+        "amount": "160",
+        "unit": "g"
+      }
+    ],
+    "steps": [
+      "Otwórz kubek i zjedz — Matka Boska każe dobić białko 🙏"
+    ],
+    "tags": [
+      "przekąska",
+      "wysokobiałkowe",
+      "nabiał",
+      "gotowy produkt"
+    ],
+    "is_seafood": false,
+    "known_protein_g": 20,
+    "macros": {
+      "kcal": 110,
+      "protein_g": 20,
+      "carbs_g": 6,
+      "fat_g": 0.5,
+      "fiber_g": 0
+    },
+    "macros_confidence": "high",
+    "macros_assumptions": "Wartości dla ~160 g skyr proteinowego (typowy produkt)."
+  },
+  {
+    "slug": "porcja-bialka-proteinowego",
+    "title": "Porcja odżywki białkowej",
+    "category": "snack",
+    "servings": 1,
+    "prep_minutes": 2,
+    "ingredients": [
+      {
+        "name": "Odżywka białkowa",
+        "amount": "30",
+        "unit": "g"
+      },
+      {
+        "name": "Woda lub mleko",
+        "amount": "250",
+        "unit": "ml"
+      }
+    ],
+    "steps": [
+      "Wsyp miarkę odżywki (~30 g) do shakera.",
+      "Zalej wodą lub mlekiem, wstrząśnij i wypij."
+    ],
+    "tags": [
+      "przekąska",
+      "wysokobiałkowe",
+      "sportowe",
+      "gotowy produkt"
+    ],
+    "is_seafood": false,
+    "known_protein_g": 24,
+    "macros": {
+      "kcal": 120,
+      "protein_g": 24,
+      "carbs_g": 3,
+      "fat_g": 1.5,
+      "fiber_g": 0
+    },
+    "macros_confidence": "high",
+    "macros_assumptions": "1 miarka (~30 g) odżywki białkowej na wodzie."
   }
 ]

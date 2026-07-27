@@ -59,6 +59,8 @@ const pl = {
     notificationsDenied: 'Powiadomienia zablokowane – zmień w ustawieniach przeglądarki',
     testNotification: 'Wyślij testowe',
     saved: 'Zapisano',
+    products: 'Baza produktów',
+    productsEmpty: 'Brak zapisanych produktów. Dodaj je na stronie głównej („Dodaj gotowy produkt").',
   },
 
   today: {
@@ -85,6 +87,16 @@ const pl = {
     estimateAdd: 'Wyznaj i dodaj',
     loggedToday: 'Zjedzone dziś',
     estimateFailed: 'Nie udało się oszacować — spróbuj ponownie lub dodaj w zakładce Dziennik.',
+    readyProduct: 'Dodaj gotowy produkt',
+    readyNamePlaceholder: 'Nazwa, np. Jogurt Skyr XYZ',
+    readyPortion: 'Porcja (opcjonalnie, np. 150 g)',
+    readyAdd: 'Dodaj produkt',
+    readyHint: 'Zapisuje się w bazie produktów (Ustawienia) do ponownego użycia.',
+    readyPickHint: 'Wybierz z listy, aby nie wpisywać makro ponownie.',
+    mKcal: 'kcal',
+    mProtein: 'B (g)',
+    mCarbs: 'W (g)',
+    mFat: 'T (g)',
   },
 
   recipes: {

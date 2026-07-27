@@ -133,3 +133,18 @@ export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),                             // JSON
 })
+
+// Reusable ready-made / branded products with known macros (per portion),
+// so the same product can be re-logged via autocomplete without re-typing.
+export const products = sqliteTable('products', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  kcal: real('kcal'),
+  protein_g: real('protein_g'),
+  carbs_g: real('carbs_g'),
+  fat_g: real('fat_g'),
+  portion: text('portion'),                                   // e.g. "100 g", "1 kubek (150 g)"
+  created_at: integer('created_at').notNull().default(unixNow),
+}, (t) => ({
+  product_name_idx: index('product_name_idx').on(t.name),
+}))
