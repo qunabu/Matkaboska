@@ -104,6 +104,18 @@ export const shoppingApi = {
   addItem: (data: object) => req<ShoppingItem>('/shopping-lists/items', { method: 'POST', body: JSON.stringify(data) }),
   updateItem: (id: number, data: object) => req<ShoppingItem>(`/shopping-lists/items/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteItem: (id: number) => req<ApiOk>(`/shopping-lists/items/${id}`, { method: 'DELETE' }),
+  friscoOrder: (listId: number) =>
+    req<FriscoOrderResult>('/frisco/order', { method: 'POST', body: JSON.stringify({ listId }) }),
+}
+
+export interface FriscoOrderResult {
+  listId: number
+  listName: string
+  requested: number
+  inCart: number
+  added: { item: string; product?: string }[]
+  notFound: string[]
+  removedUnavailable: string[]
 }
 
 // ── Reminders ─────────────────────────────────────────────────────────────────

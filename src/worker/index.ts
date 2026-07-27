@@ -13,6 +13,7 @@ import { productsRouter } from './routes/products'
 import { waterRouter } from './routes/water'
 import { supplementsRouter } from './routes/supplements'
 import { pushRouter, sendPushNotification } from './routes/push'
+import { friscoRouter } from './routes/frisco'
 import { getDb, reminders, push_subscriptions, settings } from './db/index'
 import { eq } from 'drizzle-orm'
 
@@ -57,6 +58,7 @@ api.route('/api/products', productsRouter)
 api.route('/api/water', waterRouter)
 api.route('/api/supplements', supplementsRouter)
 api.route('/api/push', pushRouter)
+api.route('/api/frisco', friscoRouter)
 
 type AssetsBinding = { fetch: (r: Request) => Promise<Response> }
 

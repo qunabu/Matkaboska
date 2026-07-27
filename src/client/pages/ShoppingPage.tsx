@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Routes, Route, Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { shoppingApi, todayDate, addDays } from '../lib/api'
+import type { FriscoOrderResult } from '../lib/api'
 import pl from '../i18n/pl'
 import type { ShoppingItem, ShopCategory } from '../../shared/types'
 
@@ -73,6 +74,11 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
   const [showFrisco, setShowFrisco] = useState(false)
   const [copied, setCopied] = useState(false)
   const [copiedCmd, setCopiedCmd] = useState(false)
+  const [orderResult, setOrderResult] = useState<FriscoOrderResult | null>(null)
+  const orderMutation = useMutation({
+    mutationFn: () => shoppingApi.friscoOrder(listId),
+    onSuccess: (r) => setOrderResult(r),
+  })
 
   const { data, isLoading } = useQuery({
     queryKey: ['shopping-list', listId],
@@ -222,6 +228,46 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100">🛒 {pl.shopping.friscoTitle}</h3>
                 <button onClick={() => setShowFrisco(false)} className="text-2xl leading-none text-gray-400">×</button>
               </div>
+              <div className="mb-4 rounded-xl border border-primary-200 bg-primary-50 p-3 dark:border-primary-900 dark:bg-primary-950/40">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{pl.shopping.friscoServerTitle}</h4>
+                <p className="mt-1 mb-2 text-xs text-gray-500 dark:text-gray-400">{pl.shopping.friscoServerHint}</p>
+                <button
+                  onClick={() => { setOrderResult(null); orderMutation.mutate() }}
+                  disabled={orderMutation.isPending}
+                  className="w-full rounded-xl bg-primary-600 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {orderMutation.isPending ? pl.shopping.friscoServerBusy : pl.shopping.friscoServerBtn}
+                </button>
+                {orderMutation.isError && (
+                  <p className="mt-2 text-xs text-red-500">{(orderMutation.error as Error).message}</p>
+                )}
+                {orderResult && (
+                  <div className="mt-3 space-y-2 text-xs">
+                    <p className="font-medium text-gray-800 dark:text-gray-100">
+                      {pl.shopping.friscoServerInCart}: {orderResult.inCart}/{orderResult.requested}
+                    </p>
+                    {orderResult.notFound.length > 0 && (
+                      <div>
+                        <p className="font-medium text-red-500">❗ {pl.shopping.friscoServerNotFound} ({orderResult.notFound.length}):</p>
+                        <ul className="ml-4 list-disc text-gray-600 dark:text-gray-300">
+                          {orderResult.notFound.map((n, i) => <li key={i}>{n}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {orderResult.removedUnavailable.length > 0 && (
+                      <div>
+                        <p className="font-medium text-amber-600 dark:text-amber-400">⚠️ {pl.shopping.friscoServerRemoved} ({orderResult.removedUnavailable.length}):</p>
+                        <ul className="ml-4 list-disc text-gray-600 dark:text-gray-300">
+                          {orderResult.removedUnavailable.map((n, i) => <li key={i}>{n}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    <p className="text-gray-500 dark:text-gray-400">{pl.shopping.friscoServerDone}</p>
+                  </div>
+                )}
+              </div>
+
+              <p className="mb-2 text-xs font-semibold text-gray-700 dark:text-gray-300">{pl.shopping.friscoManualTitle}</p>
               <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">{pl.shopping.friscoHint}</p>
               <textarea
                 readOnly
