@@ -24,6 +24,7 @@ const PlanPage = lazy(() => import('./pages/PlanPage'))
 const ShoppingPage = lazy(() => import('./pages/ShoppingPage'))
 const TrackingPage = lazy(() => import('./pages/TrackingPage'))
 const SupplementsPage = lazy(() => import('./pages/SupplementsPage'))
+const ReminderPage = lazy(() => import('./pages/ReminderPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
 function PageFallback() {
@@ -43,6 +44,7 @@ const navItems = [
   { to: '/shopping',    label: pl.nav.shopping,    icon: '🛒' },
   { to: '/tracking',    label: pl.nav.tracking,    icon: '📊' },
   { to: '/supplements', label: pl.nav.supplements, icon: '💊' },
+  { to: '/reminders',   label: pl.nav.reminders,   icon: '🔔' },
   { to: '/settings',    label: pl.nav.settings,    icon: '⚙️' },
 ]
 
@@ -127,13 +129,22 @@ function AppShell() {
   const [installEvt, setInstallEvt] = useState<InstallPromptEvent | null>(null)
 
   useEffect(() => {
-    // Chrome/Android fire this when the PWA is installable; capture it so we can
-    // show our own install button (the browser no longer auto-prompts).
+    // The event may have already fired before React mounted (captured in
+    // main.tsx and stashed on window); pick it up, and also listen live.
+    const stashed = (window as unknown as { __installPrompt?: Event }).__installPrompt
+    if (stashed) setInstallEvt(stashed as InstallPromptEvent)
+
+    const onReady = () => {
+      const e = (window as unknown as { __installPrompt?: Event }).__installPrompt
+      if (e) setInstallEvt(e as InstallPromptEvent)
+    }
     const onBIP = (e: Event) => { e.preventDefault(); setInstallEvt(e as InstallPromptEvent) }
     const onInstalled = () => setInstallEvt(null)
+    window.addEventListener('installpromptready', onReady)
     window.addEventListener('beforeinstallprompt', onBIP)
     window.addEventListener('appinstalled', onInstalled)
     return () => {
+      window.removeEventListener('installpromptready', onReady)
       window.removeEventListener('beforeinstallprompt', onBIP)
       window.removeEventListener('appinstalled', onInstalled)
     }
@@ -194,6 +205,7 @@ function AppShell() {
               <Route path="/shopping/*" element={<ShoppingPage />} />
               <Route path="/tracking/*" element={<TrackingPage />} />
               <Route path="/supplements/*" element={<SupplementsPage />} />
+              <Route path="/reminders" element={<ReminderPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>
           </Suspense>

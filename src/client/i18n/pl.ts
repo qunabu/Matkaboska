@@ -8,6 +8,7 @@ const pl = {
     shopping: 'Zakupy',
     tracking: 'Dziennik',
     supplements: 'Suplementy',
+    reminders: 'Przypomnienia',
     settings: 'Ustawienia',
   },
 
@@ -269,10 +270,15 @@ const pl = {
       custom: 'Własne',
     },
     label: 'Treść',
+    labelPlaceholder: 'np. Weź magnez, Ugotuj obiad',
     time: 'Godzina',
     days: 'Dni',
     enabled: 'Aktywne',
+    add: 'Dodaj przypomnienie',
+    empty: 'Brak przypomnień. Dodaj pierwsze poniżej.',
+    everyDay: 'Codziennie',
     deleteConfirm: 'Usunąć to przypomnienie?',
+    pushHint: 'Przypomnienia wysyłają powiadomienie push o wybranej godzinie (włącz powiadomienia w Ustawieniach).',
   },
 
   macros: {
