@@ -1,10 +1,103 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { foodLogApi, waterApi, recipesApi, settingsApi } from '../lib/api'
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
+import { foodLogApi, waterApi, recipesApi, settingsApi, addDays } from '../lib/api'
 import pl from '../i18n/pl'
 
 function todayDate() {
   return new Date().toISOString().slice(0, 10)
+}
+
+const SHORT_DAYS = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb']
+const dayLabel = (d: string) => SHORT_DAYS[new Date(d).getDay()]
+
+// Simple dependency-free bar chart for a 7-day series.
+function WeekBars({ days, values, target, color }: {
+  days: string[]; values: number[]; target?: number; color: string
+}) {
+  const max = Math.max(target ?? 0, ...values, 1)
+  const today = todayDate()
+  return (
+    <div>
+      <div className="flex h-24 items-end gap-1">
+        {values.map((v, i) => {
+          const h = Math.max(Math.round((v / max) * 100), v > 0 ? 4 : 0)
+          return (
+            <div key={i} className="flex flex-1 flex-col items-center justify-end gap-0.5">
+              <span className="text-[9px] leading-none text-gray-400">{v > 0 ? Math.round(v) : ''}</span>
+              <div
+                className={`w-full rounded-t ${v > 0 ? color : 'bg-gray-100 dark:bg-gray-700'}`}
+                style={{ height: `${Math.max(h, 2)}%` }}
+              />
+            </div>
+          )
+        })}
+      </div>
+      <div className="mt-1 flex gap-1">
+        {days.map((d) => (
+          <span
+            key={d}
+            className={`flex-1 text-center text-[9px] ${d === today ? 'font-bold text-primary-600 dark:text-primary-400' : 'text-gray-400'}`}
+          >
+            {dayLabel(d)}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function WeekSummary({ date, kcalTarget, proteinTarget, waterTarget }: {
+  date: string; kcalTarget: number; proteinTarget: number; waterTarget: number
+}) {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(date, i - 6)) // 7 days ending on `date`
+
+  const summaries = useQueries({
+    queries: days.map((d) => ({
+      queryKey: ['food-log-summary', d],
+      queryFn: () => foodLogApi.summary(d),
+    })),
+  })
+  const waters = useQueries({
+    queries: days.map((d) => ({
+      queryKey: ['water', d],
+      queryFn: () => waterApi.get(d),
+    })),
+  })
+
+  const kcal = summaries.map((s) => s.data?.kcal ?? 0)
+  const protein = summaries.map((s) => s.data?.protein_g ?? 0)
+  const carbs = summaries.map((s) => s.data?.carbs_g ?? 0)
+  const fat = summaries.map((s) => s.data?.fat_g ?? 0)
+  const glasses = waters.map((w) => w.data?.glasses ?? 0)
+
+  const avg = (arr: number[]) => Math.round(arr.reduce((a, b) => a + b, 0) / (arr.length || 1))
+
+  const charts = [
+    { label: pl.tracking.kcal, values: kcal, target: kcalTarget, color: 'bg-orange-400', unit: '' },
+    { label: pl.tracking.protein, values: protein, target: proteinTarget, color: 'bg-blue-400', unit: 'g' },
+    { label: pl.tracking.carbs, values: carbs, target: 250, color: 'bg-yellow-400', unit: 'g' },
+    { label: pl.tracking.fat, values: fat, target: 80, color: 'bg-red-400', unit: 'g' },
+    { label: `💧 ${pl.tracking.water.title}`, values: glasses, target: waterTarget, color: 'bg-cyan-400', unit: ` ${pl.tracking.glassesShort}` },
+  ]
+
+  return (
+    <div className="mb-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+      <h2 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">📊 {pl.tracking.weekSummary}</h2>
+      <div className="space-y-4">
+        {charts.map((c) => (
+          <div key={c.label}>
+            <div className="mb-1 flex items-baseline justify-between text-xs">
+              <span className="font-medium text-gray-600 dark:text-gray-300">{c.label}</span>
+              <span className="text-gray-400">
+                {pl.tracking.weekAvg} {avg(c.values)}{c.unit} · cel {c.target}{c.unit}
+              </span>
+            </div>
+            <WeekBars days={days} values={c.values} target={c.target} color={c.color} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function MacroProgressBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
@@ -226,13 +319,36 @@ export default function TrackingPage() {
         </button>
       </div>
 
-      {/* Date picker */}
-      <input
-        type="date"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-        className="mb-4 rounded-xl border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-      />
+      {/* Date navigation */}
+      <div className="mb-4 flex items-center gap-2">
+        <button
+          onClick={() => setDate(addDays(date, -1))}
+          className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-lg dark:bg-gray-700"
+          aria-label="Poprzedni dzień"
+        >
+          ‹
+        </button>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-center text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+        />
+        <button
+          onClick={() => setDate(addDays(date, 1))}
+          disabled={date >= todayDate()}
+          className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-lg disabled:opacity-30 dark:bg-gray-700"
+          aria-label="Następny dzień"
+        >
+          ›
+        </button>
+        <button
+          onClick={() => setDate(todayDate())}
+          className="rounded-lg bg-primary-100 px-3 py-2 text-sm font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
+        >
+          {pl.tracking.today}
+        </button>
+      </div>
 
       {/* Macro summary */}
       {summary && (
@@ -275,6 +391,14 @@ export default function TrackingPage() {
           </button>
         </div>
       </div>
+
+      {/* Weekly charts */}
+      <WeekSummary
+        date={date}
+        kcalTarget={settings?.kcal_target ?? 2300}
+        proteinTarget={settings?.protein_g_target ?? 150}
+        waterTarget={settings?.water_glasses_target ?? 8}
+      />
 
       {/* Log entries */}
       <div className="space-y-2">
