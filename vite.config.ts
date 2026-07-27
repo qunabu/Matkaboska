@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       injectRegister: false,
       strategies: 'generateSW',
       manifest: {
@@ -32,7 +32,8 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
-        clientsClaim: false,
+        clientsClaim: true,
+        skipWaiting: true,
         importScripts: ['/push-sw.js'], // Web Push + notificationclick handlers
         globIgnores: ['**/push-sw.js'],
         runtimeCaching: [

@@ -8,23 +8,35 @@ export function usePwaUpdate() {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
+    immediate: true,
     onNeedRefresh() {
       setNeedRefresh(true)
     },
-    onRegistered(registration) {
+    onRegisteredSW(_swUrl, registration) {
       if (!registration) return
-
       // Periodic update check while the tab is open
-      const timer = setInterval(() => {
+      setInterval(() => {
         registration.update().catch(() => {})
       }, VERSION_CHECK_INTERVAL)
-
-      return () => clearInterval(timer)
     },
     onRegisterError(error) {
       console.error('SW registration failed:', error)
     },
   })
+
+  // With autoUpdate + skipWaiting/clientsClaim the new SW takes control on its
+  // own; reload once so the page picks up the fresh assets (no manual banner).
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    let refreshing = false
+    const onControllerChange = () => {
+      if (refreshing) return
+      refreshing = true
+      window.location.reload()
+    }
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
+    return () => navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
+  }, [])
 
   const lastVersionRef = useRef<string | null>(null)
 
