@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { getCookie } from 'hono/cookie'
 import type { Env } from './types'
 import { accessAuth } from './middleware/auth'
+import { authRouter, getPinHash, sessionToken, AUTH_COOKIE } from './routes/auth'
 import { recipesRouter } from './routes/recipes'
 import { planRouter } from './routes/plan'
 import { settingsRouter } from './routes/settings'
@@ -18,6 +20,20 @@ const api = new Hono<{ Bindings: Env }>()
 
 api.use('*', cors())
 api.use('*', accessAuth)
+
+// PIN gate: everything under /api requires the auth cookie once a PIN is set.
+// Open endpoints: auth itself, version and health (needed pre-login).
+api.use('/api/*', async (c, next) => {
+  const path = new URL(c.req.url).pathname
+  if (path.startsWith('/api/auth') || path === '/api/version' || path === '/api/health') return next()
+  const pinHash = await getPinHash(c.env)
+  if (!pinHash) return next() // not set up yet — allow so the first-run setup works
+  const cookie = getCookie(c, AUTH_COOKIE)
+  if (cookie && cookie === await sessionToken(pinHash)) return next()
+  return c.json({ error: 'unauthorized' }, 401)
+})
+
+api.route('/api/auth', authRouter)
 
 api.get('/api/health', (c) =>
   c.json({ ok: true, timestamp: new Date().toISOString() })

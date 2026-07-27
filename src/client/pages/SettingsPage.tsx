@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { settingsApi, pushApi, productsApi } from '../lib/api'
+import { settingsApi, pushApi, productsApi, authApi } from '../lib/api'
 import pl from '../i18n/pl'
 
 function ProductsRepo() {
@@ -279,6 +279,12 @@ export default function SettingsPage() {
               {pl.common.appVersion}: <span className="font-mono">{__APP_VERSION__}</span>
             </p>
           </div>
+          <button
+            onClick={async () => { await authApi.logout().catch(() => {}); window.location.reload() }}
+            className="mt-3 w-full rounded-xl bg-gray-100 py-3 text-sm font-medium text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"
+          >
+            🔒 {pl.auth.logout}
+          </button>
         </section>
       </div>
     </div>

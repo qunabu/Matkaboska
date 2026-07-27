@@ -128,6 +128,14 @@ export const pushApi = {
   test: () => req('/push/test', { method: 'POST' }),
 }
 
+// ── Auth (PIN gate) ─────────────────────────────────────────────────────────
+
+export const authApi = {
+  me: () => req<{ authed: boolean; needsSetup: boolean }>('/auth/me'),
+  login: (pin: string) => req<ApiOk>('/auth/login', { method: 'POST', body: JSON.stringify({ pin }) }),
+  logout: () => req<ApiOk>('/auth/logout', { method: 'POST' }),
+}
+
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 export const settingsApi = {

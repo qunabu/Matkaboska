@@ -1,8 +1,9 @@
-import { lazy, Suspense, useState, useEffect } from 'react'
+import { lazy, Suspense, useState, useEffect, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { UpdateBanner, ForceUpdateScreen } from './components/UpdateBanner'
 import { usePwaUpdate } from './hooks/usePwaUpdate'
+import { authApi } from './lib/api'
 import pl from './i18n/pl'
 
 declare const __APP_VERSION__: string
@@ -50,38 +51,69 @@ const navItems = [
 
 function BottomNav() {
   const location = useLocation()
+  const [moreOpen, setMoreOpen] = useState(false)
 
-  const overflowItem = navItems.slice(5).find((i) => location.pathname.startsWith(i.to))
-  const displayItems = overflowItem
-    ? [...navItems.slice(0, 4), overflowItem]
-    : navItems.slice(0, 5)
+  const primary = navItems.slice(0, 4)
+  const overflow = navItems.slice(4) // tracking, supplements, reminders, settings
+  const overflowActive = overflow.some((i) => location.pathname.startsWith(i.to))
+
+  const linkClass = ({ isActive }: { isActive: boolean }) =>
+    `flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors ${
+      isActive ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400'
+    }`
 
   return (
-    <nav
-      aria-label="Nawigacja główna"
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 md:hidden"
-    >
-      <div className="flex">
-        {displayItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === '/'}
-            className={({ isActive }) =>
-              `flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors ${
-                isActive
-                  ? 'text-primary-600 dark:text-primary-400'
-                  : 'text-gray-500 dark:text-gray-400'
-              }`
-            }
+    <>
+      {moreOpen && (
+        <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setMoreOpen(false)}>
+          <div
+            className="absolute bottom-14 left-0 right-0 space-y-1 rounded-t-2xl bg-white p-2 shadow-2xl dark:bg-gray-900"
+            onClick={(e) => e.stopPropagation()}
           >
-            <span className="text-xl leading-none" aria-hidden="true">{item.icon}</span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-      </div>
-      <div className="h-safe-area-inset-bottom" />
-    </nav>
+            {overflow.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={() => setMoreOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium ${
+                    isActive
+                      ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                      : 'text-gray-700 dark:text-gray-300'
+                  }`
+                }
+              >
+                <span aria-hidden="true">{item.icon}</span>
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
+        </div>
+      )}
+      <nav
+        aria-label="Nawigacja główna"
+        className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 md:hidden"
+      >
+        <div className="flex">
+          {primary.map((item) => (
+            <NavLink key={item.to} to={item.to} end={item.to === '/'} className={linkClass}>
+              <span className="text-xl leading-none" aria-hidden="true">{item.icon}</span>
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+          <button
+            onClick={() => setMoreOpen((o) => !o)}
+            className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors ${
+              overflowActive ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            <span className="text-xl leading-none" aria-hidden="true">☰</span>
+            <span>{pl.nav.more}</span>
+          </button>
+        </div>
+        <div className="h-safe-area-inset-bottom" />
+      </nav>
+    </>
   )
 }
 
@@ -230,11 +262,60 @@ function AppShell() {
   )
 }
 
+function PinGate({ children }: { children: ReactNode }) {
+  const qc = useQueryClient()
+  const [pin, setPin] = useState('')
+  const [err, setErr] = useState(false)
+
+  const { data, isLoading } = useQuery({ queryKey: ['auth'], queryFn: authApi.me, retry: false })
+  const login = useMutation({
+    mutationFn: () => authApi.login(pin),
+    onSuccess: () => { setErr(false); setPin(''); qc.invalidateQueries({ queryKey: ['auth'] }) },
+    onError: () => setErr(true),
+  })
+
+  if (isLoading) {
+    return <div className="flex h-dvh items-center justify-center text-gray-400">{pl.common.loading}</div>
+  }
+  if (data?.authed) return <>{children}</>
+
+  const setup = data?.needsSetup
+  return (
+    <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-gray-50 p-6 dark:bg-gray-950">
+      <img src="/icons/icon-192.png" alt="" className="h-20 w-20 rounded-2xl" />
+      <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">{pl.auth.title}</h1>
+      <p className="max-w-xs text-center text-sm text-gray-500 dark:text-gray-400">
+        {setup ? pl.auth.setupHint : pl.auth.loginTitle}
+      </p>
+      <input
+        type="password"
+        inputMode="numeric"
+        autoFocus
+        value={pin}
+        onChange={(e) => { setPin(e.target.value); setErr(false) }}
+        onKeyDown={(e) => e.key === 'Enter' && pin.length >= 4 && login.mutate()}
+        placeholder={pl.auth.pinPlaceholder}
+        className="w-56 rounded-xl border border-gray-200 px-4 py-3 text-center text-lg tracking-widest outline-none focus:border-primary-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+      />
+      {err && <p className="text-sm text-red-500">{pl.auth.wrongPin}</p>}
+      <button
+        onClick={() => login.mutate()}
+        disabled={pin.length < 4 || login.isPending}
+        className="w-56 rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white disabled:opacity-50"
+      >
+        {setup ? pl.auth.save : pl.auth.enter}
+      </button>
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AppShell />
+        <PinGate>
+          <AppShell />
+        </PinGate>
       </BrowserRouter>
     </QueryClientProvider>
   )

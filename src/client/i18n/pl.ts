@@ -10,6 +10,19 @@ const pl = {
     supplements: 'Suplementy',
     reminders: 'Przypomnienia',
     settings: 'Ustawienia',
+    more: 'Więcej',
+  },
+
+  auth: {
+    title: 'Matka Boska LGBT 🌈',
+    setupTitle: 'Ustaw PIN dostępu',
+    loginTitle: 'Podaj PIN',
+    setupHint: 'Ustaw PIN (min. 4 znaki) — będzie potrzebny na każdym urządzeniu.',
+    pinPlaceholder: 'PIN',
+    enter: 'Wejdź',
+    save: 'Ustaw PIN',
+    wrongPin: 'Nieprawidłowy PIN',
+    logout: 'Wyloguj',
   },
 
   update: {
