@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Routes, Route, Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { shoppingApi, todayDate, addDays } from '../lib/api'
 import pl from '../i18n/pl'
@@ -153,15 +154,17 @@ interface GenerateFormProps {
 
 function GenerateForm({ onClose }: GenerateFormProps) {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const [from, setFrom] = useState(todayDate())
   const [to, setTo] = useState(addDays(todayDate(), 6))
   const [name, setName] = useState('')
 
   const mutation = useMutation({
     mutationFn: () => shoppingApi.generateList(from, to, name || undefined),
-    onSuccess: () => {
+    onSuccess: (list) => {
       qc.invalidateQueries({ queryKey: ['shopping-lists'] })
       onClose()
+      navigate(`/shopping/${list.id}`)
     },
   })
 
@@ -203,9 +206,25 @@ function GenerateForm({ onClose }: GenerateFormProps) {
   )
 }
 
+// Detail route: /shopping/:id — gives every list its own shareable URL.
+function ListDetailRoute() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  return <ListDetail listId={Number(id)} onBack={() => navigate('/shopping')} />
+}
+
 export default function ShoppingPage() {
+  return (
+    <Routes>
+      <Route index element={<ShoppingOverview />} />
+      <Route path=":id" element={<ListDetailRoute />} />
+    </Routes>
+  )
+}
+
+function ShoppingOverview() {
   const qc = useQueryClient()
-  const [selectedList, setSelectedList] = useState<number | null>(null)
+  const navigate = useNavigate()
   const [showNewForm, setShowNewForm] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
   const [newListName, setNewListName] = useState('')
@@ -221,7 +240,7 @@ export default function ShoppingPage() {
       qc.invalidateQueries({ queryKey: ['shopping-lists'] })
       setNewListName('')
       setShowNewForm(false)
-      setSelectedList(list.id)
+      navigate(`/shopping/${list.id}`)
     },
   })
 
@@ -229,10 +248,6 @@ export default function ShoppingPage() {
     mutationFn: (id: number) => shoppingApi.deleteList(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-lists'] }),
   })
-
-  if (selectedList !== null) {
-    return <ListDetail listId={selectedList} onBack={() => setSelectedList(null)} />
-  }
 
   const lists = data?.items ?? []
 
@@ -287,8 +302,8 @@ export default function ShoppingPage() {
               key={list.id}
               className="flex items-center gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700"
             >
-              <button
-                onClick={() => setSelectedList(list.id)}
+              <Link
+                to={`/shopping/${list.id}`}
                 className="flex-1 text-left"
               >
                 <p className="font-semibold text-gray-900 dark:text-gray-100">{list.name}</p>
@@ -298,7 +313,7 @@ export default function ShoppingPage() {
                 <p className="mt-1 text-xs text-gray-400">
                   {checked} / {total} {pl.shopping.items}
                 </p>
-              </button>
+              </Link>
               <button
                 onClick={() => { if (confirm(pl.shopping.deleteConfirm)) deleteMutation.mutate(list.id) }}
                 className="shrink-0 text-gray-300 hover:text-red-400"
