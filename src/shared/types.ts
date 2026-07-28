@@ -184,6 +184,12 @@ export interface Idea {
   created_at: number
 }
 
+export interface PantryItem {
+  id: number
+  name: string
+  created_at: number
+}
+
 export interface VoiceNote {
   id: number
   audio_key: string

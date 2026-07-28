@@ -12,6 +12,7 @@ const pl = {
     todos: 'Zadania',
     ideas: 'Pomysły',
     notes: 'Notatki',
+    pantry: 'Spiżarnia',
     settings: 'Ustawienia',
     more: 'Więcej',
   },
@@ -234,6 +235,18 @@ const pl = {
     inFriscoLabel: 'W koszyku Frisco (odznacz, jeśli dokupujesz w sklepie)',
     inFriscoLegend: 'w koszyku Frisco — resztę dokup w sklepie',
     friscoOpenProduct: 'Otwórz produkt na Frisco',
+    haveAtHome: 'Mam w domu',
+    haveAtHomeTitle: 'Mam w domu — przenieś do spiżarni i usuń z listy oraz koszyka Frisco',
+  },
+
+  pantry: {
+    title: 'Spiżarnia',
+    hint: 'Rzeczy, które masz już w domu. Nie będą dodawane do generowanych list zakupów.',
+    add: 'Dodaj do spiżarni',
+    placeholder: 'np. sól, oliwa, ryż',
+    empty: 'Spiżarnia jest pusta. Dodaj produkty, które masz w domu.',
+    deleteConfirm: 'Usunąć ze spiżarni? (będzie znów dodawane do zakupów)',
+    movedToast: 'Przeniesiono do spiżarni',
   },
 
   tracking: {

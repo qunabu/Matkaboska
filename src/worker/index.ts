@@ -17,6 +17,7 @@ import { friscoRouter } from './routes/frisco'
 import { todosRouter } from './routes/todos'
 import { ideasRouter } from './routes/ideas'
 import { voiceNotesRouter } from './routes/voice-notes'
+import { pantryRouter } from './routes/pantry'
 import { getDb, reminders, push_subscriptions, settings } from './db/index'
 import { eq } from 'drizzle-orm'
 
@@ -65,6 +66,7 @@ api.route('/api/frisco', friscoRouter)
 api.route('/api/todos', todosRouter)
 api.route('/api/ideas', ideasRouter)
 api.route('/api/voice-notes', voiceNotesRouter)
+api.route('/api/pantry', pantryRouter)
 
 type AssetsBinding = { fetch: (r: Request) => Promise<Response> }
 

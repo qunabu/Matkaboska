@@ -1,7 +1,7 @@
 import type {
   Recipe, RecipeWithNotes, MealPlanEntry, FoodLogEntry, DailySummary,
   WaterLog, SupplementWithStatus, SupplementLog, ShoppingList, ShoppingItem,
-  Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote,
+  Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote, PantryItem,
 } from '../../shared/types'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -104,6 +104,9 @@ export const shoppingApi = {
   addItem: (data: object) => req<ShoppingItem>('/shopping-lists/items', { method: 'POST', body: JSON.stringify(data) }),
   updateItem: (id: number, data: object) => req<ShoppingItem>(`/shopping-lists/items/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteItem: (id: number) => req<ApiOk>(`/shopping-lists/items/${id}`, { method: 'DELETE' }),
+  // "Mam w domu": move item to pantry, drop from Frisco cart, remove from list.
+  haveAtHome: (itemId: number) =>
+    req<{ ok: boolean; pantry: string; removedFromCart: boolean }>(`/shopping-lists/items/${itemId}/have-at-home`, { method: 'POST', body: '{}' }),
   // Fill the Frisco cart. The server processes the list in chunks (to stay
   // under the Workers subrequest cap), so we loop until `done`, merging results.
   // Add/remove a single item in the Frisco cart (drives the per-item checkbox).
@@ -174,6 +177,14 @@ export const ideasApi = {
   update: (id: number, data: Partial<Pick<Idea, 'title' | 'description' | 'done' | 'sort_order'>>) =>
     req<Idea>(`/ideas/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (id: number) => req<ApiOk>(`/ideas/${id}`, { method: 'DELETE' }),
+}
+
+// ── Pantry ────────────────────────────────────────────────────────────────────
+
+export const pantryApi = {
+  list: () => req<ApiList<PantryItem>>('/pantry'),
+  create: (name: string) => req<PantryItem>('/pantry', { method: 'POST', body: JSON.stringify({ name }) }),
+  delete: (id: number) => req<ApiOk>(`/pantry/${id}`, { method: 'DELETE' }),
 }
 
 // ── Voice notes ─────────────────────────────────────────────────────────────

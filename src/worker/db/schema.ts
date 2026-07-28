@@ -140,6 +140,12 @@ export const ideas = sqliteTable('ideas', {
   created_at: integer('created_at').notNull().default(unixNow),
 })
 
+export const pantry_items = sqliteTable('pantry_items', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull().unique(),
+  created_at: integer('created_at').notNull().default(unixNow),
+})
+
 export const voice_notes = sqliteTable('voice_notes', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   audio_key: text('audio_key').notNull(),                     // KV key for the audio blob

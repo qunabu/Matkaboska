@@ -80,6 +80,16 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
     onSuccess: (r) => { setOrderResult(r); qc.invalidateQueries({ queryKey: ['shopping-list', listId] }) },
   })
 
+  // "Mam w domu": move to pantry, drop from Frisco cart, remove from list.
+  const haveAtHomeMutation = useMutation({
+    mutationFn: (id: number) => shoppingApi.haveAtHome(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['shopping-list', listId] })
+      qc.invalidateQueries({ queryKey: ['pantry'] })
+    },
+    onError: (e) => alert((e as Error).message),
+  })
+
   const { data, isLoading } = useQuery({
     queryKey: ['shopping-list', listId],
     queryFn: () => shoppingApi.getList(listId),
@@ -244,6 +254,14 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                       <span title={pl.shopping.inFriscoLabel}>🛒</span>
                     )}
                   </span>
+                  <button
+                    onClick={() => haveAtHomeMutation.mutate(item.id)}
+                    disabled={haveAtHomeMutation.isPending && haveAtHomeMutation.variables === item.id}
+                    title={pl.shopping.haveAtHomeTitle}
+                    className="shrink-0 rounded-lg bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-green-100 hover:text-green-700 disabled:opacity-40 dark:bg-gray-700 dark:text-gray-200"
+                  >
+                    🏠 {pl.shopping.haveAtHome}
+                  </button>
                   <button
                     onClick={() => deleteMutation.mutate(item.id)}
                     className="text-gray-300 hover:text-red-400"

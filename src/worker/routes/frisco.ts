@@ -131,6 +131,25 @@ function cartApi(session: Session) {
 // subrequest limit (50 on the Free plan). PUT is an upsert, so chunks add up.
 const CHUNK = 35
 
+// Remove one product from the Frisco cart (best-effort). Returns true if the
+// product is no longer in the cart afterwards. Used by the shopping list's
+// "mam w domu" action. Throws only on auth failure.
+export async function removeProductFromCart(env: Env, productId: string): Promise<boolean> {
+  const session = await resolveSession(env)
+  const api = cartApi(session)
+  await api.put([{ productId, quantity: 0 }])
+  let cart = (await (await api.get()).json()) as { products?: FriscoCartItem[] }
+  if ((cart.products || []).some((p) => p.productId === productId)) {
+    const keep = (cart.products || [])
+      .filter((p) => p.productId !== productId)
+      .map((p) => ({ productId: p.productId, quantity: p.quantity || 1 }))
+    await api.clear()
+    await api.put(keep)
+    cart = (await (await api.get()).json()) as { products?: FriscoCartItem[] }
+  }
+  return !(cart.products || []).some((p) => p.productId === productId)
+}
+
 // POST /api/frisco/order  { listId, offset? }
 // Adds one chunk of the list's (unchecked) items to the Frisco cart, marking
 // each row's `in_frisco` / `frisco_product_id` so the shopping list can show

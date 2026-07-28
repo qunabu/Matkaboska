@@ -1,9 +1,10 @@
 import { Hono } from 'hono'
 import { eq, and, between } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, shopping_lists, shopping_items, meal_plan_entries, recipes } from '../db/index'
+import { getDb, shopping_lists, shopping_items, meal_plan_entries, recipes, pantry_items } from '../db/index'
 import type { Env } from '../types'
 import type { ShoppingList, ShoppingItem, Ingredient, ShopCategory } from '../../shared/types'
+import { removeProductFromCart } from './frisco'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -146,6 +147,13 @@ app.post('/generate', async (c) => {
     }
   }
 
+  // Drop anything already in the pantry so it isn't re-added to the list.
+  const pantry = await db.select().from(pantry_items)
+  const pantryKeys = new Set(pantry.map((p) => normalizeName(p.name).toLowerCase()))
+  for (const key of [...aggregated.keys()]) {
+    if (pantryKeys.has(key)) aggregated.delete(key)
+  }
+
   const listName = name ?? `Lista ${from} – ${to}`
   const [list] = await db.insert(shopping_lists).values({
     name: listName,
@@ -234,6 +242,28 @@ app.delete('/items/:id', async (c) => {
   const db = getDb(c.env.DB)
   await db.delete(shopping_items).where(eq(shopping_items.id, id))
   return c.json({ ok: true })
+})
+
+// POST /api/shopping-lists/items/:id/have-at-home
+// "Mam to w domu": move the item to the pantry, drop it from the Frisco cart
+// (if it was there), and remove it from the shopping list.
+app.post('/items/:id/have-at-home', async (c) => {
+  const id = Number(c.req.param('id'))
+  const db = getDb(c.env.DB)
+  const [item] = await db.select().from(shopping_items).where(eq(shopping_items.id, id))
+  if (!item) return c.json({ error: 'Not found' }, 404)
+
+  let removedFromCart = false
+  if (item.in_frisco && item.frisco_product_id) {
+    try { removedFromCart = await removeProductFromCart(c.env, item.frisco_product_id) }
+    catch { /* Frisco auth/network issue — still move to pantry */ }
+  }
+
+  await db.insert(pantry_items).values({ name: item.name })
+    .onConflictDoNothing({ target: pantry_items.name })
+  await db.delete(shopping_items).where(eq(shopping_items.id, id))
+
+  return c.json({ ok: true, pantry: item.name, removedFromCart })
 })
 
 export { app as shoppingRouter }
