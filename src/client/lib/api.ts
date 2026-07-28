@@ -106,6 +106,11 @@ export const shoppingApi = {
   deleteItem: (id: number) => req<ApiOk>(`/shopping-lists/items/${id}`, { method: 'DELETE' }),
   // Fill the Frisco cart. The server processes the list in chunks (to stay
   // under the Workers subrequest cap), so we loop until `done`, merging results.
+  // Add/remove a single item in the Frisco cart (drives the per-item checkbox).
+  friscoSetItem: (itemId: number, inCart: boolean) =>
+    req<{ inCart: boolean; notFound?: boolean; productId?: string }>('/frisco/item', {
+      method: 'POST', body: JSON.stringify({ itemId, inCart }),
+    }),
   friscoOrder: async (listId: number): Promise<FriscoOrderResult> => {
     const merged: FriscoOrderResult = {
       listName: '', total: 0, inCart: 0, added: [], notFound: [], removedUnavailable: [],

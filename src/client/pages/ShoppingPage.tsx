@@ -91,10 +91,13 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
     onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
   })
 
+  // Toggling the 🛒 checkbox actually adds/removes the product in the Frisco
+  // cart via the API (not just a local flag).
   const friscoToggleMutation = useMutation({
     mutationFn: ({ id, in_frisco }: { id: number; in_frisco: boolean }) =>
-      shoppingApi.updateItem(id, { in_frisco }),
+      shoppingApi.friscoSetItem(id, in_frisco),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
+    onError: (e) => alert((e as Error).message),
   })
 
   const addMutation = useMutation({
@@ -222,9 +225,10 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                     <input
                       type="checkbox"
                       checked={item.in_frisco}
+                      disabled={friscoToggleMutation.isPending && friscoToggleMutation.variables?.id === item.id}
                       onChange={(e) => friscoToggleMutation.mutate({ id: item.id, in_frisco: e.target.checked })}
                       title={pl.shopping.inFriscoLabel}
-                      className="h-4 w-4 rounded border-gray-300 text-green-600"
+                      className="h-4 w-4 rounded border-gray-300 text-green-600 disabled:opacity-40"
                     />
                     {item.frisco_product_id ? (
                       <a

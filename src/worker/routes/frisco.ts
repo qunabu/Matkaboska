@@ -254,4 +254,78 @@ app.post('/order', async (c) => {
   })
 })
 
+// POST /api/frisco/item  { itemId, inCart }
+// Toggle a single shopping-list item in the Frisco cart: inCart=false removes
+// the matched product from the cart, inCart=true adds it back (searching by
+// name if we don't have a productId yet). Keeps the row's in_frisco flag in sync.
+app.post('/item', async (c) => {
+  let itemId: number
+  let inCart: boolean
+  try {
+    const body = (await c.req.json()) as { itemId?: number | string; inCart?: boolean }
+    itemId = Number(body.itemId)
+    inCart = !!body.inCart
+  } catch {
+    return c.json({ error: 'invalid_body' }, 400)
+  }
+  if (!Number.isFinite(itemId)) return c.json({ error: 'invalid_itemId' }, 400)
+
+  const db = getDb(c.env.DB)
+  const [item] = await db.select().from(shopping_items).where(eq(shopping_items.id, itemId))
+  if (!item) return c.json({ error: 'item_not_found' }, 404)
+
+  let session: Session
+  try {
+    session = await resolveSession(c.env)
+  } catch (e) {
+    return c.json({ error: 'frisco_auth_failed', detail: (e as Error).message }, 502)
+  }
+  const api = cartApi(session)
+
+  if (!inCart) {
+    // Remove from cart.
+    const pid = item.frisco_product_id
+    if (!pid) {
+      await db.update(shopping_items).set({ in_frisco: false }).where(eq(shopping_items.id, itemId))
+      return c.json({ inCart: false, removed: false })
+    }
+    // Setting quantity 0 is how the Frisco UI drops a line; verify and, if it
+    // lingers, fall back to a clear + re-put of everything else.
+    await api.put([{ productId: pid, quantity: 0 }])
+    let cart = (await (await api.get()).json()) as { products?: FriscoCartItem[] }
+    if ((cart.products || []).some((p) => p.productId === pid)) {
+      const keep = (cart.products || [])
+        .filter((p) => p.productId !== pid)
+        .map((p) => ({ productId: p.productId, quantity: p.quantity || 1 }))
+      await api.clear()
+      await api.put(keep)
+      cart = (await (await api.get()).json()) as { products?: FriscoCartItem[] }
+    }
+    const stillPresent = (cart.products || []).some((p) => p.productId === pid)
+    await db.update(shopping_items).set({ in_frisco: false }).where(eq(shopping_items.id, itemId))
+    return c.json({ inCart: false, removed: !stillPresent, productId: pid, cartCount: (cart.products || []).length })
+  }
+
+  // Add to cart.
+  let pid = item.frisco_product_id
+  let name: string | undefined
+  if (!pid) {
+    const q = toQuery(item.name)
+    if (!q) return c.json({ error: 'not_found' }, 200)
+    try {
+      const sr = (await (await api.search(q)).json()) as { products?: { productId: string; product?: FriscoProduct }[] }
+      const pick = (sr.products || []).find((p) => isAvailable(p.product))
+      if (!pick) return c.json({ inCart: false, notFound: true })
+      pid = pick.productId
+      name = pick.product?.name?.pl
+    } catch {
+      return c.json({ error: 'search_failed' }, 502)
+    }
+  }
+  const putRes = await api.put([{ productId: pid, quantity: 1 }])
+  if (!putRes.ok) return c.json({ error: 'frisco_put_failed', status: putRes.status }, 502)
+  await db.update(shopping_items).set({ in_frisco: true, frisco_product_id: pid }).where(eq(shopping_items.id, itemId))
+  return c.json({ inCart: true, productId: pid, product: name })
+})
+
 export const friscoRouter = app
