@@ -230,6 +230,7 @@ const pl = {
     friscoManualTitle: 'Albo ręcznie — prompt dla Claude:',
     inFriscoLabel: 'W koszyku Frisco (odznacz, jeśli dokupujesz w sklepie)',
     inFriscoLegend: 'w koszyku Frisco — resztę dokup w sklepie',
+    friscoOpenProduct: 'Otwórz produkt na Frisco',
   },
 
   tracking: {

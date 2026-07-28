@@ -212,9 +212,8 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                       </span>
                     ) : null}
                   </span>
-                  <label
-                    title={pl.shopping.inFriscoLabel}
-                    className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
+                  <span
+                    className={`flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium ${
                       item.in_frisco
                         ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
                         : 'bg-gray-50 text-gray-400 dark:bg-gray-700/40'
@@ -224,10 +223,23 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                       type="checkbox"
                       checked={item.in_frisco}
                       onChange={(e) => friscoToggleMutation.mutate({ id: item.id, in_frisco: e.target.checked })}
+                      title={pl.shopping.inFriscoLabel}
                       className="h-4 w-4 rounded border-gray-300 text-green-600"
                     />
-                    🛒
-                  </label>
+                    {item.frisco_product_id ? (
+                      <a
+                        href={`https://www.frisco.pl/pid,${item.frisco_product_id}/stn,product`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={pl.shopping.friscoOpenProduct}
+                        className="hover:opacity-70"
+                      >
+                        🛒↗
+                      </a>
+                    ) : (
+                      <span title={pl.shopping.inFriscoLabel}>🛒</span>
+                    )}
+                  </span>
                   <button
                     onClick={() => deleteMutation.mutate(item.id)}
                     className="text-gray-300 hover:text-red-400"
