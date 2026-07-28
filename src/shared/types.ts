@@ -164,6 +164,36 @@ export interface Reminder {
   last_fired_at: number | null
 }
 
+export type TodoPriority = 'high' | 'medium' | 'low'
+
+export interface Todo {
+  id: number
+  title: string
+  priority: TodoPriority
+  done: boolean
+  sort_order: number
+  created_at: number
+}
+
+export interface Idea {
+  id: number
+  title: string
+  description: string | null
+  done: boolean
+  sort_order: number
+  created_at: number
+}
+
+export interface VoiceNote {
+  id: number
+  audio_key: string
+  mime: string
+  duration_sec: number | null
+  transcript: string | null
+  transcript_source: 'speech' | 'manual' | 'whisper' | 'elevenlabs' | null
+  created_at: number
+}
+
 export interface AppSettings {
   kcal_target: number
   protein_g_target: number

@@ -1,7 +1,7 @@
 import type {
   Recipe, RecipeWithNotes, MealPlanEntry, FoodLogEntry, DailySummary,
   WaterLog, SupplementWithStatus, SupplementLog, ShoppingList, ShoppingItem,
-  Reminder, AppSettings, ApiList, ApiOk, Product,
+  Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote,
 } from '../../shared/types'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -147,6 +147,49 @@ export interface FriscoOrderResult {
   added: { item: string; product?: string }[]
   notFound: string[]
   removedUnavailable: string[]
+}
+
+// ── Todos ─────────────────────────────────────────────────────────────────────
+
+export const todosApi = {
+  list: () => req<ApiList<Todo>>('/todos'),
+  create: (data: { title: string; priority?: Todo['priority'] }) =>
+    req<Todo>('/todos', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number, data: Partial<Pick<Todo, 'title' | 'priority' | 'done' | 'sort_order'>>) =>
+    req<Todo>(`/todos/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: number) => req<ApiOk>(`/todos/${id}`, { method: 'DELETE' }),
+}
+
+// ── Ideas ─────────────────────────────────────────────────────────────────────
+
+export const ideasApi = {
+  list: () => req<ApiList<Idea>>('/ideas'),
+  create: (data: { title: string; description?: string | null }) =>
+    req<Idea>('/ideas', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number, data: Partial<Pick<Idea, 'title' | 'description' | 'done' | 'sort_order'>>) =>
+    req<Idea>(`/ideas/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: number) => req<ApiOk>(`/ideas/${id}`, { method: 'DELETE' }),
+}
+
+// ── Voice notes ─────────────────────────────────────────────────────────────
+
+export const voiceNotesApi = {
+  list: () => req<ApiList<VoiceNote>>('/voice-notes'),
+  create: async (audio: Blob, opts: { transcript?: string; duration?: number; mime?: string }) => {
+    const fd = new FormData()
+    fd.append('audio', audio, 'note.webm')
+    if (opts.transcript) fd.append('transcript', opts.transcript)
+    if (opts.duration != null) fd.append('duration', String(opts.duration))
+    if (opts.mime) fd.append('mime', opts.mime)
+    const res = await fetch('/api/voice-notes', { method: 'POST', body: fd })
+    if (!res.ok) throw new Error((await res.text().catch(() => '')) || `HTTP ${res.status}`)
+    return res.json() as Promise<VoiceNote>
+  },
+  update: (id: number, data: { transcript?: string | null; transcript_source?: VoiceNote['transcript_source'] }) =>
+    req<VoiceNote>(`/voice-notes/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  transcribe: (id: number) => req<VoiceNote>(`/voice-notes/${id}/transcribe`, { method: 'POST', body: '{}' }),
+  delete: (id: number) => req<ApiOk>(`/voice-notes/${id}`, { method: 'DELETE' }),
+  audioUrl: (id: number) => `/api/voice-notes/${id}/audio`,
 }
 
 // ── Reminders ─────────────────────────────────────────────────────────────────

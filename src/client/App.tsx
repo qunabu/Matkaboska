@@ -26,6 +26,9 @@ const ShoppingPage = lazy(() => import('./pages/ShoppingPage'))
 const TrackingPage = lazy(() => import('./pages/TrackingPage'))
 const SupplementsPage = lazy(() => import('./pages/SupplementsPage'))
 const ReminderPage = lazy(() => import('./pages/ReminderPage'))
+const TodoPage = lazy(() => import('./pages/TodoPage'))
+const IdeasPage = lazy(() => import('./pages/IdeasPage'))
+const NotesPage = lazy(() => import('./pages/NotesPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
 function PageFallback() {
@@ -46,6 +49,9 @@ const navItems = [
   { to: '/tracking',    label: pl.nav.tracking,    icon: '📊' },
   { to: '/supplements', label: pl.nav.supplements, icon: '💊' },
   { to: '/reminders',   label: pl.nav.reminders,   icon: '🔔' },
+  { to: '/todos',       label: pl.nav.todos,       icon: '✅' },
+  { to: '/ideas',       label: pl.nav.ideas,       icon: '💡' },
+  { to: '/notes',       label: pl.nav.notes,       icon: '🎙️' },
   { to: '/settings',    label: pl.nav.settings,    icon: '⚙️' },
 ]
 
@@ -238,6 +244,9 @@ function AppShell() {
               <Route path="/tracking/*" element={<TrackingPage />} />
               <Route path="/supplements/*" element={<SupplementsPage />} />
               <Route path="/reminders" element={<ReminderPage />} />
+              <Route path="/todos" element={<TodoPage />} />
+              <Route path="/ideas" element={<IdeasPage />} />
+              <Route path="/notes" element={<NotesPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>
           </Suspense>

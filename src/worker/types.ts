@@ -1,9 +1,11 @@
-import type { D1Database, KVNamespace, Fetcher } from '@cloudflare/workers-types'
+import type { D1Database, KVNamespace, Fetcher, Ai } from '@cloudflare/workers-types'
 
 export type Env = {
   DB: D1Database
   KV: KVNamespace
   ASSETS: Fetcher
+  AI?: Ai
+  ELEVENLABS_API_KEY?: string
   APP_VERSION: string
   ANTHROPIC_API_KEY: string
   ANTHROPIC_MODEL: string

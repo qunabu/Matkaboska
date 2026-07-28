@@ -122,6 +122,34 @@ export const reminders = sqliteTable('reminders', {
   last_fired_at: integer('last_fired_at'),
 })
 
+export const todos = sqliteTable('todos', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  title: text('title').notNull(),
+  priority: text('priority').notNull().default('medium'),      // high|medium|low
+  done: integer('done', { mode: 'boolean' }).notNull().default(false),
+  sort_order: integer('sort_order').notNull().default(0),
+  created_at: integer('created_at').notNull().default(unixNow),
+})
+
+export const ideas = sqliteTable('ideas', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  title: text('title').notNull(),
+  description: text('description'),
+  done: integer('done', { mode: 'boolean' }).notNull().default(false),
+  sort_order: integer('sort_order').notNull().default(0),
+  created_at: integer('created_at').notNull().default(unixNow),
+})
+
+export const voice_notes = sqliteTable('voice_notes', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  audio_key: text('audio_key').notNull(),                     // KV key for the audio blob
+  mime: text('mime').notNull().default('audio/webm'),
+  duration_sec: integer('duration_sec'),
+  transcript: text('transcript'),
+  transcript_source: text('transcript_source'),              // speech|manual|whisper|elevenlabs
+  created_at: integer('created_at').notNull().default(unixNow),
+})
+
 export const push_subscriptions = sqliteTable('push_subscriptions', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   endpoint: text('endpoint').notNull().unique(),

@@ -19,6 +19,10 @@ migrations_dir = "migrations"
 binding = "KV"
 id = "05153056f66c4668ac86a2b354b3b31f"
 
+# Workers AI — used for server-side voice-note transcription (Whisper).
+[ai]
+binding = "AI"
+
 [vars]
 APP_VERSION = "dev"
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
