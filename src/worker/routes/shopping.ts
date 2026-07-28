@@ -215,6 +215,7 @@ app.patch('/items/:id', async (c) => {
   const body = await c.req.json()
   const parsed = z.object({
     checked: z.boolean().optional(),
+    in_frisco: z.boolean().optional(),
     name: z.string().optional(),
     quantity: z.number().nullable().optional(),
     unit: z.string().nullable().optional(),

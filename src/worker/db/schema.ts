@@ -103,6 +103,8 @@ export const shopping_items = sqliteTable('shopping_items', {
   unit: text('unit'),
   category: text('category').notNull().default('other'),
   checked: integer('checked', { mode: 'boolean' }).notNull().default(false),
+  in_frisco: integer('in_frisco', { mode: 'boolean' }).notNull().default(false),
+  frisco_product_id: text('frisco_product_id'),
   source: text('source').notNull().default('manual'),
   sort_order: integer('sort_order').notNull().default(0),
 }, (t) => ({

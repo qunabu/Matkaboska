@@ -77,7 +77,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
   const [orderResult, setOrderResult] = useState<FriscoOrderResult | null>(null)
   const orderMutation = useMutation({
     mutationFn: () => shoppingApi.friscoOrder(listId),
-    onSuccess: (r) => setOrderResult(r),
+    onSuccess: (r) => { setOrderResult(r); qc.invalidateQueries({ queryKey: ['shopping-list', listId] }) },
   })
 
   const { data, isLoading } = useQuery({
@@ -88,6 +88,12 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
   const toggleMutation = useMutation({
     mutationFn: ({ id, checked }: { id: number; checked: boolean }) =>
       shoppingApi.updateItem(id, { checked }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
+  })
+
+  const friscoToggleMutation = useMutation({
+    mutationFn: ({ id, in_frisco }: { id: number; in_frisco: boolean }) =>
+      shoppingApi.updateItem(id, { in_frisco }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
   })
 
@@ -170,6 +176,12 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
         </p>
       )}
 
+      {items.length > 0 && (
+        <p className="mb-3 flex items-center gap-1 text-xs text-gray-400">
+          🛒 {pl.shopping.inFriscoLegend} — {items.filter((i) => i.in_frisco).length}/{items.length}
+        </p>
+      )}
+
       {CAT_ORDER.map(cat => {
         const catItems = byCategory[cat]
         if (catItems.length === 0) return null
@@ -200,6 +212,22 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                       </span>
                     ) : null}
                   </span>
+                  <label
+                    title={pl.shopping.inFriscoLabel}
+                    className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
+                      item.in_frisco
+                        ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                        : 'bg-gray-50 text-gray-400 dark:bg-gray-700/40'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={item.in_frisco}
+                      onChange={(e) => friscoToggleMutation.mutate({ id: item.id, in_frisco: e.target.checked })}
+                      className="h-4 w-4 rounded border-gray-300 text-green-600"
+                    />
+                    🛒
+                  </label>
                   <button
                     onClick={() => deleteMutation.mutate(item.id)}
                     className="text-gray-300 hover:text-red-400"

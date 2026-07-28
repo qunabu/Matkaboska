@@ -228,6 +228,8 @@ const pl = {
     friscoServerRemoved: 'Usunięto jako niedostępne',
     friscoServerDone: 'Gotowe. Sprawdź koszyk na frisco.pl i złóż zamówienie samodzielnie.',
     friscoManualTitle: 'Albo ręcznie — prompt dla Claude:',
+    inFriscoLabel: 'W koszyku Frisco (odznacz, jeśli dokupujesz w sklepie)',
+    inFriscoLegend: 'w koszyku Frisco — resztę dokup w sklepie',
   },
 
   tracking: {

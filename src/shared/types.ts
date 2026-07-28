@@ -147,6 +147,8 @@ export interface ShoppingItem {
   unit: string | null
   category: ShopCategory
   checked: boolean
+  in_frisco: boolean
+  frisco_product_id: string | null
   source: 'generated' | 'manual'
   sort_order: number
 }

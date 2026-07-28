@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { getDb, shopping_lists, shopping_items } from '../db/index'
 import type { Env } from '../types'
 
@@ -127,30 +127,18 @@ function cartApi(session: Session) {
   }
 }
 
-// Unique search queries for a list's unchecked items, in stable order, so the
-// same slice is produced deterministically across chunked calls.
-function listQueries(rows: { name: string; checked?: unknown }[]): { q: string; raw: string }[] {
-  const seen = new Set<string>()
-  const out: { q: string; raw: string }[] = []
-  for (const r of rows) {
-    if (r.checked) continue
-    const q = toQuery(r.name)
-    if (!q || seen.has(q)) continue
-    seen.add(q)
-    out.push({ q, raw: r.name })
-  }
-  return out
-}
-
 // Cap the number of Frisco searches per invocation so we stay under the Workers
 // subrequest limit (50 on the Free plan). PUT is an upsert, so chunks add up.
 const CHUNK = 35
 
 // POST /api/frisco/order  { listId, offset? }
-// Adds one chunk of the list to the Frisco cart. The client calls this
-// repeatedly (following `nextOffset`) until `done`, so a large list stays under
-// the per-invocation subrequest cap. On the first chunk (offset 0) the cart is
-// cleared; on the last chunk we re-read the cart and drop slot-unavailable items.
+// Adds one chunk of the list's (unchecked) items to the Frisco cart, marking
+// each row's `in_frisco` / `frisco_product_id` so the shopping list can show
+// what actually made it into the cart. The client calls this repeatedly
+// (following `nextOffset`) until `done`, so a large list stays under the
+// per-invocation subrequest cap. On the first chunk (offset 0) the cart and all
+// Frisco flags are reset; on the last chunk we re-read the cart, drop
+// slot-unavailable items, and clear their rows' flags.
 app.post('/order', async (c) => {
   let listId: number
   let offset: number
@@ -167,9 +155,10 @@ app.post('/order', async (c) => {
   const db = getDb(c.env.DB)
   const [list] = await db.select().from(shopping_lists).where(eq(shopping_lists.id, listId))
   if (!list) return c.json({ error: 'list_not_found' }, 404)
-  const rows = await db.select().from(shopping_items).where(eq(shopping_items.list_id, listId))
-  const queries = listQueries(rows)
-  if (queries.length === 0) return c.json({ error: 'list_empty' }, 400)
+  const allRows = await db.select().from(shopping_items).where(eq(shopping_items.list_id, listId))
+  // Only order items not already marked as bought; stable order for chunking.
+  const rows = allRows.filter((r) => !r.checked).sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
+  if (rows.length === 0) return c.json({ error: 'list_empty' }, 400)
 
   let session: Session
   try {
@@ -179,28 +168,46 @@ app.post('/order', async (c) => {
   }
   const api = cartApi(session)
 
-  // First chunk clears the cart (PUT is a per-product upsert, not a replace).
+  // First chunk clears the cart (PUT is a per-product upsert, not a replace) and
+  // resets the Frisco flags on every unchecked row of this list.
   if (offset === 0) {
     const del = await api.clear()
     if (!del.ok && del.status !== 204) return c.json({ error: 'frisco_clear_failed', status: del.status }, 502)
+    await db.update(shopping_items).set({ in_frisco: false, frisco_product_id: null }).where(eq(shopping_items.list_id, listId))
   }
 
-  // Search this slice, pick available matches, upsert them into the cart.
-  const slice = queries.slice(offset, offset + CHUNK)
+  // Search this slice, pick available matches, upsert them, and flag each row.
+  const slice = rows.slice(offset, offset + CHUNK)
   const added: { item: string; product?: string }[] = []
   const notFound: string[] = []
   const seen = new Set<string>()
   const products: { productId: string; quantity: number }[] = []
-  for (const { q, raw } of slice) {
-    try {
-      const sr = (await (await api.search(q)).json()) as { products?: { productId: string; product?: FriscoProduct }[] }
-      const pick = (sr.products || []).find((p) => isAvailable(p.product))
-      if (pick) {
-        added.push({ item: raw, product: pick.product?.name?.pl })
-        if (!seen.has(pick.productId)) { seen.add(pick.productId); products.push({ productId: pick.productId, quantity: 1 }) }
-      } else notFound.push(raw)
-    } catch {
-      notFound.push(`${raw} (błąd wyszukiwania)`)
+  const queryCache = new Map<string, { productId: string; name?: string } | null>()
+
+  for (const row of slice) {
+    const q = toQuery(row.name)
+    let pick: { productId: string; name?: string } | null = null
+    if (q) {
+      if (queryCache.has(q)) {
+        pick = queryCache.get(q) ?? null
+      } else {
+        try {
+          const sr = (await (await api.search(q)).json()) as { products?: { productId: string; product?: FriscoProduct }[] }
+          const found = (sr.products || []).find((p) => isAvailable(p.product))
+          pick = found ? { productId: found.productId, name: found.product?.name?.pl } : null
+        } catch {
+          pick = null
+        }
+        queryCache.set(q, pick)
+      }
+    }
+    if (pick) {
+      added.push({ item: row.name, product: pick.name })
+      if (!seen.has(pick.productId)) { seen.add(pick.productId); products.push({ productId: pick.productId, quantity: 1 }) }
+      await db.update(shopping_items).set({ in_frisco: true, frisco_product_id: pick.productId }).where(eq(shopping_items.id, row.id))
+    } else {
+      notFound.push(row.name)
+      await db.update(shopping_items).set({ in_frisco: false, frisco_product_id: null }).where(eq(shopping_items.id, row.id))
     }
   }
   if (products.length) {
@@ -209,26 +216,34 @@ app.post('/order', async (c) => {
   }
 
   const nextOffset = offset + CHUNK
-  const done = nextOffset >= queries.length
+  const done = nextOffset >= rows.length
 
-  // Last chunk: cart re-validates against the delivery slot — drop what it flags.
+  // Last chunk: cart re-validates against the delivery slot — drop what it flags
+  // and clear the Frisco flag on the affected rows.
   let inCart: number | undefined
   const removedUnavailable: string[] = []
   if (done) {
     const cart = (await (await api.get()).json()) as { products?: FriscoCartItem[] }
     const keep: { productId: string; quantity: number }[] = []
+    const removedIds: string[] = []
     for (const it of cart.products || []) {
       if (isAvailable(it.product)) keep.push({ productId: it.productId, quantity: it.quantity || 1 })
-      else removedUnavailable.push(it.product?.name?.pl || it.productId)
+      else { removedUnavailable.push(it.product?.name?.pl || it.productId); removedIds.push(it.productId) }
     }
-    if (removedUnavailable.length) { await api.clear(); await api.put(keep) }
+    if (removedIds.length) {
+      await api.clear(); await api.put(keep)
+      for (const pid of removedIds) {
+        await db.update(shopping_items).set({ in_frisco: false })
+          .where(and(eq(shopping_items.list_id, listId), eq(shopping_items.frisco_product_id, pid)))
+      }
+    }
     inCart = keep.length
   }
 
   return c.json({
     listId,
     listName: list.name,
-    total: queries.length,
+    total: rows.length,
     processed: slice.length,
     nextOffset: done ? null : nextOffset,
     done,
