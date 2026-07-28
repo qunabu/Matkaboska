@@ -127,25 +127,49 @@ function cartApi(session: Session) {
   }
 }
 
-// POST /api/frisco/order  { listId }
-// Sets the Frisco cart to exactly the (unchecked) items of the given shopping
-// list and returns what could not be added / was dropped as unavailable.
+// Unique search queries for a list's unchecked items, in stable order, so the
+// same slice is produced deterministically across chunked calls.
+function listQueries(rows: { name: string; checked?: unknown }[]): { q: string; raw: string }[] {
+  const seen = new Set<string>()
+  const out: { q: string; raw: string }[] = []
+  for (const r of rows) {
+    if (r.checked) continue
+    const q = toQuery(r.name)
+    if (!q || seen.has(q)) continue
+    seen.add(q)
+    out.push({ q, raw: r.name })
+  }
+  return out
+}
+
+// Cap the number of Frisco searches per invocation so we stay under the Workers
+// subrequest limit (50 on the Free plan). PUT is an upsert, so chunks add up.
+const CHUNK = 35
+
+// POST /api/frisco/order  { listId, offset? }
+// Adds one chunk of the list to the Frisco cart. The client calls this
+// repeatedly (following `nextOffset`) until `done`, so a large list stays under
+// the per-invocation subrequest cap. On the first chunk (offset 0) the cart is
+// cleared; on the last chunk we re-read the cart and drop slot-unavailable items.
 app.post('/order', async (c) => {
   let listId: number
+  let offset: number
   try {
-    const body = (await c.req.json()) as { listId?: number | string }
+    const body = (await c.req.json()) as { listId?: number | string; offset?: number | string }
     listId = Number(body.listId)
+    offset = Number(body.offset ?? 0)
   } catch {
     return c.json({ error: 'invalid_body' }, 400)
   }
   if (!Number.isFinite(listId)) return c.json({ error: 'invalid_listId' }, 400)
+  if (!Number.isFinite(offset) || offset < 0) offset = 0
 
   const db = getDb(c.env.DB)
   const [list] = await db.select().from(shopping_lists).where(eq(shopping_lists.id, listId))
   if (!list) return c.json({ error: 'list_not_found' }, 404)
   const rows = await db.select().from(shopping_items).where(eq(shopping_items.list_id, listId))
-  const names = rows.filter((r) => !r.checked).map((r) => r.name)
-  if (names.length === 0) return c.json({ error: 'list_empty' }, 400)
+  const queries = listQueries(rows)
+  if (queries.length === 0) return c.json({ error: 'list_empty' }, 400)
 
   let session: Session
   try {
@@ -155,54 +179,63 @@ app.post('/order', async (c) => {
   }
   const api = cartApi(session)
 
-  // 1) clear (PUT is a per-product upsert, not a whole-cart replace)
-  const del = await api.clear()
-  if (!del.ok && del.status !== 204) {
-    return c.json({ error: 'frisco_clear_failed', status: del.status }, 502)
+  // First chunk clears the cart (PUT is a per-product upsert, not a replace).
+  if (offset === 0) {
+    const del = await api.clear()
+    if (!del.ok && del.status !== 204) return c.json({ error: 'frisco_clear_failed', status: del.status }, 502)
   }
 
-  // 2) search each item, pick an available match
-  const added: { raw: string; id: string; name?: string }[] = []
+  // Search this slice, pick available matches, upsert them into the cart.
+  const slice = queries.slice(offset, offset + CHUNK)
+  const added: { item: string; product?: string }[] = []
   const notFound: string[] = []
-  for (const raw of names) {
-    const q = toQuery(raw)
+  const seen = new Set<string>()
+  const products: { productId: string; quantity: number }[] = []
+  for (const { q, raw } of slice) {
     try {
       const sr = (await (await api.search(q)).json()) as { products?: { productId: string; product?: FriscoProduct }[] }
       const pick = (sr.products || []).find((p) => isAvailable(p.product))
-      if (pick) added.push({ raw, id: pick.productId, name: pick.product?.name?.pl })
-      else notFound.push(raw)
+      if (pick) {
+        added.push({ item: raw, product: pick.product?.name?.pl })
+        if (!seen.has(pick.productId)) { seen.add(pick.productId); products.push({ productId: pick.productId, quantity: 1 }) }
+      } else notFound.push(raw)
     } catch {
       notFound.push(`${raw} (błąd wyszukiwania)`)
     }
   }
-  const seen = new Set<string>()
-  const products: { productId: string; quantity: number }[] = []
-  for (const a of added) {
-    if (!seen.has(a.id)) { seen.add(a.id); products.push({ productId: a.id, quantity: 1 }) }
+  if (products.length) {
+    const putRes = await api.put(products)
+    if (!putRes.ok) return c.json({ error: 'frisco_put_failed', status: putRes.status }, 502)
   }
 
-  // 3) set cart = list
-  const putRes = await api.put(products)
-  if (!putRes.ok) return c.json({ error: 'frisco_put_failed', status: putRes.status }, 502)
+  const nextOffset = offset + CHUNK
+  const done = nextOffset >= queries.length
 
-  // 4) cart re-validates against the delivery slot — drop what it marks unavailable
-  const cart = (await (await api.get()).json()) as { products?: FriscoCartItem[] }
-  const keep: { productId: string; quantity: number }[] = []
+  // Last chunk: cart re-validates against the delivery slot — drop what it flags.
+  let inCart: number | undefined
   const removedUnavailable: string[] = []
-  for (const it of cart.products || []) {
-    if (isAvailable(it.product)) keep.push({ productId: it.productId, quantity: it.quantity || 1 })
-    else removedUnavailable.push(it.product?.name?.pl || it.productId)
+  if (done) {
+    const cart = (await (await api.get()).json()) as { products?: FriscoCartItem[] }
+    const keep: { productId: string; quantity: number }[] = []
+    for (const it of cart.products || []) {
+      if (isAvailable(it.product)) keep.push({ productId: it.productId, quantity: it.quantity || 1 })
+      else removedUnavailable.push(it.product?.name?.pl || it.productId)
+    }
+    if (removedUnavailable.length) { await api.clear(); await api.put(keep) }
+    inCart = keep.length
   }
-  if (removedUnavailable.length) { await api.clear(); await api.put(keep) }
 
   return c.json({
     listId,
     listName: list.name,
-    requested: names.length,
-    inCart: keep.length,
-    added: added.map((a) => ({ item: a.raw, product: a.name })),
+    total: queries.length,
+    processed: slice.length,
+    nextOffset: done ? null : nextOffset,
+    done,
+    added,
     notFound,
     removedUnavailable,
+    inCart,
   })
 })
 

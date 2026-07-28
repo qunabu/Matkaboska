@@ -104,14 +104,45 @@ export const shoppingApi = {
   addItem: (data: object) => req<ShoppingItem>('/shopping-lists/items', { method: 'POST', body: JSON.stringify(data) }),
   updateItem: (id: number, data: object) => req<ShoppingItem>(`/shopping-lists/items/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteItem: (id: number) => req<ApiOk>(`/shopping-lists/items/${id}`, { method: 'DELETE' }),
-  friscoOrder: (listId: number) =>
-    req<FriscoOrderResult>('/frisco/order', { method: 'POST', body: JSON.stringify({ listId }) }),
+  // Fill the Frisco cart. The server processes the list in chunks (to stay
+  // under the Workers subrequest cap), so we loop until `done`, merging results.
+  friscoOrder: async (listId: number): Promise<FriscoOrderResult> => {
+    const merged: FriscoOrderResult = {
+      listName: '', total: 0, inCart: 0, added: [], notFound: [], removedUnavailable: [],
+    }
+    let offset: number | null = 0
+    do {
+      const r: FriscoChunk = await req('/frisco/order', {
+        method: 'POST', body: JSON.stringify({ listId, offset }),
+      })
+      merged.listName = r.listName
+      merged.total = r.total
+      merged.added.push(...r.added)
+      merged.notFound.push(...r.notFound)
+      if (r.done) {
+        merged.inCart = r.inCart ?? merged.added.length
+        merged.removedUnavailable = r.removedUnavailable
+      }
+      offset = r.nextOffset
+    } while (offset != null)
+    return merged
+  },
+}
+
+interface FriscoChunk {
+  listName: string
+  total: number
+  nextOffset: number | null
+  done: boolean
+  added: { item: string; product?: string }[]
+  notFound: string[]
+  removedUnavailable: string[]
+  inCart?: number
 }
 
 export interface FriscoOrderResult {
-  listId: number
   listName: string
-  requested: number
+  total: number
   inCart: number
   added: { item: string; product?: string }[]
   notFound: string[]

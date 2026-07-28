@@ -244,7 +244,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                 {orderResult && (
                   <div className="mt-3 space-y-2 text-xs">
                     <p className="font-medium text-gray-800 dark:text-gray-100">
-                      {pl.shopping.friscoServerInCart}: {orderResult.inCart}/{orderResult.requested}
+                      {pl.shopping.friscoServerInCart}: {orderResult.inCart}/{orderResult.total}
                     </p>
                     {orderResult.notFound.length > 0 && (
                       <div>
