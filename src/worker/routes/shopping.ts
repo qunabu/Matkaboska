@@ -236,12 +236,19 @@ app.patch('/items/:id', async (c) => {
   return c.json(item)
 })
 
-// DELETE /api/shopping-items/:id
+// DELETE /api/shopping-items/:id — also drops the product from the Frisco cart
+// if it was there, so deleting a line keeps the cart in sync.
 app.delete('/items/:id', async (c) => {
   const id = Number(c.req.param('id'))
   const db = getDb(c.env.DB)
+  const [item] = await db.select().from(shopping_items).where(eq(shopping_items.id, id))
+  let removedFromCart = false
+  if (item?.in_frisco && item.frisco_product_id) {
+    try { removedFromCart = await removeProductFromCart(c.env, item.frisco_product_id) }
+    catch { /* Frisco auth/network issue — still delete the row */ }
+  }
   await db.delete(shopping_items).where(eq(shopping_items.id, id))
-  return c.json({ ok: true })
+  return c.json({ ok: true, removedFromCart })
 })
 
 // POST /api/shopping-lists/items/:id/have-at-home
