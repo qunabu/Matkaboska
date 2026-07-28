@@ -165,6 +165,8 @@ function AppShell() {
   const [dismissed, setDismissed] = useState(false)
   const [forceUpdate, setForceUpdate] = useState(false)
   const [installEvt, setInstallEvt] = useState<InstallPromptEvent | null>(null)
+  // Session-only: dismissing hides the install button until the next reload.
+  const [installDismissed, setInstallDismissed] = useState(false)
 
   useEffect(() => {
     // The event may have already fired before React mounted (captured in
@@ -253,13 +255,22 @@ function AppShell() {
         </main>
       </div>
       <BottomNav />
-      {installEvt && (
-        <button
-          onClick={handleInstall}
-          className="fixed bottom-20 left-1/2 z-40 -translate-x-1/2 rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg md:bottom-4"
-        >
-          📲 {pl.common.installApp}
-        </button>
+      {installEvt && !installDismissed && (
+        <div className="fixed bottom-20 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 md:bottom-4">
+          <button
+            onClick={handleInstall}
+            className="rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg"
+          >
+            📲 {pl.common.installApp}
+          </button>
+          <button
+            onClick={() => setInstallDismissed(true)}
+            aria-label={pl.common.close}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-800/85 text-white shadow-lg"
+          >
+            ✕
+          </button>
+        </div>
       )}
       {needRefresh && !dismissed && (
         <UpdateBanner
