@@ -66,6 +66,18 @@ export interface MealPlanEntry {
   status: PlanStatus
 }
 
+export interface MealPlanEntryFull {
+  id: number
+  date: string
+  meal_type: MealType
+  recipe_id: number | null
+  recipe?: Recipe
+  servings: number
+  batch_group: string | null
+  is_leftover: boolean
+  status: PlanStatus
+}
+
 export interface FoodLogEntry {
   id: number
   logged_at: number
