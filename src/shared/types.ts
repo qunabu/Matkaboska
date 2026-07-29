@@ -196,6 +196,15 @@ export interface Idea {
   created_at: number
 }
 
+export interface Habit {
+  id: number
+  name: string
+  active: boolean
+  streak: number
+  today: 'yes' | 'no' | null   // today's check-in status
+  created_at: number
+}
+
 export interface PantryItem {
   id: number
   name: string

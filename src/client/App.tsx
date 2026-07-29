@@ -30,6 +30,7 @@ const TodoPage = lazy(() => import('./pages/TodoPage'))
 const IdeasPage = lazy(() => import('./pages/IdeasPage'))
 const NotesPage = lazy(() => import('./pages/NotesPage'))
 const PantryPage = lazy(() => import('./pages/PantryPage'))
+const HabitsPage = lazy(() => import('./pages/HabitsPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
 function PageFallback() {
@@ -53,6 +54,7 @@ const navItems = [
   { to: '/reminders',   label: pl.nav.reminders,   icon: '🔔' },
   { to: '/todos',       label: pl.nav.todos,       icon: '✅' },
   { to: '/ideas',       label: pl.nav.ideas,       icon: '💡' },
+  { to: '/habits',      label: pl.nav.habits,      icon: '🔁' },
   { to: '/notes',       label: pl.nav.notes,       icon: '🎙️' },
   { to: '/settings',    label: pl.nav.settings,    icon: '⚙️' },
 ]
@@ -252,6 +254,7 @@ function AppShell() {
               <Route path="/ideas" element={<IdeasPage />} />
               <Route path="/notes" element={<NotesPage />} />
               <Route path="/pantry" element={<PantryPage />} />
+              <Route path="/habits" element={<HabitsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>
           </Suspense>

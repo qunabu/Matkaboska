@@ -11,6 +11,7 @@ const pl = {
     reminders: 'Przypomnienia',
     todos: 'Zadania',
     ideas: 'Pomysły',
+    habits: 'Nawyki',
     notes: 'Notatki',
     pantry: 'Spiżarnia',
     settings: 'Ustawienia',
@@ -401,6 +402,17 @@ const pl = {
     liveUnsupported: 'Ta przeglądarka nie ma natywnej transkrypcji na żywo — użyj „Transkrybuj z nagrania".',
     transcribeNotConfigured: 'Transkrypcja serwerowa nie jest skonfigurowana (Workers AI / ElevenLabs).',
     transcribeFailed: 'Nie udało się przetranskrybować nagrania.',
+  },
+
+  habits: {
+    title: 'Nawyki',
+    hint: 'Raz dziennie o losowej porze push zapyta, czy nawyk się udał. Treść pokaże serię (np. „już 5 dni 🔥").',
+    placeholder: 'np. dzień bez facebooka',
+    add: 'Dodaj nawyk',
+    empty: 'Brak nawyków. Dodaj pierwszy powyżej.',
+    todayQuestion: 'Dziś:',
+    noStreak: 'brak serii — zacznij dziś!',
+    deleteConfirm: 'Usunąć ten nawyk (razem z historią)?',
   },
 
   macros: {

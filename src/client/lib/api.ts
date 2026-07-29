@@ -1,7 +1,7 @@
 import type {
   Recipe, RecipeWithNotes, MealPlanEntry, MealPlanEntryFull, FoodLogEntry, DailySummary,
   WaterLog, SupplementWithStatus, SupplementLog, ShoppingList, ShoppingItem,
-  Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote, PantryItem,
+  Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote, PantryItem, Habit,
 } from '../../shared/types'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -179,6 +179,18 @@ export const ideasApi = {
   update: (id: number, data: Partial<Pick<Idea, 'title' | 'description' | 'done' | 'sort_order'>>) =>
     req<Idea>(`/ideas/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (id: number) => req<ApiOk>(`/ideas/${id}`, { method: 'DELETE' }),
+}
+
+// ── Habits ────────────────────────────────────────────────────────────────────
+
+export const habitsApi = {
+  list: () => req<ApiList<Habit>>('/habits'),
+  create: (name: string) => req<Habit>('/habits', { method: 'POST', body: JSON.stringify({ name }) }),
+  checkin: (id: number, success: boolean) =>
+    req<{ ok: boolean; streak: number; today: 'yes' | 'no' | null }>(`/habits/${id}/checkin`, { method: 'POST', body: JSON.stringify({ success }) }),
+  update: (id: number, data: { name?: string; active?: boolean }) =>
+    req<{ id: number }>(`/habits/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: number) => req<ApiOk>(`/habits/${id}`, { method: 'DELETE' }),
 }
 
 // ── Pantry ────────────────────────────────────────────────────────────────────

@@ -18,6 +18,8 @@ import { todosRouter } from './routes/todos'
 import { ideasRouter } from './routes/ideas'
 import { voiceNotesRouter } from './routes/voice-notes'
 import { pantryRouter } from './routes/pantry'
+import { habitsRouter, getHabitState } from './routes/habits'
+import { habits } from './db/index'
 import { getDb, reminders, push_subscriptions, settings, supplements, supplement_log } from './db/index'
 import { eq, and } from 'drizzle-orm'
 
@@ -67,6 +69,7 @@ api.route('/api/todos', todosRouter)
 api.route('/api/ideas', ideasRouter)
 api.route('/api/voice-notes', voiceNotesRouter)
 api.route('/api/pantry', pantryRouter)
+api.route('/api/habits', habitsRouter)
 
 type AssetsBinding = { fetch: (r: Request) => Promise<Response> }
 
@@ -204,6 +207,43 @@ export default {
         }))
       )
       await db.update(supplements).set({ last_notified_at: nowUnix }).where(eq(supplements.id, sup.id))
+    }
+
+    // Habits: once a day at a random time (within the habit's window), ask via
+    // push whether the habit held today — unless already answered. The push body
+    // shows the current streak ("już N dni…").
+    const allHabits = await db.select().from(habits)
+    for (const h of allHabits) {
+      if (!h.active) continue
+      // Pick a fresh random time for today the first time we see this habit today.
+      if (h.prompt_date !== todayKey) {
+        const lo = h.window_start ?? 540
+        const hi = Math.max(lo + 1, h.window_end ?? 1260)
+        const minute = lo + Math.floor(Math.random() * (hi - lo))
+        await db.update(habits).set({ prompt_date: todayKey, prompt_minute: minute, prompted: false }).where(eq(habits.id, h.id))
+        h.prompt_minute = minute
+        h.prompted = false
+      }
+      if (h.prompted) continue
+      if (nowMin < (h.prompt_minute ?? 0)) continue
+
+      const st = await getHabitState(db, h.id, todayKey)
+      if (st.today !== null) { // already answered today — no need to ask
+        await db.update(habits).set({ prompted: true }).where(eq(habits.id, h.id))
+        continue
+      }
+      const body = st.streak > 0
+        ? `Już ${st.streak} ${st.streak === 1 ? 'dzień' : 'dni'} 🔥 — czy dziś też się udało?`
+        : 'Czy dziś się udało? Kliknij, aby odpowiedzieć.'
+      await Promise.allSettled(
+        subs.map((sub) => sendPushNotification(env, sub.endpoint, sub.p256dh, sub.auth, {
+          title: h.name,
+          body,
+          url: '/habits',
+          tag: `habit-${h.id}`,
+        }))
+      )
+      await db.update(habits).set({ prompted: true }).where(eq(habits.id, h.id))
     }
   },
 } satisfies ExportedHandler<Env>

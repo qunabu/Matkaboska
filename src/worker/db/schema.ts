@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, real, index, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { sql } from 'drizzle-orm'
 
 const unixNow = sql`(unixepoch())`
@@ -140,6 +140,27 @@ export const ideas = sqliteTable('ideas', {
   sort_order: integer('sort_order').notNull().default(0),
   created_at: integer('created_at').notNull().default(unixNow),
 })
+
+export const habits = sqliteTable('habits', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  window_start: integer('window_start').notNull().default(540),   // minutes from midnight (09:00)
+  window_end: integer('window_end').notNull().default(1260),       // 21:00
+  prompt_date: text('prompt_date'),                                // local YYYY-MM-DD the time was picked for
+  prompt_minute: integer('prompt_minute'),                         // random minute chosen for prompt_date
+  prompted: integer('prompted', { mode: 'boolean' }).notNull().default(false),
+  created_at: integer('created_at').notNull().default(unixNow),
+})
+
+export const habit_checkins = sqliteTable('habit_checkins', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  habit_id: integer('habit_id').notNull().references(() => habits.id, { onDelete: 'cascade' }),
+  date: text('date').notNull(),                                    // local YYYY-MM-DD
+  success: integer('success', { mode: 'boolean' }).notNull(),
+}, (t) => ({
+  habit_checkin_uidx: uniqueIndex('habit_checkin_uidx').on(t.habit_id, t.date),
+}))
 
 export const pantry_items = sqliteTable('pantry_items', {
   id: integer('id').primaryKey({ autoIncrement: true }),
