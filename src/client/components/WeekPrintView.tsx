@@ -55,18 +55,21 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
     const style = document.createElement('style')
     style.id = 'week-print-style'
     style.textContent = `
+      @page { margin: 10mm; }
       @media print {
+        html, body { background: white !important; }
         body > *:not(#week-print-root) { display: none !important; }
         #week-print-root {
           position: static !important;
           overflow: visible !important;
           background: white !important;
+          font-size: 10.5px !important;
         }
+        #week-print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .print-controls { display: none !important; }
-        .print-page-break { page-break-before: always; }
         .print-avoid-break { page-break-inside: avoid; }
         table { border-collapse: collapse; }
-        th, td { border: 1px solid #ccc; padding: 4px 8px; font-size: 11px; }
+        th, td { border: 1px solid #ccc; padding: 3px 6px; font-size: 10px; }
       }
     `
     document.head.appendChild(style)
@@ -124,17 +127,17 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
       {isLoading ? (
         <div className="flex items-center justify-center p-16 text-gray-500">{pl.common.loading}</div>
       ) : (
-        <div className="mx-auto max-w-4xl px-8 py-10 print:max-w-full print:px-6 print:py-4">
+        <div className="mx-auto max-w-4xl px-8 py-10 print:max-w-full print:px-0 print:py-0">
           {/* Title */}
-          <div className="mb-8 text-center">
-            <h1 className="text-2xl font-bold text-gray-900">{pl.print.weekHeading}</h1>
-            <p className="mt-1 text-gray-500">
+          <div className="mb-8 text-center print:mb-3">
+            <h1 className="text-2xl font-bold text-gray-900 print:text-lg">{pl.print.weekHeading}</h1>
+            <p className="mt-1 text-gray-500 print:text-xs">
               {formatDate(weekStart)} – {formatDate(weekEnd)}
             </p>
           </div>
 
           {/* Summary grid */}
-          <section className="mb-10 print-avoid-break">
+          <section className="mb-10 print-avoid-break print:mb-4">
             <h2 className="mb-3 text-base font-semibold uppercase tracking-wide text-gray-500">{pl.print.summaryTitle}</h2>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-sm">
@@ -174,9 +177,9 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
 
           {/* Per-day recipe details */}
           <section>
-            <h2 className="mb-4 text-base font-semibold uppercase tracking-wide text-gray-500">{pl.print.detailsTitle}</h2>
+            <h2 className="mb-4 text-base font-semibold uppercase tracking-wide text-gray-500 print:mb-2">{pl.print.detailsTitle}</h2>
 
-            {dates.map((date, dayIndex) => {
+            {dates.map((date) => {
               const dayEntries = MEAL_TYPES
                 .map(mt => getEntry(date, mt))
                 .filter((e): e is MealPlanEntryFull => !!e && !!e.recipe)
@@ -184,20 +187,17 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
               if (dayEntries.length === 0) return null
 
               return (
-                <div
-                  key={date}
-                  className={`mb-8 ${dayIndex > 0 ? 'print-page-break' : ''}`}
-                >
-                  <h3 className="mb-4 border-b-2 border-gray-900 pb-1 text-lg font-bold uppercase text-gray-900">
+                <div key={date} className="mb-8 print:mb-3">
+                  <h3 className="mb-4 border-b-2 border-gray-900 pb-1 text-lg font-bold uppercase text-gray-900 print:mb-2 print:text-sm">
                     {formatLongDate(date)}
                   </h3>
 
-                  <div className="space-y-6">
+                  <div className="space-y-6 print:space-y-2">
                     {dayEntries.map(entry => {
                       const recipe = entry.recipe!
                       return (
-                        <div key={entry.id} className="print-avoid-break rounded-lg border border-gray-200 p-4">
-                          <div className="mb-3 flex items-start justify-between">
+                        <div key={entry.id} className="print-avoid-break rounded-lg border border-gray-200 p-4 print:p-2.5">
+                          <div className="mb-3 flex items-start justify-between print:mb-1">
                             <div>
                               <p className="mb-0.5 text-xs font-medium uppercase tracking-wide text-gray-400">
                                 {MEAL_ICONS[entry.meal_type]} {pl.plan.meals[entry.meal_type]}
@@ -215,7 +215,7 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
                           </div>
 
                           {recipe.macros && (
-                            <div className="mb-3 flex flex-wrap gap-4 rounded bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                            <div className="mb-3 flex flex-wrap gap-4 rounded bg-gray-50 px-3 py-2 text-xs text-gray-600 print:mb-1.5 print:py-1">
                               <span className="font-semibold">{Math.round(recipe.macros.kcal * entry.servings / recipe.servings)} {pl.print.kcal}</span>
                               <span>{pl.print.protein}: <strong>{Math.round(recipe.macros.protein_g * entry.servings / recipe.servings)}g</strong></span>
                               <span>{pl.print.carbs}: <strong>{Math.round(recipe.macros.carbs_g * entry.servings / recipe.servings)}g</strong></span>
@@ -223,7 +223,7 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
                             </div>
                           )}
 
-                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div className="grid grid-cols-2 gap-6 print:gap-4">
                             {recipe.ingredients.length > 0 && (
                               <div>
                                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">{pl.print.ingredients}</p>
