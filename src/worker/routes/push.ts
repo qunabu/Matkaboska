@@ -114,7 +114,7 @@ export async function sendPushNotification(
   endpoint: string,
   p256dh: string,
   auth: string,
-  payload: { title: string; body: string; url?: string },
+  payload: { title: string; body: string; url?: string; tag?: string },
 ) {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) throw new Error('VAPID not configured')
 

@@ -18,8 +18,8 @@ import { todosRouter } from './routes/todos'
 import { ideasRouter } from './routes/ideas'
 import { voiceNotesRouter } from './routes/voice-notes'
 import { pantryRouter } from './routes/pantry'
-import { getDb, reminders, push_subscriptions, settings } from './db/index'
-import { eq } from 'drizzle-orm'
+import { getDb, reminders, push_subscriptions, settings, supplements, supplement_log } from './db/index'
+import { eq, and } from 'drizzle-orm'
 
 const api = new Hono<{ Bindings: Env }>()
 
@@ -110,7 +110,6 @@ export default {
     const subs = await db.select().from(push_subscriptions)
     if (subs.length === 0) return
     const allReminders = await db.select().from(reminders)
-    if (allReminders.length === 0) return
 
     // Evaluate reminders in the user's timezone (reminder times are local).
     let tz = 'Europe/Warsaw'
@@ -164,6 +163,47 @@ export default {
       )
       await db.update(reminders).set({ last_fired_at: Math.floor(Date.now() / 1000) })
         .where(eq(reminders.id, reminder.id))
+    }
+
+    // Supplement/medication reminders: nag every ~30 min from each scheduled
+    // time (local) until the dose is logged for today, then stop.
+    const NAG_MIN = 30
+    const nowUnix = Math.floor(Date.now() / 1000)
+    // Logs are stored by UTC ISO date (see supplements route); match that.
+    const logDateKey = new Date().toISOString().slice(0, 10)
+    const allSupps = await db.select().from(supplements)
+    for (const sup of allSupps) {
+      if (!sup.active) continue
+      let sched: { times?: string[]; days?: number[] }
+      try { sched = JSON.parse(sup.schedule) } catch { continue }
+      const times = sched.times ?? []
+      const days = sched.days ?? [0, 1, 2, 3, 4, 5, 6]
+      if (times.length === 0 || !days.includes(dow)) continue
+
+      // How many doses are due by now vs. already taken today.
+      const dueByNow = times.filter((t) => {
+        const [h, m] = t.split(':').map(Number)
+        return h * 60 + m <= nowMin
+      }).length
+      if (dueByNow === 0) continue
+      const takenRows = await db.select().from(supplement_log)
+        .where(and(eq(supplement_log.supplement_id, sup.id), eq(supplement_log.date, logDateKey)))
+      if (takenRows.length >= dueByNow) continue // all due doses taken
+
+      // Throttle to roughly every NAG_MIN minutes.
+      if (sup.last_notified_at && (nowUnix - sup.last_notified_at) / 60 < NAG_MIN) continue
+
+      await Promise.allSettled(
+        subs.map((sub) => sendPushNotification(env, sub.endpoint, sub.p256dh, sub.auth, {
+          title: sup.name,
+          body: sup.kind === 'medication'
+            ? 'Czas na lek 💊 — kliknij „Przyjmij", gdy weźmiesz'
+            : 'Czas na suplement 💊 — kliknij „Przyjmij", gdy weźmiesz',
+          url: '/supplements',
+          tag: `sup-${sup.id}`,
+        }))
+      )
+      await db.update(supplements).set({ last_notified_at: nowUnix }).where(eq(supplements.id, sup.id))
     }
   },
 } satisfies ExportedHandler<Env>

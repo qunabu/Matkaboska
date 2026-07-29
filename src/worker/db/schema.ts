@@ -75,6 +75,7 @@ export const supplements = sqliteTable('supplements', {
   schedule: text('schedule').notNull().default('{"times":[],"days":[0,1,2,3,4,5,6]}'),
   notes: text('notes'),
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  last_notified_at: integer('last_notified_at'),            // unix; throttles the repeat-until-taken nag
 })
 
 export const supplement_log = sqliteTable('supplement_log', {

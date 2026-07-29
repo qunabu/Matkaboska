@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, supplements, supplement_log } from '../db/index'
+import { getDb, supplements, supplement_log, push_subscriptions } from '../db/index'
+import { sendPushNotification } from './push'
 import type { Env } from '../types'
 import type { Supplement, SupSchedule } from '../../shared/types'
 
@@ -133,6 +134,31 @@ app.post('/:id/log', async (c) => {
     date: todayDate(),
   }).returning()
   return c.json(row, 201)
+})
+
+// POST /api/supplements/:id/remind-now — send the reminder push immediately
+// (manual test of the repeat-until-taken notification).
+app.post('/:id/remind-now', async (c) => {
+  const id = Number(c.req.param('id'))
+  const db = getDb(c.env.DB)
+  const [sup] = await db.select().from(supplements).where(eq(supplements.id, id))
+  if (!sup) return c.json({ error: 'Not found' }, 404)
+  if (!c.env.VAPID_PRIVATE_KEY) return c.json({ error: 'Push not configured' }, 503)
+  const subs = await db.select().from(push_subscriptions)
+  if (subs.length === 0) return c.json({ error: 'No subscriptions', sent: 0, total: 0 }, 400)
+  const results = await Promise.allSettled(
+    subs.map((s) => sendPushNotification(c.env, s.endpoint, s.p256dh, s.auth, {
+      title: sup.name,
+      body: sup.kind === 'medication'
+        ? 'Czas na lek 💊 — kliknij „Przyjmij", gdy weźmiesz'
+        : 'Czas na suplement 💊 — kliknij „Przyjmij", gdy weźmiesz',
+      url: '/supplements',
+      tag: `sup-${sup.id}`,
+    }))
+  )
+  const sent = results.filter((r) => r.status === 'fulfilled').length
+  const errors = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected').map((r) => String(r.reason))
+  return c.json({ sent, total: subs.length, errors })
 })
 
 

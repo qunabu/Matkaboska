@@ -192,6 +192,12 @@ export default function SupplementsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['supplements'] }),
   })
 
+  const remindMutation = useMutation({
+    mutationFn: (id: number) => supplementsApi.remindNow(id),
+    onSuccess: (r) => alert(r.sent > 0 ? pl.supplements.remindSent : pl.supplements.remindNone),
+    onError: (e) => alert((e as Error).message),
+  })
+
   const deleteMutation = useMutation({
     mutationFn: (id: number) => supplementsApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['supplements'] }),
@@ -212,6 +218,8 @@ export default function SupplementsPage() {
           + {pl.supplements.new}
         </button>
       </div>
+
+      <p className="mb-4 text-xs text-gray-400">🔔 {pl.supplements.repeatHint}</p>
 
       {isLoading && <p className="text-gray-500">{pl.common.loading}</p>}
 
@@ -265,6 +273,14 @@ export default function SupplementsPage() {
                         ✓ {pl.supplements.taken}
                       </span>
                     )}
+                    <button
+                      onClick={() => remindMutation.mutate(supp.id)}
+                      disabled={remindMutation.isPending && remindMutation.variables === supp.id}
+                      title={pl.supplements.remindNow}
+                      className="rounded-lg bg-gray-100 px-2 py-1.5 text-xs text-gray-500 disabled:opacity-40 dark:bg-gray-700"
+                    >
+                      🔔
+                    </button>
                     <button
                       onClick={() => { setEditId(supp.id); setShowForm(true) }}
                       className="rounded-lg bg-gray-100 px-2 py-1.5 text-xs text-gray-500 dark:bg-gray-700"

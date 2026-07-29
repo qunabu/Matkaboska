@@ -88,6 +88,7 @@ export const supplementsApi = {
   update: (id: number, data: object) => req<SupplementWithStatus>(`/supplements/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (id: number) => req<ApiOk>(`/supplements/${id}`, { method: 'DELETE' }),
   log: (id: number) => req(`/supplements/${id}/log`, { method: 'POST' }),
+  remindNow: (id: number) => req<{ sent: number; total: number; errors: string[] }>(`/supplements/${id}/remind-now`, { method: 'POST' }),
   deleteLog: (logId: number) => req<ApiOk>(`/supplements/log/${logId}`, { method: 'DELETE' }),
   getLogs: (date: string) => req<ApiList<SupplementLog>>(`/supplements/log?date=${date}`),
 }
