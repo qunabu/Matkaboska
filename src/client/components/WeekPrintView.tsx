@@ -223,7 +223,7 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
                             </div>
                           )}
 
-                          <div className="grid grid-cols-2 gap-6 print:gap-4">
+                          <div className="grid grid-cols-[3fr_7fr] gap-6 print:gap-4">
                             {recipe.ingredients.length > 0 && (
                               <div>
                                 <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">{pl.print.ingredients}</p>
