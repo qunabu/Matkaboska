@@ -200,6 +200,7 @@ const pl = {
     close: 'Zamknij',
     weekHeading: 'Jadłospis tygodnia',
     summaryTitle: 'Przegląd tygodnia',
+    shoppingTitle: 'Lista zakupów',
     detailsTitle: 'Przepisy na każdy dzień',
     noMeal: '—',
     ingredients: 'Składniki',

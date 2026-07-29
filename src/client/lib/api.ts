@@ -101,6 +101,10 @@ export const shoppingApi = {
   getList: (id: number) => req<ShoppingList & { items: ShoppingItem[] }>(`/shopping-lists/${id}`),
   createList: (name: string) => req<ShoppingList>('/shopping-lists', { method: 'POST', body: JSON.stringify({ name }) }),
   deleteList: (id: number) => req<ApiOk>(`/shopping-lists/${id}`, { method: 'DELETE' }),
+  // Read-only aggregated shopping list for a date range (no DB write) — used by
+  // the printable checklist.
+  shoppingPreview: (from: string, to: string) =>
+    req<ApiList<{ name: string; quantity: number | null; unit: string | null }>>(`/shopping-lists/preview?from=${from}&to=${to}`),
   generateList: (from: string, to: string, name?: string) =>
     req<ShoppingList & { items: ShoppingItem[] }>('/shopping-lists/generate', { method: 'POST', body: JSON.stringify({ from, to, name }) }),
   addItem: (data: object) => req<ShoppingItem>('/shopping-lists/items', { method: 'POST', body: JSON.stringify(data) }),

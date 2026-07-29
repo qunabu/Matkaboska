@@ -26,6 +26,18 @@ app.get('/', async (c) => {
   return c.json({ items: withCounts, total: withCounts.length })
 })
 
+// GET /api/shopping-lists/preview?from=&to=  — read-only aggregation (no DB
+// write), used by the printable shopping checklist. Registered before /:id so
+// it isn't shadowed by the id param route.
+app.get('/preview', async (c) => {
+  const from = c.req.query('from')
+  const to = c.req.query('to')
+  if (!from || !to) return c.json({ error: 'from/to required' }, 400)
+  const db = getDb(c.env.DB)
+  const items = await aggregateShoppingItems(db, from, to)
+  return c.json({ items, total: items.length })
+})
+
 // GET /api/shopping-lists/:id
 app.get('/:id', async (c) => {
   const id = Number(c.req.param('id'))
@@ -111,26 +123,19 @@ function normalizeName(name: string): string {
   return LEMMAS[clean.toLowerCase()] ?? clean
 }
 
-// POST /api/shopping-lists/generate
-app.post('/generate', async (c) => {
-  const body = await c.req.json()
-  const parsed = z.object({
-    from: z.string(),
-    to: z.string(),
-    name: z.string().optional(),
-  }).safeParse(body)
-  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
-  const { from, to, name } = parsed.data
+type AggregatedItem = { name: string; quantity: number | null; unit: string | null; category: ShopCategory; sort_order: number }
 
-  const db = getDb(c.env.DB)
+// Aggregate the plan's recipe ingredients into a deduped shopping list for a
+// date range (pantry items excluded). Shared by generate (persists) and the
+// print preview (read-only).
+async function aggregateShoppingItems(
+  db: ReturnType<typeof getDb>, from: string, to: string,
+): Promise<AggregatedItem[]> {
   const planRows = await db.select({ entry: meal_plan_entries, recipe: recipes })
     .from(meal_plan_entries)
     .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
     .where(between(meal_plan_entries.date, from, to))
 
-  // Aggregate ingredients by normalised name (one line per product). Quantities
-  // are summed per unit; different units for the same product are kept as
-  // separate running totals and the largest is shown, so "mleko" appears once.
   const aggregated = new Map<string, { name: string; category: ShopCategory; units: Map<string, number> }>()
   for (const { entry, recipe } of planRows) {
     if (!recipe) continue
@@ -147,12 +152,44 @@ app.post('/generate', async (c) => {
     }
   }
 
-  // Drop anything already in the pantry so it isn't re-added to the list.
   const pantry = await db.select().from(pantry_items)
   const pantryKeys = new Set(pantry.map((p) => normalizeName(p.name).toLowerCase()))
   for (const key of [...aggregated.keys()]) {
     if (pantryKeys.has(key)) aggregated.delete(key)
   }
+
+  let sortOrder = 0
+  const items: AggregatedItem[] = []
+  for (const { name, category, units } of aggregated.values()) {
+    let bestUnit: string | null = null
+    let bestQty = 0
+    for (const [u, qv] of units) {
+      if (qv > bestQty) { bestQty = qv; bestUnit = u }
+    }
+    items.push({
+      name,
+      quantity: bestQty > 0 ? Math.round(bestQty * 10) / 10 : null,
+      unit: bestQty > 0 ? (bestUnit || null) : null,
+      category,
+      sort_order: sortOrder++,
+    })
+  }
+  return items
+}
+
+// POST /api/shopping-lists/generate
+app.post('/generate', async (c) => {
+  const body = await c.req.json()
+  const parsed = z.object({
+    from: z.string(),
+    to: z.string(),
+    name: z.string().optional(),
+  }).safeParse(body)
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
+  const { from, to, name } = parsed.data
+
+  const db = getDb(c.env.DB)
+  const aggregated = await aggregateShoppingItems(db, from, to)
 
   const listName = name ?? `Lista ${from} – ${to}`
   const [list] = await db.insert(shopping_lists).values({
@@ -162,31 +199,17 @@ app.post('/generate', async (c) => {
     date_range_end: to,
   }).returning()
 
-  let sortOrder = 0
-  const itemsToInsert = []
-  for (const { name, category, units } of aggregated.values()) {
-    // Pick the unit with the largest summed quantity as the one to display.
-    let bestUnit: string | null = null
-    let bestQty = 0
-    for (const [u, qv] of units) {
-      if (qv > bestQty) { bestQty = qv; bestUnit = u }
-    }
-    itemsToInsert.push({
-      list_id: list.id,
-      name,
-      // Ingredients with no numeric amount ("garść", "do smaku") aggregate to 0
-      // — store null so the UI shows just the name, not a meaningless "0".
-      quantity: bestQty > 0 ? Math.round(bestQty * 10) / 10 : null,
-      unit: bestQty > 0 ? (bestUnit || null) : null,
-      category,
-      source: 'generated' as const,
-      sort_order: sortOrder++,
-    })
-  }
+  const itemsToInsert = aggregated.map((it) => ({
+    list_id: list.id,
+    name: it.name,
+    quantity: it.quantity,
+    unit: it.unit,
+    category: it.category,
+    source: 'generated' as const,
+    sort_order: it.sort_order,
+  }))
 
-  // D1 allows at most 100 bound parameters per query. Drizzle binds 8 columns
-  // per row for this insert (incl. the `checked` default), so cap each batch at
-  // 10 rows (80 params) to stay safely under the limit.
+  // D1 allows at most 100 bound parameters per query; cap each batch at 10 rows.
   const CHUNK = 10
   for (let i = 0; i < itemsToInsert.length; i += CHUNK) {
     await db.insert(shopping_items).values(itemsToInsert.slice(i, i + CHUNK))

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
-import { planApi, formatDate, weekDates } from '../lib/api'
+import { planApi, shoppingApi, formatDate, weekDates } from '../lib/api'
 import pl from '../i18n/pl'
 import type { MealPlanEntryFull, MealType, Recipe } from '../../shared/types'
 
@@ -90,6 +90,15 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
     staleTime: 60_000,
   })
 
+  const { data: shopData } = useQuery({
+    queryKey: ['plan-shopping-preview', weekStart, weekEnd],
+    queryFn: () => shoppingApi.shoppingPreview(weekStart, weekEnd),
+    staleTime: 60_000,
+  })
+  const shopItems = (shopData?.items ?? [])
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, 'pl'))
+
   const dates = weekDates(weekStart)
   const entries = data?.items ?? []
 
@@ -174,6 +183,24 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
               </table>
             </div>
           </section>
+
+          {/* Shopping checklist (3 columns, tick by hand) */}
+          {shopItems.length > 0 && (
+            <section className="mb-10 print:mb-4">
+              <h2 className="mb-3 text-base font-semibold uppercase tracking-wide text-gray-500 print:mb-2">{pl.print.shoppingTitle}</h2>
+              <ul className="columns-3 gap-8 print:gap-6" style={{ columnFill: 'balance' }}>
+                {shopItems.map((it, i) => (
+                  <li key={i} className="mb-1.5 flex items-baseline gap-2 break-inside-avoid text-sm text-gray-800 print:mb-1 print:text-xs">
+                    <span className="mt-0.5 inline-block h-3.5 w-3.5 shrink-0 rounded-sm border border-gray-500 print:h-3 print:w-3" />
+                    <span>
+                      {it.name}
+                      {it.quantity ? <span className="text-gray-400"> — {it.quantity}{it.unit ? ` ${it.unit}` : ''}</span> : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {/* Per-day recipe details */}
           <section>
