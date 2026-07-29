@@ -190,6 +190,28 @@ const pl = {
       skipped: 'Pominięte',
     },
     generateShopping: 'Generuj listę zakupów',
+    printWeek: 'Drukuj tydzień',
+  },
+
+  print: {
+    previewTitle: 'Podgląd wydruku',
+    print: 'Drukuj',
+    close: 'Zamknij',
+    weekHeading: 'Jadłospis tygodnia',
+    summaryTitle: 'Przegląd tygodnia',
+    detailsTitle: 'Przepisy na każdy dzień',
+    noMeal: '—',
+    ingredients: 'Składniki',
+    steps: 'Przygotowanie',
+    servings: 'Porcje',
+    prepTime: 'Czas przygotowania',
+    macros: 'Makroskładniki na porcję',
+    kcal: 'kcal',
+    protein: 'białko',
+    carbs: 'węgle',
+    fat: 'tłuszcz',
+    min: 'min',
+    noPlannedMeals: 'Brak zaplanowanych posiłków na ten dzień',
   },
 
   shopping: {

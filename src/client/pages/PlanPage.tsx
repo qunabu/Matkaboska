@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { planApi, recipesApi, todayDate, getWeekStart, weekDates, addDays } from '../lib/api'
 import pl from '../i18n/pl'
 import type { MealType } from '../../shared/types'
+import WeekPrintView from '../components/WeekPrintView'
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack']
 const mealLabel = (m: MealType) => pl.plan.meals[m]
@@ -85,6 +86,7 @@ export default function PlanPage() {
   const today = todayDate()
 
   const [picking, setPicking] = useState<{ date: string; mealType: MealType } | null>(null)
+  const [showPrint, setShowPrint] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['plan', weekStart, weekEnd],
@@ -134,6 +136,13 @@ export default function PlanPage() {
             className="rounded-lg bg-primary-100 px-3 py-1.5 text-sm font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
           >
             {pl.plan.today}
+          </button>
+          <button
+            onClick={() => setShowPrint(true)}
+            title={pl.plan.printWeek}
+            className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+          >
+            🖨
           </button>
         </div>
       </div>
@@ -272,6 +281,14 @@ export default function PlanPage() {
             appendMealMutation.mutate({ date: picking.date, mealType: picking.mealType, recipeId, servings })
             setPicking(null)
           }}
+        />
+      )}
+
+      {showPrint && (
+        <WeekPrintView
+          weekStart={weekStart}
+          weekEnd={weekEnd}
+          onClose={() => setShowPrint(false)}
         />
       )}
     </div>

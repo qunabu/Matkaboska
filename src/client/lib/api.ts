@@ -1,5 +1,5 @@
 import type {
-  Recipe, RecipeWithNotes, MealPlanEntry, FoodLogEntry, DailySummary,
+  Recipe, RecipeWithNotes, MealPlanEntry, MealPlanEntryFull, FoodLogEntry, DailySummary,
   WaterLog, SupplementWithStatus, SupplementLog, ShoppingList, ShoppingItem,
   Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote, PantryItem,
 } from '../../shared/types'
@@ -40,6 +40,7 @@ export const recipesApi = {
 
 export const planApi = {
   list: (from: string, to: string) => req<ApiList<MealPlanEntry>>(`/plan?from=${from}&to=${to}`),
+  listFull: (from: string, to: string) => req<ApiList<MealPlanEntryFull>>(`/plan/print?from=${from}&to=${to}`),
   set: (date: string, meal_type: string, data: { recipe_id: number | null; servings?: number }) =>
     req<MealPlanEntry>(`/plan/${date}/${meal_type}`, { method: 'PUT', body: JSON.stringify(data) }),
   setStatus: (id: number, status: string) =>
