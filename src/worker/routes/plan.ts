@@ -3,7 +3,7 @@ import { eq, and, between, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, meal_plan_entries, recipes } from '../db/index'
 import type { Env } from '../types'
-import type { MealPlanEntry, Ingredient, Macros } from '../../shared/types'
+import type { MealPlanEntry, MealPlanEntryFull, MealType, PlanStatus, Ingredient, Macros, Recipe } from '../../shared/types'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -44,6 +44,51 @@ app.get('/', async (c) => {
     .orderBy(meal_plan_entries.date, meal_plan_entries.meal_type)
 
   const items = rows.map(r => parsePlanRow(r.entry, r.recipe))
+  return c.json({ items, total: items.length })
+})
+
+// GET /api/plan/print?from=YYYY-MM-DD&to=YYYY-MM-DD
+app.get('/print', async (c) => {
+  const { from, to } = c.req.query()
+  if (!from || !to) return c.json({ error: 'from and to required' }, 400)
+
+  const db = getDb(c.env.DB)
+  const rows = await db
+    .select({ entry: meal_plan_entries, recipe: recipes })
+    .from(meal_plan_entries)
+    .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
+    .where(between(meal_plan_entries.date, from, to))
+    .orderBy(meal_plan_entries.date, meal_plan_entries.meal_type)
+
+  const items: MealPlanEntryFull[] = rows.map(r => ({
+    id: r.entry.id,
+    date: r.entry.date,
+    meal_type: r.entry.meal_type as MealType,
+    recipe_id: r.entry.recipe_id,
+    servings: r.entry.servings,
+    batch_group: r.entry.batch_group,
+    is_leftover: r.entry.is_leftover,
+    status: r.entry.status as PlanStatus,
+    recipe: r.recipe ? {
+      id: r.recipe.id,
+      title: r.recipe.title,
+      slug: r.recipe.slug,
+      category: r.recipe.category as Recipe['category'],
+      servings: r.recipe.servings,
+      prep_minutes: r.recipe.prep_minutes,
+      ingredients: JSON.parse(r.recipe.ingredients) as Ingredient[],
+      steps: JSON.parse(r.recipe.steps) as string[],
+      tags: JSON.parse(r.recipe.tags) as string[],
+      is_seafood: r.recipe.is_seafood,
+      source: r.recipe.source,
+      macros: r.recipe.macros ? JSON.parse(r.recipe.macros) as Macros : null,
+      macros_confidence: r.recipe.macros_confidence as Recipe['macros_confidence'],
+      macros_assumptions: r.recipe.macros_assumptions,
+      created_at: r.recipe.created_at,
+      updated_at: r.recipe.updated_at,
+    } as Recipe : undefined,
+  }))
+
   return c.json({ items, total: items.length })
 })
 
