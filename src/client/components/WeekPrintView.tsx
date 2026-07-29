@@ -197,14 +197,24 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
                       const recipe = entry.recipe!
                       return (
                         <div key={entry.id} className="print-avoid-break rounded-lg border border-gray-200 p-4 print:p-2.5">
-                          <div className="mb-3 flex items-start justify-between print:mb-1">
-                            <div>
+                          <div className="mb-2 flex items-start justify-between gap-3 print:mb-1.5">
+                            <div className="min-w-0">
                               <p className="mb-0.5 text-xs font-medium uppercase tracking-wide text-gray-400">
                                 {MEAL_ICONS[entry.meal_type]} {pl.plan.meals[entry.meal_type]}
                               </p>
-                              <h4 className="text-base font-bold text-gray-900">{recipe.title}</h4>
+                              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                                <h4 className="text-base font-bold text-gray-900">{recipe.title}</h4>
+                                {recipe.macros && (
+                                  <span className="flex flex-wrap gap-x-2 text-xs text-gray-500">
+                                    <span className="font-semibold text-gray-600">{Math.round(recipe.macros.kcal * entry.servings / recipe.servings)} {pl.print.kcal}</span>
+                                    <span>{pl.print.protein}: {Math.round(recipe.macros.protein_g * entry.servings / recipe.servings)}g</span>
+                                    <span>{pl.print.carbs}: {Math.round(recipe.macros.carbs_g * entry.servings / recipe.servings)}g</span>
+                                    <span>{pl.print.fat}: {Math.round(recipe.macros.fat_g * entry.servings / recipe.servings)}g</span>
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div className="text-right text-xs text-gray-400 shrink-0 ml-4">
+                            <div className="text-right text-xs text-gray-400 shrink-0">
                               {entry.servings !== recipe.servings && (
                                 <p>{pl.print.servings}: {entry.servings}</p>
                               )}
@@ -213,15 +223,6 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
                               )}
                             </div>
                           </div>
-
-                          {recipe.macros && (
-                            <div className="mb-3 flex flex-wrap gap-4 rounded bg-gray-50 px-3 py-2 text-xs text-gray-600 print:mb-1.5 print:py-1">
-                              <span className="font-semibold">{Math.round(recipe.macros.kcal * entry.servings / recipe.servings)} {pl.print.kcal}</span>
-                              <span>{pl.print.protein}: <strong>{Math.round(recipe.macros.protein_g * entry.servings / recipe.servings)}g</strong></span>
-                              <span>{pl.print.carbs}: <strong>{Math.round(recipe.macros.carbs_g * entry.servings / recipe.servings)}g</strong></span>
-                              <span>{pl.print.fat}: <strong>{Math.round(recipe.macros.fat_g * entry.servings / recipe.servings)}g</strong></span>
-                            </div>
-                          )}
 
                           <div className="grid grid-cols-[3fr_7fr] gap-6 print:gap-4">
                             {recipe.ingredients.length > 0 && (
