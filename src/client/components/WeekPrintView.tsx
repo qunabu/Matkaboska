@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { planApi, formatDate, weekDates } from '../lib/api'
 import pl from '../i18n/pl'
@@ -93,7 +94,7 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
     return entries.find(e => e.date === date && e.meal_type === mealType)
   }
 
-  return (
+  return createPortal(
     <div
       id="week-print-root"
       ref={printRoot}
@@ -264,6 +265,7 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
           </section>
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   )
 }
