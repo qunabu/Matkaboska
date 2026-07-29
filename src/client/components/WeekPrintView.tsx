@@ -67,7 +67,7 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
         }
         #week-print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .print-controls { display: none !important; }
-        .print-avoid-break { page-break-inside: avoid; }
+        .print-avoid-break { page-break-inside: avoid; break-inside: avoid; }
         table { border-collapse: collapse; }
         th, td { border: 1px solid #ccc; padding: 3px 6px; font-size: 10px; }
       }
@@ -184,9 +184,9 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
             </div>
           </section>
 
-          {/* Shopping checklist (3 columns, tick by hand) */}
+          {/* Shopping checklist (3 columns, tick by hand) — kept on one page when it fits */}
           {shopItems.length > 0 && (
-            <section className="mb-10 print:mb-4">
+            <section className="mb-10 print:mb-4 print-avoid-break">
               <h2 className="mb-3 text-base font-semibold uppercase tracking-wide text-gray-500 print:mb-2">{pl.print.shoppingTitle}</h2>
               <ul className="columns-3 gap-8 print:gap-6" style={{ columnFill: 'balance' }}>
                 {shopItems.map((it, i) => (
