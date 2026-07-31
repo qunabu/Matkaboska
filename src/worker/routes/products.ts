@@ -25,6 +25,7 @@ const ProductSchema = z.object({
   portion: z.string().nullable().optional(),
   serving_g: z.number().nullable().optional(),
   package_g: z.number().nullable().optional(),
+  frisco_product_id: z.string().nullable().optional(),
 })
 
 // POST /api/products  — add or update a product (upsert by name)
@@ -42,6 +43,7 @@ app.post('/', async (c) => {
     portion: d.portion ?? null,
     serving_g: d.serving_g ?? null,
     package_g: d.package_g ?? null,
+    frisco_product_id: d.frisco_product_id ?? null,
   }).onConflictDoUpdate({
     target: products.name,
     set: {
@@ -52,6 +54,7 @@ app.post('/', async (c) => {
       portion: d.portion ?? null,
       serving_g: d.serving_g ?? null,
       package_g: d.package_g ?? null,
+      frisco_product_id: d.frisco_product_id ?? null,
     },
   }).returning()
   return c.json(row, 201)

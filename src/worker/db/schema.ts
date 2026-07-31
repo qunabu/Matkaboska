@@ -205,6 +205,7 @@ export const products = sqliteTable('products', {
   portion: text('portion'),                                   // optional descriptive label
   serving_g: real('serving_g'),                               // grams of one default portion
   package_g: real('package_g'),                               // grams of the whole product
+  frisco_product_id: text('frisco_product_id'),               // Frisco pid → skip search when filling cart
   created_at: integer('created_at').notNull().default(unixNow),
 }, (t) => ({
   product_name_idx: index('product_name_idx').on(t.name),

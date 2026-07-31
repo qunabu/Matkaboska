@@ -133,6 +133,7 @@ const pl = {
     readyPackage: 'Całe opakowanie (g)',
     readyGrams: 'Ile gramów zjadłeś/planujesz?',
     readyOnePortion: 'jedna porcja',
+    readyFriscoPid: 'Frisco PID (opcjonalnie, do koszyka)',
     readyAdd: 'Dodaj produkt',
     readyHint: 'Makra podaj na 100 g. Zapisuje się w bazie produktów (Ustawienia) do ponownego użycia. Przy dodawaniu wpisz gramy — domyślnie jedna porcja.',
     readyPickHint: 'Wybierz z listy, aby nie wpisywać makro ponownie.',

@@ -54,6 +54,7 @@ export interface Product {
   portion: string | null
   serving_g: number | null   // grams of one default portion
   package_g: number | null   // grams of the whole product
+  frisco_product_id: string | null   // Frisco pid, if the product exists there
   created_at: number
 }
 

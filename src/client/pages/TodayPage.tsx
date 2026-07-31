@@ -172,6 +172,7 @@ function ReadyProduct() {
   const [serving, setServing] = useState('') // grams of one portion
   const [pkg, setPkg] = useState('')         // grams of whole product
   const [grams, setGrams] = useState('')     // grams eaten now
+  const [friscoPid, setFriscoPid] = useState('') // optional Frisco pid
   const [showSug, setShowSug] = useState(false)
 
   const { data: sug } = useQuery({
@@ -196,6 +197,7 @@ function ReadyProduct() {
         name: name.trim(),
         kcal: num(kcal), protein_g: num(protein), carbs_g: num(carbs), fat_g: num(fat),
         serving_g: num(serving), package_g: num(pkg),
+        frisco_product_id: friscoPid.trim() || null,
       })
       await foodLogApi.add({
         description: `${name.trim()} (${eatenG} g)`,
@@ -204,7 +206,7 @@ function ReadyProduct() {
       })
     },
     onSuccess: () => {
-      setName(''); setKcal(''); setProtein(''); setCarbs(''); setFat(''); setServing(''); setPkg(''); setGrams(''); setShowSug(false)
+      setName(''); setKcal(''); setProtein(''); setCarbs(''); setFat(''); setServing(''); setPkg(''); setGrams(''); setFriscoPid(''); setShowSug(false)
       qc.invalidateQueries({ queryKey: ['food-log', today] })
       qc.invalidateQueries({ queryKey: ['food-log-summary', today] })
       qc.invalidateQueries({ queryKey: ['products'] })
@@ -220,6 +222,7 @@ function ReadyProduct() {
     setServing(p.serving_g?.toString() ?? '')
     setPkg(p.package_g?.toString() ?? '')
     setGrams(p.serving_g?.toString() ?? '') // default to one portion
+    setFriscoPid(p.frisco_product_id ?? '')
     setShowSug(false)
   }
 
@@ -278,6 +281,11 @@ function ReadyProduct() {
           <input inputMode="decimal" value={pkg} onChange={(e) => setPkg(e.target.value)} placeholder="np. 200" className={`mt-1 ${numInput}`} />
         </label>
       </div>
+
+      <label className="mt-2 block text-xs text-gray-400">
+        {pl.today.readyFriscoPid}
+        <input inputMode="numeric" value={friscoPid} onChange={(e) => setFriscoPid(e.target.value)} placeholder="np. 145836" className={`mt-1 ${numInput}`} />
+      </label>
 
       <label className="mt-2 block text-xs font-medium text-gray-500 dark:text-gray-300">
         {pl.today.readyGrams}

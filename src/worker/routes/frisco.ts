@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { eq, and } from 'drizzle-orm'
-import { getDb, shopping_lists, shopping_items } from '../db/index'
+import { getDb, shopping_lists, shopping_items, products as productsTable } from '../db/index'
 import type { Env } from '../types'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -195,6 +195,12 @@ app.post('/order', async (c) => {
     await db.update(shopping_items).set({ in_frisco: false, frisco_product_id: null }).where(eq(shopping_items.list_id, listId))
   }
 
+  // Known Frisco pids from the product repository — resolve by exact name so we
+  // don't search the API for products we already know.
+  const repoRows = await db.select().from(productsTable)
+  const repoPid = new Map<string, string>()
+  for (const p of repoRows) { if (p.frisco_product_id) repoPid.set(p.name.trim().toLowerCase(), p.frisco_product_id) }
+
   // Search this slice, pick available matches, upsert them, and flag each row.
   const slice = rows.slice(offset, offset + CHUNK)
   const added: { item: string; product?: string }[] = []
@@ -206,7 +212,10 @@ app.post('/order', async (c) => {
   for (const row of slice) {
     const q = toQuery(row.name)
     let pick: { productId: string; name?: string } | null = null
-    if (q) {
+    const repoHit = repoPid.get(row.name.trim().toLowerCase())
+    if (repoHit) {
+      pick = { productId: repoHit, name: row.name }
+    } else if (q) {
       if (queryCache.has(q)) {
         pick = queryCache.get(q) ?? null
       } else {
@@ -328,6 +337,11 @@ app.post('/item', async (c) => {
   // Add to cart.
   let pid = item.frisco_product_id
   let name: string | undefined
+  if (!pid) {
+    // Reuse a stored pid from the product repository (exact name match).
+    const [repoProduct] = await db.select().from(productsTable).where(eq(productsTable.name, item.name))
+    if (repoProduct?.frisco_product_id) pid = repoProduct.frisco_product_id
+  }
   if (!pid) {
     const q = toQuery(item.name)
     if (!q) return c.json({ error: 'not_found' }, 200)
