@@ -14,8 +14,14 @@ const pl = {
     habits: 'Nawyki',
     notes: 'Notatki',
     pantry: 'Spiżarnia',
+    help: 'Pomoc',
     settings: 'Ustawienia',
     more: 'Więcej',
+  },
+
+  help: {
+    intro: 'Krótki przewodnik po funkcjach aplikacji. Rozwiń sekcję, żeby zobaczyć szczegóły.',
+    footer: 'Matka Boska błogosławi twój talerz 🌈',
   },
 
   auth: {
