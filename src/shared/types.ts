@@ -46,11 +46,14 @@ export interface Recipe {
 export interface Product {
   id: number
   name: string
+  // Macros are per 100 g (or per 100 ml).
   kcal: number | null
   protein_g: number | null
   carbs_g: number | null
   fat_g: number | null
   portion: string | null
+  serving_g: number | null   // grams of one default portion
+  package_g: number | null   // grams of the whole product
   created_at: number
 }
 

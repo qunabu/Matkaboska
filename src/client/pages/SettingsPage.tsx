@@ -28,13 +28,20 @@ function ProductsRepo() {
                   <p className="truncate text-sm font-medium text-gray-800 dark:text-gray-200">{p.name}</p>
                   <p className="text-xs text-gray-400">
                     {[
-                      p.portion,
-                      p.kcal != null ? `${Math.round(p.kcal)} kcal` : null,
+                      p.kcal != null ? `${Math.round(p.kcal)} kcal/100g` : null,
                       p.protein_g != null ? `${Math.round(p.protein_g)}g B` : null,
                       p.carbs_g != null ? `${Math.round(p.carbs_g)}g W` : null,
                       p.fat_g != null ? `${Math.round(p.fat_g)}g T` : null,
                     ].filter(Boolean).join(' · ')}
                   </p>
+                  {(p.serving_g != null || p.package_g != null) && (
+                    <p className="text-xs text-gray-400">
+                      {[
+                        p.serving_g != null ? `porcja ${p.serving_g} g` : null,
+                        p.package_g != null ? `opak. ${p.package_g} g` : null,
+                      ].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => del.mutate(p.id)}

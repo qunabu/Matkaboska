@@ -197,11 +197,14 @@ export const settings = sqliteTable('settings', {
 export const products = sqliteTable('products', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull().unique(),
+  // Macros are stored PER 100 g (or per 100 ml). Logging scales by grams eaten.
   kcal: real('kcal'),
   protein_g: real('protein_g'),
   carbs_g: real('carbs_g'),
   fat_g: real('fat_g'),
-  portion: text('portion'),                                   // e.g. "100 g", "1 kubek (150 g)"
+  portion: text('portion'),                                   // optional descriptive label
+  serving_g: real('serving_g'),                               // grams of one default portion
+  package_g: real('package_g'),                               // grams of the whole product
   created_at: integer('created_at').notNull().default(unixNow),
 }, (t) => ({
   product_name_idx: index('product_name_idx').on(t.name),

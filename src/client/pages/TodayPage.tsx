@@ -165,11 +165,13 @@ function num(s: string): number | null {
 function ReadyProduct() {
   const qc = useQueryClient()
   const [name, setName] = useState('')
-  const [kcal, setKcal] = useState('')
+  const [kcal, setKcal] = useState('')       // per 100 g
   const [protein, setProtein] = useState('')
   const [carbs, setCarbs] = useState('')
   const [fat, setFat] = useState('')
-  const [portion, setPortion] = useState('')
+  const [serving, setServing] = useState('') // grams of one portion
+  const [pkg, setPkg] = useState('')         // grams of whole product
+  const [grams, setGrams] = useState('')     // grams eaten now
   const [showSug, setShowSug] = useState(false)
 
   const { data: sug } = useQuery({
@@ -178,22 +180,31 @@ function ReadyProduct() {
     enabled: showSug && name.trim().length >= 1,
   })
 
+  // Grams actually eaten: explicit input, else the portion, else 100 g.
+  const eatenG = num(grams) || num(serving) || 100
+  const factor = eatenG / 100
+  const scaled = {
+    kcal: num(kcal) != null ? Math.round((num(kcal) as number) * factor) : null,
+    protein_g: num(protein) != null ? Math.round((num(protein) as number) * factor * 10) / 10 : null,
+    carbs_g: num(carbs) != null ? Math.round((num(carbs) as number) * factor * 10) / 10 : null,
+    fat_g: num(fat) != null ? Math.round((num(fat) as number) * factor * 10) / 10 : null,
+  }
+
   const addMutation = useMutation({
     mutationFn: async () => {
-      const p = {
+      await productsApi.create({
         name: name.trim(),
         kcal: num(kcal), protein_g: num(protein), carbs_g: num(carbs), fat_g: num(fat),
-        portion: portion.trim() || null,
-      }
-      await productsApi.create(p) // save/update the reusable repository entry
+        serving_g: num(serving), package_g: num(pkg),
+      })
       await foodLogApi.add({
-        description: p.portion ? `${p.name} (${p.portion})` : p.name,
-        kcal: p.kcal, protein_g: p.protein_g, carbs_g: p.carbs_g, fat_g: p.fat_g,
+        description: `${name.trim()} (${eatenG} g)`,
+        kcal: scaled.kcal, protein_g: scaled.protein_g, carbs_g: scaled.carbs_g, fat_g: scaled.fat_g,
         portion: 'product',
       })
     },
     onSuccess: () => {
-      setName(''); setKcal(''); setProtein(''); setCarbs(''); setFat(''); setPortion(''); setShowSug(false)
+      setName(''); setKcal(''); setProtein(''); setCarbs(''); setFat(''); setServing(''); setPkg(''); setGrams(''); setShowSug(false)
       qc.invalidateQueries({ queryKey: ['food-log', today] })
       qc.invalidateQueries({ queryKey: ['food-log-summary', today] })
       qc.invalidateQueries({ queryKey: ['products'] })
@@ -206,12 +217,15 @@ function ReadyProduct() {
     setProtein(p.protein_g?.toString() ?? '')
     setCarbs(p.carbs_g?.toString() ?? '')
     setFat(p.fat_g?.toString() ?? '')
-    setPortion(p.portion ?? '')
+    setServing(p.serving_g?.toString() ?? '')
+    setPkg(p.package_g?.toString() ?? '')
+    setGrams(p.serving_g?.toString() ?? '') // default to one portion
     setShowSug(false)
   }
 
   const suggestions = (sug?.items ?? []).filter(p => p.name.toLowerCase() !== name.trim().toLowerCase())
   const macroInput = 'w-full rounded-lg border border-gray-200 px-2 py-2 text-center text-sm outline-none focus:border-primary-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'
+  const numInput = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'
 
   return (
     <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
@@ -237,7 +251,7 @@ function ReadyProduct() {
                 >
                   <span className="truncate text-gray-900 dark:text-gray-100">{p.name}</span>
                   <span className="whitespace-nowrap text-xs text-gray-400">
-                    {p.kcal != null ? `${Math.round(p.kcal)} kcal` : ''}{p.protein_g != null ? ` · ${Math.round(p.protein_g)}g B` : ''}
+                    {p.kcal != null ? `${Math.round(p.kcal)} kcal/100g` : ''}
                   </span>
                 </button>
               </li>
@@ -246,18 +260,35 @@ function ReadyProduct() {
         )}
       </div>
 
-      <div className="mt-2 grid grid-cols-4 gap-2">
+      <p className="mt-3 text-xs font-medium text-gray-400">{pl.today.readyPer100}</p>
+      <div className="mt-1 grid grid-cols-4 gap-2">
         <input inputMode="decimal" value={kcal} onChange={(e) => setKcal(e.target.value)} placeholder={pl.today.mKcal} className={macroInput} />
         <input inputMode="decimal" value={protein} onChange={(e) => setProtein(e.target.value)} placeholder={pl.today.mProtein} className={macroInput} />
         <input inputMode="decimal" value={carbs} onChange={(e) => setCarbs(e.target.value)} placeholder={pl.today.mCarbs} className={macroInput} />
         <input inputMode="decimal" value={fat} onChange={(e) => setFat(e.target.value)} placeholder={pl.today.mFat} className={macroInput} />
       </div>
-      <input
-        value={portion}
-        onChange={(e) => setPortion(e.target.value)}
-        placeholder={pl.today.readyPortion}
-        className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-      />
+
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <label className="text-xs text-gray-400">
+          {pl.today.readyServing}
+          <input inputMode="decimal" value={serving} onChange={(e) => setServing(e.target.value)} placeholder="np. 150" className={`mt-1 ${numInput}`} />
+        </label>
+        <label className="text-xs text-gray-400">
+          {pl.today.readyPackage}
+          <input inputMode="decimal" value={pkg} onChange={(e) => setPkg(e.target.value)} placeholder="np. 200" className={`mt-1 ${numInput}`} />
+        </label>
+      </div>
+
+      <label className="mt-2 block text-xs font-medium text-gray-500 dark:text-gray-300">
+        {pl.today.readyGrams}
+        <input inputMode="decimal" value={grams} onChange={(e) => setGrams(e.target.value)} placeholder={serving || '100'} className={`mt-1 ${numInput}`} />
+      </label>
+      {num(kcal) != null && (
+        <p className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-300">
+          {eatenG} g = <strong>{scaled.kcal} kcal</strong> · B {scaled.protein_g}g · W {scaled.carbs_g}g · T {scaled.fat_g}g
+          {serving && grams && num(grams) !== num(serving) ? '' : serving ? ` (${pl.today.readyOnePortion})` : ''}
+        </p>
+      )}
 
       <button
         onClick={() => addMutation.mutate()}
