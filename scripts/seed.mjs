@@ -126,6 +126,20 @@ const appSettings = JSON.stringify({
 })
 sql += `\nINSERT INTO settings (key, value) VALUES ('app', '${q(appSettings)}') ON CONFLICT(key) DO UPDATE SET value = excluded.value;\n`
 
+// Daily protein boosters live in the product repository (not as recipes) and are
+// pinned to the plan as PRODUCT entries. Macros are per portion (serving 100 g),
+// so one entry = the listed values. DO NOTHING preserves any user edits.
+const BOOSTER_PRODUCTS = [
+  { name: 'Skyr Men Protein', kcal: 110, protein_g: 20, carbs_g: 6, fat_g: 0.5, serving_g: 100 },
+  { name: 'Porcja odżywki białkowej', kcal: 120, protein_g: 24, carbs_g: 3, fat_g: 1.5, serving_g: 100 },
+]
+for (const p of BOOSTER_PRODUCTS) {
+  sql +=
+    `INSERT INTO products (name, kcal, protein_g, carbs_g, fat_g, serving_g) VALUES (` +
+    `'${q(p.name)}', ${p.kcal}, ${p.protein_g}, ${p.carbs_g}, ${p.fat_g}, ${p.serving_g}) ` +
+    `ON CONFLICT(name) DO NOTHING;\n`
+}
+
 runSqlFile(sql, 'recipes')
 
 // --- Step 2: read back real recipe ids, grouped by category ---------------
@@ -140,11 +154,13 @@ const kcalOf = new Map(rows.map(r => {
   return [r.id, k]
 }))
 
-// Fixed daily protein boosters — always added to every day of the plan
-// (skyr + a scoop of protein powder) so the plan reliably approaches the
-// ~150 g protein target, per the source diet's "do 150 g" guidance.
-const EXTRA_SLUGS = ['skyr-men-protein', 'porcja-bialka-proteinowego']
-const dailyExtras = EXTRA_SLUGS.map(s => slugToId.get(s)).filter(Boolean)
+// Fixed daily protein boosters — always added to every day of the plan as
+// PRODUCT entries (skyr + a scoop of protein powder) so the plan reliably
+// approaches the ~150 g protein target. Read their product ids back by name.
+const boosterRows = query(
+  `SELECT id, name, kcal FROM products WHERE name IN (${BOOSTER_PRODUCTS.map(p => `'${q(p.name)}'`).join(', ')})`
+)
+const dailyExtras = boosterRows.map(r => ({ id: r.id, kcal: r.kcal || 0, grams: 100 }))
 
 // Calorie top-up boosters so every day reaches the target band (min 2000,
 // aim ~2300 kcal). Varied protein/dairy snacks.
@@ -156,7 +172,7 @@ const KCAL_MIN = 2000
 const KCAL_AIM = 2300
 
 const breakfastPool = nonEmpty(inCat('breakfast'))
-const snackPool = nonEmpty(inCat('snack').filter(r => !EXTRA_SLUGS.includes(r.slug)))
+const snackPool = nonEmpty(inCat('snack'))
 const lunchPool = nonEmpty(inCat('main'))
 const dinnerPool = nonEmpty(inCat('main', 'classic'))
 
@@ -189,15 +205,19 @@ for (let day = 0; day < DAYS; day++) {
   const dayEntries = []
   let dayKcal = 0
   const add = (meal_type, id, batch_group = null, lo = 0) => {
-    dayEntries.push({ date, meal_type, recipe_id: id, servings: 1, batch_group, is_leftover: lo })
+    dayEntries.push({ date, meal_type, recipe_id: id, product_id: null, grams: null, servings: 1, batch_group, is_leftover: lo })
     dayKcal += kcalOf.get(id) || 0
+  }
+  const addProduct = (meal_type, p) => {
+    dayEntries.push({ date, meal_type, recipe_id: null, product_id: p.id, grams: p.grams, servings: 1, batch_group: null, is_leftover: 0 })
+    dayKcal += (p.kcal || 0) * (p.grams / 100)
   }
 
   add('breakfast', breakfastPool[day % breakfastPool.length].id)
   add('lunch', lunch.id, `obiad-${block}`, isLeftover)
   add('dinner', dinner.id, `kolacja-${block}`, isLeftover)
   add('snack', snackPool[day % snackPool.length].id)
-  for (const id of dailyExtras) add('snack', id) // skyr + protein shake
+  for (const p of dailyExtras) addProduct('snack', p) // skyr + protein shake (products)
 
   // Calorie floor: top up with boosters until the day reaches the target band
   // (never below 2000 kcal, aiming ~2300). Stop once >= aim, or once >= min and
@@ -215,8 +235,8 @@ let planSql = ''
 for (const e of entries) {
   const bg = e.batch_group ? `'${q(e.batch_group)}'` : 'NULL'
   planSql +=
-    `INSERT INTO meal_plan_entries (date, meal_type, recipe_id, servings, batch_group, is_leftover, status) VALUES (` +
-    `'${e.date}', '${e.meal_type}', ${e.recipe_id}, ${e.servings}, ${bg}, ${e.is_leftover}, 'planned');\n`
+    `INSERT INTO meal_plan_entries (date, meal_type, recipe_id, product_id, grams, servings, batch_group, is_leftover, status) VALUES (` +
+    `'${e.date}', '${e.meal_type}', ${e.recipe_id ?? 'NULL'}, ${e.product_id ?? 'NULL'}, ${e.grams ?? 'NULL'}, ${e.servings}, ${bg}, ${e.is_leftover}, 'planned');\n`
 }
 runSqlFile(planSql, 'plan')
 
@@ -236,7 +256,7 @@ const [{ n: badBatches }] = query(
 
 // Daily planned kcal must never fall below the minimum.
 const [{ minK, maxK }] = query(
-  "SELECT MIN(dk) AS minK, MAX(dk) AS maxK FROM (SELECT e.date, SUM(COALESCE(json_extract(r.macros,'$.kcal'),0)) AS dk FROM meal_plan_entries e JOIN recipes r ON e.recipe_id = r.id GROUP BY e.date)"
+  "SELECT MIN(dk) AS minK, MAX(dk) AS maxK FROM (SELECT e.date, SUM(COALESCE(json_extract(r.macros,'$.kcal'),0) + COALESCE(p.kcal,0)*COALESCE(e.grams,0)/100.0) AS dk FROM meal_plan_entries e LEFT JOIN recipes r ON e.recipe_id = r.id LEFT JOIN products p ON e.product_id = p.id GROUP BY e.date)"
 )
 
 console.log('\n─── Seed verification ───')
