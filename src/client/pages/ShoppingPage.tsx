@@ -16,64 +16,10 @@ const CAT_LABELS: Record<ShopCategory, string> = {
 
 const CAT_ORDER: ShopCategory[] = ['produce', 'dairy', 'pantry', 'frozen', 'other']
 
-// Build a copy-paste prompt for Claude (with claude-in-chrome) to add the
-// list's items to a Frisco basket via Frisco's commerce API and report what it
-// couldn't find. Uses the search API + a single cart PUT (auth read from the
-// logged-in session cookie) — far more reliable than clicking product tiles.
-function buildFriscoPrompt(listName: string, items: ShoppingItem[]): string {
-  const names = items.filter((i) => !i.checked).map((i) => i.name)
-
-  const snippet = [
-    'const items = ' + JSON.stringify(names) + ';',
-    "const c = Object.fromEntries(document.cookie.split('; ').map(x=>{const i=x.indexOf('=');return [x.slice(0,i),x.slice(i+1)]}));",
-    "const token = decodeURIComponent(c.sessionIdN||''); const uid = c.userIdN; const WAREHOUSE = 'GDA'; /* kod pocztowy 80-282 */",
-    "const HD = {accept:'application/json',authorization:'Bearer '+token,'x-frisco-warehouse':WAREHOUSE,'x-frisco-visitorid':c.sid||'','x-frisco-features':'MarginBoosting=1'};",
-    "const H = Object.assign({'content-type':'application/json'}, HD);",
-    "const U = '/app/commerce/api/v1/users/'+uid+'/cart';",
-    'const avail = p => p && p.isAvailable && p.isStocked && (p.stock==null || p.stock>0);',
-    'const clean = r => { let s = r.split("(")[0]; const low = s.toLowerCase(); for (const sep of [" lub "," albo "," oraz ","/"]) { const i = low.indexOf(sep); if (i>=0){ s = s.slice(0,i); break; } } return s.split(" ").filter(Boolean).join(" ").trim(); };',
-    '// 1) wyczyść koszyk — PUT tylko dodaje/aktualizuje wskazane produkty, nie zastępuje całości',
-    "await fetch(U+'/products',{method:'DELETE',headers:HD});",
-    '// 2) wyszukaj i wybierz DOSTĘPNY produkt dla każdej pozycji',
-    'const added=[], notFound=[];',
-    'for (const raw of items){ const q = clean(raw); try {',
-    "  const sr = await fetch('/app/commerce/api/v1/offer/products/query?purpose=Listing&pageIndex=1&search='+encodeURIComponent(q)+'&includeFacets=false&deliveryMethod=Van&pageSize=24&language=pl&disableAutocorrect=false',{headers:{accept:'application/json'}}).then(r=>r.json());",
-    '  const pick = (sr.products||[]).find(p=>avail(p.product));',
-    '  if (pick) added.push({raw, id:pick.productId, name:pick.product.name.pl}); else notFound.push(raw);',
-    "} catch(e){ notFound.push(raw+' (blad)'); } }",
-    'const seen=new Set(), products=[]; for (const a of added){ if(!seen.has(a.id)){ seen.add(a.id); products.push({productId:a.id, quantity:1}); } }',
-    '// 3) ustaw koszyk = lista (jednym żądaniem PUT, bez contextCookie)',
-    "await fetch(U,{method:'PUT',headers:H,body:JSON.stringify({products})});",
-    '// 4) koszyk sprawdza dostępność dla konkretnego terminu dostawy — odczytaj go i usuń to, co niedostępne',
-    "const cart = await fetch(U,{headers:HD,cache:'no-store'}).then(r=>r.json());",
-    'const keep=[], usunieteNiedostepne=[]; for (const it of (cart.products||[])){ (avail(it.product)?keep:usunieteNiedostepne).push(avail(it.product)?{productId:it.productId,quantity:it.quantity||1}:it.product.name.pl); }',
-    'if (usunieteNiedostepne.length){ await fetch(U+\'/products\',{method:\'DELETE\',headers:HD}); await fetch(U,{method:\'PUT\',headers:H,body:JSON.stringify({products:keep})}); }',
-    'JSON.stringify({ dodano: added.map(a=>a.raw+" -> "+a.name), nieZnaleziono: notFound, usunieteNiedostepne, wKoszyku: keep.length }, null, 1)',
-  ].join('\n')
-
-  return [
-    `Dodaj produkty do mojego koszyka na Frisco (lista „${listName}", ${names.length} pozycji).`,
-    '',
-    'Użyj claude-in-chrome. Otwórz https://www.frisco.pl — jestem zalogowany i mam ustawiony kod pocztowy.',
-    'Frisco ma własne API — użyj go zamiast klikania w produkty. W karcie Frisco uruchom poniższy kod przez narzędzie javascript_tool. Kod czyta token z sesji, CZYŚCI koszyk, wyszukuje każdą pozycję, wybiera DOSTĘPNY produkt, ustawia koszyk = lista, a następnie usuwa pozycje, które koszyk oznacza jako niedostępne dla wybranego terminu dostawy:',
-    '',
-    '```js',
-    snippet,
-    '```',
-    '',
-    'Potem otwórz koszyk https://www.frisco.pl/koszyk. Jeśli u góry widać ostrzeżenia (np. „nie można go kupić samoistnie", „returnable bag / worek zwrotny", „Produkt wycofany") i przycisk „Usuń niedostępne produkty" — klikaj go, aż zniknie; te pozycje bywają dodawane automatycznie przez Frisco i blokują zamówienie.',
-    'Na koniec pokaż mi wynik: „nieZnaleziono" jako WYRAŹNĄ listę brakujących pozycji (najważniejsze), „usunieteNiedostepne" (wyprzedane w tym terminie), oraz skrótowo „dodano" (pozycja -> produkt).',
-    'WAŻNE: NIE finalizuj zamówienia i NIE płać — sprawdzę koszyk i kupię sam. Dopasowania bywają przybliżone, więc lista braków i mój przegląd koszyka są kluczowe.',
-  ].join('\n')
-}
-
 function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) {
   const qc = useQueryClient()
   const [newItem, setNewItem] = useState('')
   const [showAdd, setShowAdd] = useState(false)
-  const [showFrisco, setShowFrisco] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [copiedCmd, setCopiedCmd] = useState(false)
   const [orderResult, setOrderResult] = useState<FriscoOrderResult | null>(null)
   const orderMutation = useMutation({
     mutationFn: () => shoppingApi.friscoOrder(listId),
@@ -146,10 +92,11 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{data.name}</h1>
         <div className="flex gap-2">
           <button
-            onClick={() => { setCopied(false); setShowFrisco(true) }}
-            className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white"
+            onClick={() => { setOrderResult(null); orderMutation.mutate() }}
+            disabled={orderMutation.isPending}
+            className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
           >
-            🛒 {pl.shopping.frisco}
+            🛒 {orderMutation.isPending ? pl.shopping.friscoServerBusy : pl.shopping.frisco}
           </button>
           <button
             onClick={() => setShowAdd(!showAdd)}
@@ -159,6 +106,34 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
           </button>
         </div>
       </div>
+
+      {orderMutation.isError && (
+        <p className="mb-3 text-sm text-red-500">{(orderMutation.error as Error).message}</p>
+      )}
+      {orderResult && (
+        <div className="mb-4 space-y-2 rounded-xl border border-primary-200 bg-primary-50 p-3 text-xs dark:border-primary-900 dark:bg-primary-950/40">
+          <p className="font-medium text-gray-800 dark:text-gray-100">
+            {pl.shopping.friscoServerInCart}: {orderResult.inCart}/{orderResult.total}
+          </p>
+          {orderResult.notFound.length > 0 && (
+            <div>
+              <p className="font-medium text-red-500">❗ {pl.shopping.friscoServerNotFound} ({orderResult.notFound.length}):</p>
+              <ul className="ml-4 list-disc text-gray-600 dark:text-gray-300">
+                {orderResult.notFound.map((n, i) => <li key={i}>{n}</li>)}
+              </ul>
+            </div>
+          )}
+          {orderResult.removedUnavailable.length > 0 && (
+            <div>
+              <p className="font-medium text-amber-600 dark:text-amber-400">⚠️ {pl.shopping.friscoServerRemoved} ({orderResult.removedUnavailable.length}):</p>
+              <ul className="ml-4 list-disc text-gray-600 dark:text-gray-300">
+                {orderResult.removedUnavailable.map((n, i) => <li key={i}>{n}</li>)}
+              </ul>
+            </div>
+          )}
+          <p className="text-gray-500 dark:text-gray-400">{pl.shopping.friscoServerDone}</p>
+        </div>
+      )}
 
       {showAdd && (
         <div className="mb-4 flex gap-2">
@@ -275,101 +250,6 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
         )
       })}
 
-      {showFrisco && (() => {
-        const prompt = buildFriscoPrompt(data.name, items)
-        return (
-          <div
-            className="fixed inset-0 z-50 flex items-end bg-black/40 md:items-center md:justify-center"
-            onClick={() => setShowFrisco(false)}
-          >
-            <div
-              className="w-full max-h-[88vh] overflow-y-auto rounded-t-2xl bg-white p-4 md:max-w-lg md:rounded-2xl dark:bg-gray-900"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100">🛒 {pl.shopping.friscoTitle}</h3>
-                <button onClick={() => setShowFrisco(false)} className="text-2xl leading-none text-gray-400">×</button>
-              </div>
-              <div className="mb-4 rounded-xl border border-primary-200 bg-primary-50 p-3 dark:border-primary-900 dark:bg-primary-950/40">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{pl.shopping.friscoServerTitle}</h4>
-                <p className="mt-1 mb-2 text-xs text-gray-500 dark:text-gray-400">{pl.shopping.friscoServerHint}</p>
-                <button
-                  onClick={() => { setOrderResult(null); orderMutation.mutate() }}
-                  disabled={orderMutation.isPending}
-                  className="w-full rounded-xl bg-primary-600 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {orderMutation.isPending ? pl.shopping.friscoServerBusy : pl.shopping.friscoServerBtn}
-                </button>
-                {orderMutation.isError && (
-                  <p className="mt-2 text-xs text-red-500">{(orderMutation.error as Error).message}</p>
-                )}
-                {orderResult && (
-                  <div className="mt-3 space-y-2 text-xs">
-                    <p className="font-medium text-gray-800 dark:text-gray-100">
-                      {pl.shopping.friscoServerInCart}: {orderResult.inCart}/{orderResult.total}
-                    </p>
-                    {orderResult.notFound.length > 0 && (
-                      <div>
-                        <p className="font-medium text-red-500">❗ {pl.shopping.friscoServerNotFound} ({orderResult.notFound.length}):</p>
-                        <ul className="ml-4 list-disc text-gray-600 dark:text-gray-300">
-                          {orderResult.notFound.map((n, i) => <li key={i}>{n}</li>)}
-                        </ul>
-                      </div>
-                    )}
-                    {orderResult.removedUnavailable.length > 0 && (
-                      <div>
-                        <p className="font-medium text-amber-600 dark:text-amber-400">⚠️ {pl.shopping.friscoServerRemoved} ({orderResult.removedUnavailable.length}):</p>
-                        <ul className="ml-4 list-disc text-gray-600 dark:text-gray-300">
-                          {orderResult.removedUnavailable.map((n, i) => <li key={i}>{n}</li>)}
-                        </ul>
-                      </div>
-                    )}
-                    <p className="text-gray-500 dark:text-gray-400">{pl.shopping.friscoServerDone}</p>
-                  </div>
-                )}
-              </div>
-
-              <p className="mb-2 text-xs font-semibold text-gray-700 dark:text-gray-300">{pl.shopping.friscoManualTitle}</p>
-              <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">{pl.shopping.friscoHint}</p>
-              <textarea
-                readOnly
-                value={prompt}
-                rows={16}
-                onFocus={(e) => e.currentTarget.select()}
-                className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 font-mono text-xs text-gray-800 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200"
-              />
-              <button
-                onClick={async () => {
-                  try { await navigator.clipboard.writeText(prompt); setCopied(true); setTimeout(() => setCopied(false), 2000) }
-                  catch { /* clipboard blocked — user can select the text manually */ }
-                }}
-                className="mt-3 w-full rounded-xl bg-primary-600 py-2.5 text-sm font-semibold text-white"
-              >
-                {copied ? pl.shopping.friscoCopied : pl.shopping.friscoCopy}
-              </button>
-
-              <div className="mt-5 border-t border-gray-200 pt-4 dark:border-gray-700">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{pl.shopping.friscoNodeTitle}</h4>
-                <p className="mt-1 mb-2 text-xs text-gray-500 dark:text-gray-400">{pl.shopping.friscoNodeHint}</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 rounded-lg bg-gray-100 px-3 py-2 font-mono text-xs text-gray-800 dark:bg-gray-950 dark:text-gray-200">
-                    npm run frisco -- {listId}
-                  </code>
-                  <button
-                    onClick={async () => {
-                      try { await navigator.clipboard.writeText(`npm run frisco -- ${listId}`); setCopiedCmd(true); setTimeout(() => setCopiedCmd(false), 2000) }
-                      catch { /* clipboard blocked */ }
-                    }}
-                    className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200"
-                  >
-                    {copiedCmd ? pl.shopping.friscoCopied : pl.shopping.friscoCopy}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
     </div>
   )
 }
