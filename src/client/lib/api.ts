@@ -34,6 +34,8 @@ export const recipesApi = {
   addNote: (id: number, body: string) => req(`/recipes/${id}/notes`, { method: 'POST', body: JSON.stringify({ body }) }),
   deleteNote: (id: number, noteId: number) => req<ApiOk>(`/recipes/${id}/notes/${noteId}`, { method: 'DELETE' }),
   recalcMacros: (id: number) => req<Recipe>(`/recipes/${id}/recalc-macros`, { method: 'POST' }),
+  bulkImport: (items: Partial<Recipe>[]) =>
+    req<{ imported: number; recipes: Recipe[] }>('/recipes/import', { method: 'POST', body: JSON.stringify({ recipes: items }) }),
 }
 
 // ── Meal plan ─────────────────────────────────────────────────────────────────

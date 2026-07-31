@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, pushApi, productsApi, authApi } from '../lib/api'
+import { MODULE_KEYS, getModuleSettings, setModuleSetting } from '../lib/moduleSettings'
 import pl from '../i18n/pl'
 
 function ProductsRepo() {
@@ -59,6 +60,7 @@ export default function SettingsPage() {
   const [notifState, setNotifState] = useState<'default' | 'granted' | 'denied'>('default')
   const [vapidKey, setVapidKey] = useState<string | null>(null)
   const [testMsg, setTestMsg] = useState<'sent' | 'denied' | 'error' | 'unsupported' | null>(null)
+  const [moduleSettings, setModuleSettings] = useState(getModuleSettings)
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -268,6 +270,44 @@ export default function SettingsPage() {
 
         {/* Products repository */}
         <ProductsRepo />
+
+        {/* Modules */}
+        <section>
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            {pl.settings.modules}
+          </h2>
+          <p className="mb-3 text-xs text-gray-400">{pl.settings.modulesHint}</p>
+          <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+            <div className="divide-y divide-gray-50 dark:divide-gray-700">
+              {MODULE_KEYS.map((key) => (
+                <div key={key} className="flex items-center justify-between px-4 py-3">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {pl.settings.moduleLabels[key]}
+                  </label>
+                  <button
+                    role="switch"
+                    aria-checked={moduleSettings[key]}
+                    onClick={() => {
+                      const next = setModuleSetting(key, !moduleSettings[key])
+                      setModuleSettings(next)
+                    }}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      moduleSettings[key]
+                        ? 'bg-primary-600'
+                        : 'bg-gray-200 dark:bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        moduleSettings[key] ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
         {/* About */}
         <section>

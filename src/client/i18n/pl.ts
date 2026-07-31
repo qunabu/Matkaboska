@@ -85,6 +85,14 @@ const pl = {
     saved: 'Zapisano',
     products: 'Baza produktów',
     productsEmpty: 'Brak zapisanych produktów. Dodaj je na stronie głównej („Dodaj gotowy produkt").',
+    modules: 'Widoczne moduły',
+    modulesHint: 'Ukryte moduły znikają z nawigacji. Możesz je w każdej chwili przywrócić.',
+    moduleLabels: {
+      plan: 'Plan posiłków',
+      shopping: 'Zakupy',
+      tracking: 'Dziennik',
+      supplements: 'Suplementy',
+    },
   },
 
   today: {
@@ -123,6 +131,33 @@ const pl = {
     mProtein: 'B (g)',
     mCarbs: 'W (g)',
     mFat: 'T (g)',
+  },
+
+  import: {
+    buttonLabel: 'Importuj JSON',
+    modalTitle: 'Importuj przepisy',
+    tabPrompt: 'Generuj prompt',
+    tabJson: 'Wklej JSON',
+    dishesLabel: 'Dania do wygenerowania',
+    dishesPlaceholder: 'np. falafel, zupa z soczewicy, pieczony kalafior',
+    dishesHint: 'Wpisz nazwy dań oddzielone przecinkami lub każde w nowej linii.',
+    generatePrompt: 'Generuj prompt',
+    promptLabel: 'Prompt dla Claude',
+    copyPrompt: 'Kopiuj',
+    copied: 'Skopiowano!',
+    openInClaude: 'Otwórz w Claude',
+    jsonLabel: 'Wklej JSON z Claude',
+    jsonPlaceholder: '[\n  {\n    "title": "Falafel",\n    ...\n  }\n]',
+    validate: 'Sprawdź JSON',
+    jsonValid: 'Poprawny JSON',
+    jsonError: 'Nieprawidłowy JSON',
+    preview: 'Przepisy do zaimportowania',
+    importBtn: 'Importuj',
+    importing: 'Importowanie…',
+    importSuccess: 'Zaimportowano przepisów: ',
+    importError: 'Błąd importu',
+    emptyDishes: 'Wpisz co najmniej jedno danie.',
+    noRecipes: 'Brak przepisów w JSON.',
   },
 
   recipes: {

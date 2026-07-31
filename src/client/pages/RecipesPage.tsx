@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { recipesApi } from '../lib/api'
 import pl from '../i18n/pl'
 import type { Category } from '../../shared/types'
+import RecipeImportModal from '../components/RecipeImportModal'
 
 const CATEGORIES: { value: Category | ''; label: string }[] = [
   { value: '', label: pl.recipes.all },
@@ -17,6 +18,7 @@ export default function RecipesPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<Category | ''>('')
   const [seafoodOnly, setSeafoodOnly] = useState(false)
+  const [showImport, setShowImport] = useState(false)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['recipes', search, category, seafoodOnly],
@@ -34,12 +36,21 @@ export default function RecipesPage() {
     <div className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.recipes.title}</h1>
-        <Link
-          to="/recipes/new"
-          className="rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700"
-        >
-          + {pl.recipes.new}
-        </Link>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowImport(true)}
+            className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+            title={pl.import.buttonLabel}
+          >
+            ↓ JSON
+          </button>
+          <Link
+            to="/recipes/new"
+            className="rounded-lg bg-primary-600 px-3 py-2 text-sm font-medium text-white hover:bg-primary-700"
+          >
+            + {pl.recipes.new}
+          </Link>
+        </div>
       </div>
 
       {/* Search */}
@@ -114,6 +125,8 @@ export default function RecipesPage() {
           <p className="py-8 text-center text-gray-400">{pl.common.noResults}</p>
         )}
       </div>
+
+      {showImport && <RecipeImportModal onClose={() => setShowImport(false)} />}
     </div>
   )
 }

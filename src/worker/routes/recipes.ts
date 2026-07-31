@@ -60,9 +60,10 @@ app.get('/:id', async (c) => {
 })
 
 const IngredientSchema = z.object({ name: z.string(), amount: z.string(), unit: z.string() })
+const CATEGORIES = ['breakfast', 'lunch', 'dinner', 'snack', 'soup', 'salad', 'smoothie', 'dessert', 'other'] as const
 const RecipeBodySchema = z.object({
   title: z.string().min(1),
-  category: z.enum(['breakfast', 'main', 'snack', 'classic']),
+  category: z.enum(CATEGORIES),
   servings: z.number().int().positive().default(1),
   prep_minutes: z.number().int().nonnegative().nullable().optional(),
   ingredients: z.array(IngredientSchema),
@@ -85,6 +86,50 @@ function toSlug(title: string) {
     .replace(/ś/g, 's').replace(/ź/g, 'z').replace(/ż/g, 'z')
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
+
+// POST /api/recipes/import  – bulk import from JSON
+app.post('/import', async (c) => {
+  const body = await c.req.json()
+  const parsed = z.object({ recipes: z.array(RecipeBodySchema) }).safeParse(body)
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
+
+  const db = getDb(c.env.DB)
+  const created = []
+
+  for (const r of parsed.data.recipes) {
+    let slug = toSlug(r.title)
+    let suffix = 2
+    while (true) {
+      const existing = await db.select({ id: recipes.id }).from(recipes).where(eq(recipes.slug, slug)).limit(1)
+      if (existing.length === 0) break
+      slug = `${toSlug(r.title)}-${suffix++}`
+    }
+
+    const [row] = await db.insert(recipes).values({
+      title: r.title,
+      slug,
+      category: r.category,
+      servings: r.servings,
+      prep_minutes: r.prep_minutes ?? null,
+      ingredients: JSON.stringify(r.ingredients),
+      steps: JSON.stringify(r.steps),
+      tags: JSON.stringify(r.tags),
+      is_seafood: r.is_seafood,
+      source: r.source ?? null,
+      macros: r.macros ? JSON.stringify(r.macros) : null,
+      macros_confidence: r.macros_confidence ?? null,
+      macros_assumptions: r.macros_assumptions ?? null,
+    }).returning()
+
+    if (!r.macros && c.env.ANTHROPIC_API_KEY) {
+      c.executionCtx.waitUntil(estimateMacros(c.env, row.id, r.title, r.servings, r.ingredients))
+    }
+
+    created.push(parseRecipe(row))
+  }
+
+  return c.json({ imported: created.length, recipes: created }, 201)
+})
 
 // POST /api/recipes
 app.post('/', async (c) => {

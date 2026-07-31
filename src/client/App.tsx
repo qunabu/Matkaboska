@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient
 import { UpdateBanner, ForceUpdateScreen } from './components/UpdateBanner'
 import { usePwaUpdate } from './hooks/usePwaUpdate'
 import { authApi } from './lib/api'
+import { useModuleSettings } from './lib/moduleSettings'
 import pl from './i18n/pl'
 
 declare const __APP_VERSION__: string
@@ -43,25 +44,28 @@ function PageFallback() {
 
 // ── Bottom nav ───────────────────────────────────────────────────────────────
 
-const navItems = [
-  { to: '/',            label: pl.nav.today,       icon: '🏠' },
-  { to: '/recipes',     label: pl.nav.recipes,     icon: '📖' },
-  { to: '/plan',        label: pl.nav.plan,        icon: '📅' },
-  { to: '/shopping',    label: pl.nav.shopping,    icon: '🛒' },
-  { to: '/pantry',      label: pl.nav.pantry,      icon: '🥫' },
-  { to: '/tracking',    label: pl.nav.tracking,    icon: '📊' },
-  { to: '/supplements', label: pl.nav.supplements, icon: '💊' },
-  { to: '/reminders',   label: pl.nav.reminders,   icon: '🔔' },
-  { to: '/todos',       label: pl.nav.todos,       icon: '✅' },
-  { to: '/ideas',       label: pl.nav.ideas,       icon: '💡' },
-  { to: '/habits',      label: pl.nav.habits,      icon: '🔁' },
-  { to: '/notes',       label: pl.nav.notes,       icon: '🎙️' },
-  { to: '/settings',    label: pl.nav.settings,    icon: '⚙️' },
+const ALL_NAV_ITEMS = [
+  { to: '/',            label: pl.nav.today,       icon: '🏠',  moduleKey: null },
+  { to: '/recipes',     label: pl.nav.recipes,     icon: '📖',  moduleKey: null },
+  { to: '/plan',        label: pl.nav.plan,        icon: '📅',  moduleKey: 'plan' },
+  { to: '/shopping',    label: pl.nav.shopping,    icon: '🛒',  moduleKey: 'shopping' },
+  { to: '/pantry',      label: pl.nav.pantry,      icon: '🥫',  moduleKey: 'shopping' },
+  { to: '/tracking',    label: pl.nav.tracking,    icon: '📊',  moduleKey: 'tracking' },
+  { to: '/supplements', label: pl.nav.supplements, icon: '💊',  moduleKey: 'supplements' },
+  { to: '/reminders',   label: pl.nav.reminders,   icon: '🔔',  moduleKey: 'supplements' },
+  { to: '/todos',       label: pl.nav.todos,       icon: '✅',  moduleKey: null },
+  { to: '/ideas',       label: pl.nav.ideas,       icon: '💡',  moduleKey: null },
+  { to: '/habits',      label: pl.nav.habits,      icon: '🔁',  moduleKey: null },
+  { to: '/notes',       label: pl.nav.notes,       icon: '🎙️', moduleKey: null },
+  { to: '/settings',    label: pl.nav.settings,    icon: '⚙️',  moduleKey: null },
 ]
 
 function BottomNav() {
   const location = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
+  const modules = useModuleSettings()
+
+  const navItems = ALL_NAV_ITEMS.filter(i => !i.moduleKey || modules[i.moduleKey as keyof typeof modules])
 
   const primary = navItems.slice(0, 4)
   const overflow = navItems.slice(4) // tracking, supplements, reminders, settings
@@ -128,6 +132,9 @@ function BottomNav() {
 }
 
 function SideNav() {
+  const modules = useModuleSettings()
+  const navItems = ALL_NAV_ITEMS.filter(i => !i.moduleKey || modules[i.moduleKey as keyof typeof modules])
+
   return (
     <aside className="hidden w-56 shrink-0 border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 md:flex md:flex-col">
       <div className="px-4 py-5">
