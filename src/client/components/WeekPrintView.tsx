@@ -102,8 +102,13 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
   const dates = weekDates(weekStart)
   const entries = data?.items ?? []
 
-  function getEntry(date: string, mealType: MealType): MealPlanEntryFull | undefined {
-    return entries.find(e => e.date === date && e.meal_type === mealType)
+  function getEntries(date: string, mealType: MealType): MealPlanEntryFull[] {
+    return entries.filter(e => e.date === date && e.meal_type === mealType)
+  }
+  function entryLabel(e: MealPlanEntryFull): string {
+    if (e.recipe) return e.recipe.title + (e.servings !== 1 ? ` ×${e.servings}` : '')
+    if (e.product) return `${e.product.name} ${e.grams ?? e.product.serving_g ?? 100}g`
+    return e.recipe_id ? `#${e.recipe_id}` : pl.print.noMeal
   }
 
   return createPortal(
@@ -167,15 +172,13 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
                         {pl.plan.meals[mealType]}
                       </td>
                       {dates.map(date => {
-                        const entry = getEntry(date, mealType)
+                        const slot = getEntries(date, mealType)
                         return (
                           <td key={date} className="border border-gray-200 px-2 py-2 text-xs text-gray-800 align-top">
-                            {entry?.recipe?.title ?? (entry?.product ? entry.product.name : entry ? `#${entry.recipe_id}` : pl.print.noMeal)}
-                            {entry?.recipe && entry.servings !== 1 && (
-                              <span className="text-gray-400 ml-1">×{entry.servings}</span>
-                            )}
-                            {entry?.product && (
-                              <span className="text-gray-400 ml-1">{entry.grams ?? entry.product.serving_g ?? 100}g</span>
+                            {slot.length === 0 ? pl.print.noMeal : (
+                              <ul className="space-y-0.5">
+                                {slot.map(e => <li key={e.id}>{entryLabel(e)}</li>)}
+                              </ul>
                             )}
                           </td>
                         )
@@ -211,8 +214,8 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
 
             {dates.map((date) => {
               const dayEntries = MEAL_TYPES
-                .map(mt => getEntry(date, mt))
-                .filter((e): e is MealPlanEntryFull => !!e && !!e.recipe)
+                .flatMap(mt => getEntries(date, mt))
+                .filter((e): e is MealPlanEntryFull => !!e.recipe)
 
               if (dayEntries.length === 0) return null
 
