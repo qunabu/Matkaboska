@@ -306,6 +306,7 @@ const pl = {
     friscoServerInCart: 'W koszyku',
     friscoServerNotFound: 'Nie znaleziono',
     friscoServerRemoved: 'Usunięto jako niedostępne',
+    friscoServerSkipped: 'Pominięto wg zasady (pieczywo / gotowe dania) — dokup sam',
     friscoServerDone: 'Gotowe. Sprawdź koszyk na frisco.pl i złóż zamówienie samodzielnie.',
     friscoManualTitle: 'Albo ręcznie — prompt dla Claude:',
     inFriscoLabel: 'W koszyku Frisco (odznacz, jeśli dokupujesz w sklepie)',

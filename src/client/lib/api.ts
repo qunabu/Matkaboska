@@ -126,7 +126,7 @@ export const shoppingApi = {
     }),
   friscoOrder: async (listId: number): Promise<FriscoOrderResult> => {
     const merged: FriscoOrderResult = {
-      listName: '', total: 0, inCart: 0, added: [], notFound: [], removedUnavailable: [],
+      listName: '', total: 0, inCart: 0, added: [], notFound: [], skipped: [], removedUnavailable: [],
     }
     let offset: number | null = 0
     do {
@@ -137,6 +137,7 @@ export const shoppingApi = {
       merged.total = r.total
       merged.added.push(...r.added)
       merged.notFound.push(...r.notFound)
+      merged.skipped.push(...(r.skipped ?? []))
       if (r.done) {
         merged.inCart = r.inCart ?? merged.added.length
         merged.removedUnavailable = r.removedUnavailable
@@ -154,6 +155,7 @@ interface FriscoChunk {
   done: boolean
   added: { item: string; product?: string }[]
   notFound: string[]
+  skipped?: string[]
   removedUnavailable: string[]
   inCart?: number
 }
@@ -164,6 +166,7 @@ export interface FriscoOrderResult {
   inCart: number
   added: { item: string; product?: string }[]
   notFound: string[]
+  skipped: string[]
   removedUnavailable: string[]
 }
 

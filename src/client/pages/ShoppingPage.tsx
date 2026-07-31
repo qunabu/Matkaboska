@@ -131,6 +131,14 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
               </ul>
             </div>
           )}
+          {orderResult.skipped.length > 0 && (
+            <div>
+              <p className="font-medium text-gray-500">🚫 {pl.shopping.friscoServerSkipped} ({orderResult.skipped.length}):</p>
+              <ul className="ml-4 list-disc text-gray-500 dark:text-gray-400">
+                {orderResult.skipped.map((n, i) => <li key={i}>{n}</li>)}
+              </ul>
+            </div>
+          )}
           <p className="text-gray-500 dark:text-gray-400">{pl.shopping.friscoServerDone}</p>
         </div>
       )}

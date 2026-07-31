@@ -16,12 +16,33 @@ type FriscoProduct = {
   isStocked?: boolean
   stock?: number | null
   name?: { pl?: string }
+  categories?: { name?: { pl?: string } }[]
 }
+type FriscoSearchItem = { productId: string; product?: FriscoProduct }
 type FriscoCartItem = { productId: string; quantity?: number; product?: FriscoProduct }
 type Session = { token: string; uid: string; warehouse: string; visitorId: string }
 
 const isAvailable = (p?: FriscoProduct): boolean =>
   !!p && !!p.isAvailable && !!p.isStocked && (p.stock == null || p.stock > 0)
+
+// --- Never-buy rules ------------------------------------------------------
+// Bread/bakery is bought elsewhere, never on Frisco (matched on the list item
+// name; "bułka tarta"/breadcrumbs is a pantry item and is kept).
+function isBreadName(name: string): boolean {
+  const n = name.toLowerCase()
+  if (/tart/.test(n)) return false
+  return /(chleb|pieczyw|bagietk|ciabatt|tost|cha[łl]k|kajzerk|rogal|bu[łl]k)/.test(n)
+}
+
+// Ready-made / prepared products (ready meals, deli, stuffed & fresh pasta,
+// prepared salads) — matched by Frisco category or an explicit pid blocklist.
+const BLOCKED_CATEGORY_RE = /dania gotowe|garma[żz]|nadziewan/i
+const BLOCKED_PIDS = new Set<string>(['149408', '149464'])
+function isBlockedPick(item: FriscoSearchItem): boolean {
+  if (BLOCKED_PIDS.has(item.productId)) return true
+  return (item.product?.categories ?? []).some((c) => BLOCKED_CATEGORY_RE.test(c?.name?.pl ?? ''))
+}
+const pickAllowed = (item: FriscoSearchItem): boolean => isAvailable(item.product) && !isBlockedPick(item)
 
 // Normalize a shopping-list line into a search query: drop parentheticals and
 // everything after "lub / albo / oraz / slash", collapse whitespace.
@@ -205,11 +226,18 @@ app.post('/order', async (c) => {
   const slice = rows.slice(offset, offset + CHUNK)
   const added: { item: string; product?: string }[] = []
   const notFound: string[] = []
+  const skipped: string[] = []
   const seen = new Set<string>()
   const products: { productId: string; quantity: number }[] = []
   const queryCache = new Map<string, { productId: string; name?: string } | null>()
 
   for (const row of slice) {
+    // Never-buy: bread/bakery — leave it on the list, out of the cart.
+    if (isBreadName(row.name)) {
+      skipped.push(row.name)
+      await db.update(shopping_items).set({ in_frisco: false, frisco_product_id: null }).where(eq(shopping_items.id, row.id))
+      continue
+    }
     const q = toQuery(row.name)
     let pick: { productId: string; name?: string } | null = null
     const repoHit = repoPid.get(row.name.trim().toLowerCase())
@@ -220,8 +248,8 @@ app.post('/order', async (c) => {
         pick = queryCache.get(q) ?? null
       } else {
         try {
-          const sr = (await (await api.search(q)).json()) as { products?: { productId: string; product?: FriscoProduct }[] }
-          const found = (sr.products || []).find((p) => isAvailable(p.product))
+          const sr = (await (await api.search(q)).json()) as { products?: FriscoSearchItem[] }
+          const found = (sr.products || []).find(pickAllowed)
           pick = found ? { productId: found.productId, name: found.product?.name?.pl } : null
         } catch {
           pick = null
@@ -277,6 +305,7 @@ app.post('/order', async (c) => {
     done,
     added,
     notFound,
+    skipped,
     removedUnavailable,
     inCart,
   })
@@ -334,7 +363,11 @@ app.post('/item', async (c) => {
     return c.json({ inCart: false, removed: !stillPresent, productId: pid, cartCount: (cart.products || []).length })
   }
 
-  // Add to cart.
+  // Add to cart — respect the never-buy rule for bread/bakery.
+  if (isBreadName(item.name)) {
+    await db.update(shopping_items).set({ in_frisco: false }).where(eq(shopping_items.id, itemId))
+    return c.json({ inCart: false, blocked: true })
+  }
   let pid = item.frisco_product_id
   let name: string | undefined
   if (!pid) {
@@ -346,8 +379,8 @@ app.post('/item', async (c) => {
     const q = toQuery(item.name)
     if (!q) return c.json({ error: 'not_found' }, 200)
     try {
-      const sr = (await (await api.search(q)).json()) as { products?: { productId: string; product?: FriscoProduct }[] }
-      const pick = (sr.products || []).find((p) => isAvailable(p.product))
+      const sr = (await (await api.search(q)).json()) as { products?: FriscoSearchItem[] }
+      const pick = (sr.products || []).find(pickAllowed)
       if (!pick) return c.json({ inCart: false, notFound: true })
       pid = pick.productId
       name = pick.product?.name?.pl
