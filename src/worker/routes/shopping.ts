@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { eq, and, between } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, shopping_lists, shopping_items, meal_plan_entries, recipes, pantry_items } from '../db/index'
+import { getDb, shopping_lists, shopping_items, meal_plan_entries, recipes, pantry_items, products } from '../db/index'
 import type { Env } from '../types'
 import type { ShoppingList, ShoppingItem, Ingredient, ShopCategory } from '../../shared/types'
 import { removeProductFromCart } from './frisco'
@@ -123,7 +123,7 @@ function normalizeName(name: string): string {
   return LEMMAS[clean.toLowerCase()] ?? clean
 }
 
-type AggregatedItem = { name: string; quantity: number | null; unit: string | null; category: ShopCategory; sort_order: number }
+type AggregatedItem = { name: string; quantity: number | null; unit: string | null; category: ShopCategory; sort_order: number; frisco_product_id?: string | null }
 
 // Aggregate the plan's recipe ingredients into a deduped shopping list for a
 // date range (pantry items excluded). Shared by generate (persists) and the
@@ -174,6 +174,32 @@ async function aggregateShoppingItems(
       sort_order: sortOrder++,
     })
   }
+
+  // Product plan entries (e.g. protein boosters) — one line per product, quantity
+  // = number of portions in the range. Carry the Frisco pid so the cart fill can
+  // add them directly without a name search.
+  const prodRows = await db.select({ entry: meal_plan_entries, product: products })
+    .from(meal_plan_entries)
+    .innerJoin(products, eq(meal_plan_entries.product_id, products.id))
+    .where(between(meal_plan_entries.date, from, to))
+  const prodAgg = new Map<number, { name: string; count: number; frisco: string | null }>()
+  for (const { product } of prodRows) {
+    let g = prodAgg.get(product.id)
+    if (!g) { g = { name: product.name, count: 0, frisco: product.frisco_product_id }; prodAgg.set(product.id, g) }
+    g.count += 1
+  }
+  for (const g of prodAgg.values()) {
+    if (pantryKeys.has(normalizeName(g.name).toLowerCase())) continue
+    items.push({
+      name: g.name,
+      quantity: g.count,
+      unit: 'szt',
+      category: 'other',
+      sort_order: sortOrder++,
+      frisco_product_id: g.frisco,
+    })
+  }
+
   return items
 }
 
@@ -207,6 +233,7 @@ app.post('/generate', async (c) => {
     category: it.category,
     source: 'generated' as const,
     sort_order: it.sort_order,
+    frisco_product_id: it.frisco_product_id ?? null,
   }))
 
   // D1 allows at most 100 bound parameters per query; cap each batch at 10 rows.
