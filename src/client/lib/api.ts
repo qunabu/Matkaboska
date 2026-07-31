@@ -51,6 +51,8 @@ export const planApi = {
   deleteEntry: (id: number) => req<ApiOk>(`/plan/entry/${id}`, { method: 'DELETE' }),
   append: (date: string, meal_type: string, recipe_id: number, servings = 1) =>
     req<{ inserted: number }>(`/plan/import`, { method: 'POST', body: JSON.stringify({ entries: [{ date, meal_type, recipe_id, servings }], replace: false }) }),
+  appendProduct: (date: string, meal_type: string, product_id: number, grams: number) =>
+    req<{ inserted: number }>(`/plan/import`, { method: 'POST', body: JSON.stringify({ entries: [{ date, meal_type, product_id, grams, servings: 1 }], replace: false }) }),
 }
 
 // ── Food log ──────────────────────────────────────────────────────────────────

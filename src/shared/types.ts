@@ -69,12 +69,27 @@ export interface RecipeWithNotes extends Recipe {
   notes: RecipeNote[]
 }
 
+// A plan entry references either a recipe (recipe_id + servings) or a product
+// (product_id + grams). Product macros are per 100 g.
+export interface PlanProduct {
+  id: number
+  name: string
+  kcal: number | null
+  protein_g: number | null
+  carbs_g: number | null
+  fat_g: number | null
+  serving_g: number | null
+}
+
 export interface MealPlanEntry {
   id: number
   date: string
   meal_type: MealType
   recipe_id: number | null
   recipe?: Pick<Recipe, 'id' | 'title' | 'slug' | 'macros' | 'prep_minutes'>
+  product_id: number | null
+  product?: PlanProduct
+  grams: number | null
   servings: number
   batch_group: string | null
   is_leftover: boolean
@@ -87,6 +102,9 @@ export interface MealPlanEntryFull {
   meal_type: MealType
   recipe_id: number | null
   recipe?: Recipe
+  product_id: number | null
+  product?: PlanProduct
+  grams: number | null
   servings: number
   batch_group: string | null
   is_leftover: boolean

@@ -37,6 +37,8 @@ export const meal_plan_entries = sqliteTable('meal_plan_entries', {
   date: text('date').notNull(),
   meal_type: text('meal_type').notNull(),
   recipe_id: integer('recipe_id').references(() => recipes.id, { onDelete: 'set null' }),
+  product_id: integer('product_id').references(() => products.id, { onDelete: 'set null' }),
+  grams: real('grams'),                                       // grams for a product entry
   servings: real('servings').notNull().default(1),
   batch_group: text('batch_group'),
   is_leftover: integer('is_leftover', { mode: 'boolean' }).notNull().default(false),

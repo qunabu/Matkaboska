@@ -224,6 +224,11 @@ const pl = {
     addMeal: 'Dodaj posiłek',
     noMeal: 'Brak posiłku',
     selectRecipe: 'Wybierz przepis',
+    selectRecipeOrProduct: 'Wybierz przepis lub produkt',
+    tabRecipe: 'Przepis',
+    tabProduct: 'Produkt',
+    gramsForPlan: 'Gramy',
+    gramsDefault: 'porcja',
     servingsForPlan: 'Porcje',
     plannedTotal: 'Planowane',
     meals: {

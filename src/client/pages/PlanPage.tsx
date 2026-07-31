@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { planApi, recipesApi, todayDate, getWeekStart, weekDates, addDays } from '../lib/api'
+import { planApi, recipesApi, productsApi, todayDate, getWeekStart, weekDates, addDays } from '../lib/api'
 import pl from '../i18n/pl'
 import type { MealType } from '../../shared/types'
 import WeekPrintView from '../components/WeekPrintView'
@@ -16,20 +16,39 @@ function formatShortDate(dateStr: string) {
   return `${SHORT_DAYS[d.getDay()]} ${d.getDate()}.${d.getMonth() + 1}`
 }
 
-interface RecipePickerProps {
+interface MealPickerProps {
   onPick: (recipeId: number, servings: number) => void
+  onPickProduct: (productId: number, grams: number) => void
   onClose: () => void
 }
 
-function RecipePicker({ onPick, onClose }: RecipePickerProps) {
+function MealPicker({ onPick, onPickProduct, onClose }: MealPickerProps) {
+  const [tab, setTab] = useState<'recipe' | 'product'>('recipe')
   const [search, setSearch] = useState('')
   const [servings, setServings] = useState(1)
+  const [grams, setGrams] = useState('')
 
-  const { data } = useQuery({
+  const { data: recipeData } = useQuery({
     queryKey: ['recipes', search],
     queryFn: () => recipesApi.list({ search: search || undefined }),
     staleTime: 30_000,
+    enabled: tab === 'recipe',
   })
+  const { data: productData } = useQuery({
+    queryKey: ['products', search],
+    queryFn: () => productsApi.list(search || undefined),
+    staleTime: 30_000,
+    enabled: tab === 'product',
+  })
+
+  const tabBtn = (t: 'recipe' | 'product', label: string) => (
+    <button
+      onClick={() => { setTab(t); setSearch('') }}
+      className={`flex-1 rounded-lg py-2 text-sm font-medium ${tab === t ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}
+    >
+      {label}
+    </button>
+  )
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/40 md:items-center md:justify-center" onClick={onClose}>
@@ -38,8 +57,12 @@ function RecipePicker({ onPick, onClose }: RecipePickerProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">{pl.plan.selectRecipe}</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100">{pl.plan.selectRecipeOrProduct}</h3>
           <button onClick={onClose} className="text-gray-400">×</button>
+        </div>
+        <div className="mb-3 flex gap-2">
+          {tabBtn('recipe', pl.plan.tabRecipe)}
+          {tabBtn('product', pl.plan.tabProduct)}
         </div>
         <input
           autoFocus
@@ -49,30 +72,62 @@ function RecipePicker({ onPick, onClose }: RecipePickerProps) {
           placeholder={pl.common.search}
           className="mb-3 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
         />
-        <div className="mb-3 flex items-center gap-2">
-          <label className="text-sm text-gray-600 dark:text-gray-400">{pl.plan.servingsForPlan}:</label>
-          <input
-            type="number" min="0.5" max="10" step="0.5"
-            value={servings}
-            onChange={(e) => setServings(Number(e.target.value))}
-            className="w-20 rounded-lg border border-gray-200 px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-          />
-        </div>
-        <ul className="space-y-1">
-          {(data?.items ?? []).map(r => (
-            <li key={r.id}>
-              <button
-                onClick={() => onPick(r.id, servings)}
-                className="w-full rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                <p className="font-medium text-gray-900 dark:text-gray-100">{r.title}</p>
-                {r.macros && (
-                  <p className="text-xs text-gray-400">{r.macros.kcal} kcal · {r.macros.protein_g}g białka</p>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
+
+        {tab === 'recipe' ? (
+          <>
+            <div className="mb-3 flex items-center gap-2">
+              <label className="text-sm text-gray-600 dark:text-gray-400">{pl.plan.servingsForPlan}:</label>
+              <input
+                type="number" min="0.5" max="10" step="0.5"
+                value={servings}
+                onChange={(e) => setServings(Number(e.target.value))}
+                className="w-20 rounded-lg border border-gray-200 px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+            </div>
+            <ul className="space-y-1">
+              {(recipeData?.items ?? []).map(r => (
+                <li key={r.id}>
+                  <button onClick={() => onPick(r.id, servings)} className="w-full rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{r.title}</p>
+                    {r.macros && <p className="text-xs text-gray-400">{r.macros.kcal} kcal · {r.macros.protein_g}g białka</p>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <>
+            <div className="mb-3 flex items-center gap-2">
+              <label className="text-sm text-gray-600 dark:text-gray-400">{pl.plan.gramsForPlan}:</label>
+              <input
+                type="number" min="1" step="10"
+                value={grams}
+                onChange={(e) => setGrams(e.target.value)}
+                placeholder={pl.plan.gramsDefault}
+                className="w-24 rounded-lg border border-gray-200 px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+            </div>
+            <ul className="space-y-1">
+              {(productData?.items ?? []).map(p => (
+                <li key={p.id}>
+                  <button
+                    onClick={() => onPickProduct(p.id, Number(grams) || p.serving_g || 100)}
+                    className="w-full rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{p.name}</p>
+                    <p className="text-xs text-gray-400">
+                      {p.kcal != null ? `${Math.round(p.kcal)} kcal/100g` : ''}
+                      {p.serving_g ? ` · porcja ${p.serving_g} g` : ''}
+                    </p>
+                  </button>
+                </li>
+              ))}
+              {(productData?.items ?? []).length === 0 && (
+                <li className="px-3 py-4 text-center text-sm text-gray-400">{pl.settings.productsEmpty}</li>
+              )}
+            </ul>
+          </>
+        )}
       </div>
     </div>
   )
@@ -99,6 +154,12 @@ export default function PlanPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['plan'] }),
   })
 
+  const appendProductMutation = useMutation({
+    mutationFn: ({ date, mealType, productId, grams }: { date: string; mealType: MealType; productId: number; grams: number }) =>
+      planApi.appendProduct(date, mealType, productId, grams),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['plan'] }),
+  })
+
   const deleteEntryMutation = useMutation({
     mutationFn: (id: number) => planApi.deleteEntry(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['plan'] }),
@@ -110,18 +171,26 @@ export default function PlanPage() {
     return entries.filter(e => e.date === date && e.meal_type === mealType)
   }
 
-  // Sum planned kcal + macros for a day from each entry's recipe macros × servings.
+  // Sum planned kcal + macros for a day: recipe macros × servings, plus product
+  // macros (per 100 g) × grams/100.
   function dayTotals(date: string) {
     let kcal = 0, protein_g = 0, carbs_g = 0, fat_g = 0
     for (const e of entries) {
       if (e.date !== date) continue
-      const m = e.recipe?.macros
-      if (!m) continue
-      const mult = e.servings ?? 1
-      kcal += (m.kcal ?? 0) * mult
-      protein_g += (m.protein_g ?? 0) * mult
-      carbs_g += (m.carbs_g ?? 0) * mult
-      fat_g += (m.fat_g ?? 0) * mult
+      if (e.recipe?.macros) {
+        const m = e.recipe.macros
+        const mult = e.servings ?? 1
+        kcal += (m.kcal ?? 0) * mult
+        protein_g += (m.protein_g ?? 0) * mult
+        carbs_g += (m.carbs_g ?? 0) * mult
+        fat_g += (m.fat_g ?? 0) * mult
+      } else if (e.product) {
+        const f = (e.grams ?? e.product.serving_g ?? 100) / 100
+        kcal += (e.product.kcal ?? 0) * f
+        protein_g += (e.product.protein_g ?? 0) * f
+        carbs_g += (e.product.carbs_g ?? 0) * f
+        fat_g += (e.product.fat_g ?? 0) * f
+      }
     }
     return { kcal, protein_g, carbs_g, fat_g }
   }
@@ -217,14 +286,22 @@ export default function PlanPage() {
                                 >
                                   {entry.recipe?.title ?? `#${entry.recipe_id}`}
                                 </Link>
-                              ) : (
+                              ) : entry.product ? (
                                 <span className="font-medium text-gray-800 line-clamp-2 dark:text-gray-200">
-                                  {entry.recipe?.title ?? '—'}
+                                  🛒 {entry.product.name}
                                 </span>
+                              ) : (
+                                <span className="font-medium text-gray-800 line-clamp-2 dark:text-gray-200">—</span>
                               )}
                               {entry.recipe?.macros && (
                                 <p className="mt-0.5 text-[10px] text-gray-400">
                                   {Math.round(entry.recipe.macros.kcal * (entry.servings ?? 1))} kcal
+                                </p>
+                              )}
+                              {entry.product && (
+                                <p className="mt-0.5 text-[10px] text-gray-400">
+                                  {entry.grams ?? entry.product.serving_g ?? 100} g
+                                  {entry.product.kcal != null ? ` · ${Math.round(entry.product.kcal * ((entry.grams ?? entry.product.serving_g ?? 100) / 100))} kcal` : ''}
                                 </p>
                               )}
                               <button
@@ -275,10 +352,14 @@ export default function PlanPage() {
       )}
 
       {picking && (
-        <RecipePicker
+        <MealPicker
           onClose={() => setPicking(null)}
           onPick={(recipeId, servings) => {
             appendMealMutation.mutate({ date: picking.date, mealType: picking.mealType, recipeId, servings })
+            setPicking(null)
+          }}
+          onPickProduct={(productId, grams) => {
+            appendProductMutation.mutate({ date: picking.date, mealType: picking.mealType, productId, grams })
             setPicking(null)
           }}
         />

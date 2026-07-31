@@ -1,18 +1,28 @@
 import { Hono } from 'hono'
 import { eq, and, between } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, meal_plan_entries, recipes, food_log } from '../db/index'
+import { getDb, meal_plan_entries, recipes, products, food_log } from '../db/index'
 import type { Env } from '../types'
-import type { MealPlanEntry, MealPlanEntryFull, MealType, PlanStatus, Ingredient, Macros, Recipe } from '../../shared/types'
+import type { MealPlanEntry, MealPlanEntryFull, MealType, PlanStatus, Ingredient, Macros, Recipe, PlanProduct } from '../../shared/types'
 
 const app = new Hono<{ Bindings: Env }>()
 
-function parsePlanRow(row: typeof meal_plan_entries.$inferSelect, recipe?: typeof recipes.$inferSelect | null): MealPlanEntry {
+function toPlanProduct(p: typeof products.$inferSelect): PlanProduct {
+  return { id: p.id, name: p.name, kcal: p.kcal, protein_g: p.protein_g, carbs_g: p.carbs_g, fat_g: p.fat_g, serving_g: p.serving_g }
+}
+
+function parsePlanRow(
+  row: typeof meal_plan_entries.$inferSelect,
+  recipe?: typeof recipes.$inferSelect | null,
+  product?: typeof products.$inferSelect | null,
+): MealPlanEntry {
   const entry: MealPlanEntry = {
     id: row.id,
     date: row.date,
     meal_type: row.meal_type as MealPlanEntry['meal_type'],
     recipe_id: row.recipe_id,
+    product_id: row.product_id,
+    grams: row.grams,
     servings: row.servings,
     batch_group: row.batch_group,
     is_leftover: row.is_leftover,
@@ -27,6 +37,7 @@ function parsePlanRow(row: typeof meal_plan_entries.$inferSelect, recipe?: typeo
       prep_minutes: recipe.prep_minutes,
     }
   }
+  if (product) entry.product = toPlanProduct(product)
   return entry
 }
 
@@ -37,13 +48,14 @@ app.get('/', async (c) => {
 
   const db = getDb(c.env.DB)
   const rows = await db
-    .select({ entry: meal_plan_entries, recipe: recipes })
+    .select({ entry: meal_plan_entries, recipe: recipes, product: products })
     .from(meal_plan_entries)
     .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
+    .leftJoin(products, eq(meal_plan_entries.product_id, products.id))
     .where(between(meal_plan_entries.date, from, to))
     .orderBy(meal_plan_entries.date, meal_plan_entries.meal_type)
 
-  const items = rows.map(r => parsePlanRow(r.entry, r.recipe))
+  const items = rows.map(r => parsePlanRow(r.entry, r.recipe, r.product))
   return c.json({ items, total: items.length })
 })
 
@@ -54,9 +66,10 @@ app.get('/print', async (c) => {
 
   const db = getDb(c.env.DB)
   const rows = await db
-    .select({ entry: meal_plan_entries, recipe: recipes })
+    .select({ entry: meal_plan_entries, recipe: recipes, product: products })
     .from(meal_plan_entries)
     .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
+    .leftJoin(products, eq(meal_plan_entries.product_id, products.id))
     .where(between(meal_plan_entries.date, from, to))
     .orderBy(meal_plan_entries.date, meal_plan_entries.meal_type)
 
@@ -65,6 +78,9 @@ app.get('/print', async (c) => {
     date: r.entry.date,
     meal_type: r.entry.meal_type as MealType,
     recipe_id: r.entry.recipe_id,
+    product_id: r.entry.product_id,
+    product: r.product ? toPlanProduct(r.product) : undefined,
+    grams: r.entry.grams,
     servings: r.entry.servings,
     batch_group: r.entry.batch_group,
     is_leftover: r.entry.is_leftover,
@@ -94,6 +110,8 @@ app.get('/print', async (c) => {
 
 const PlanEntrySchema = z.object({
   recipe_id: z.number().int().nullable().optional(),
+  product_id: z.number().int().nullable().optional(),
+  grams: z.number().positive().nullable().optional(),
   servings: z.number().positive().default(1),
   batch_group: z.string().nullable().optional(),
   is_leftover: z.boolean().default(false),
@@ -118,13 +136,17 @@ app.put('/:date/:meal_type', async (c) => {
   const [row] = await db.insert(meal_plan_entries).values({
     date, meal_type,
     recipe_id: d.recipe_id ?? null,
+    product_id: d.product_id ?? null,
+    grams: d.grams ?? null,
     servings: d.servings,
     batch_group: d.batch_group ?? null,
     is_leftover: d.is_leftover,
     status: d.status,
   }).returning()
 
-  return c.json(parsePlanRow(row))
+  let product = null
+  if (row.product_id) { [product] = await db.select().from(products).where(eq(products.id, row.product_id)) }
+  return c.json(parsePlanRow(row, null, product))
 })
 
 // PATCH /api/plan/:id/status
@@ -162,9 +184,26 @@ app.patch('/:id/status', async (c) => {
         portion: tag,
       })
     }
+  } else if (status === 'eaten' && row.product_id) {
+    const [product] = await db.select().from(products).where(eq(products.id, row.product_id))
+    if (product) {
+      const g = row.grams ?? product.serving_g ?? 100
+      const f = g / 100
+      await db.insert(food_log).values({
+        date: row.date,
+        description: `${product.name} (${g} g)`,
+        kcal: product.kcal != null ? Math.round(product.kcal * f) : null,
+        protein_g: product.protein_g != null ? Math.round(product.protein_g * f * 10) / 10 : null,
+        carbs_g: product.carbs_g != null ? Math.round(product.carbs_g * f * 10) / 10 : null,
+        fat_g: product.fat_g != null ? Math.round(product.fat_g * f * 10) / 10 : null,
+        portion: tag,
+      })
+    }
   }
 
-  return c.json(parsePlanRow(row))
+  let product = null
+  if (row.product_id) { [product] = await db.select().from(products).where(eq(products.id, row.product_id)) }
+  return c.json(parsePlanRow(row, null, product))
 })
 
 // DELETE /api/plan/entry/:id  — remove a single plan entry (grid supports
@@ -192,6 +231,8 @@ const ImportEntrySchema = z.object({
   date: z.string(),
   meal_type: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
   recipe_id: z.number().int().nullable().optional(),
+  product_id: z.number().int().nullable().optional(),
+  grams: z.number().positive().nullable().optional(),
   servings: z.number().positive().default(1),
   batch_group: z.string().nullable().optional(),
   is_leftover: z.boolean().default(false),
@@ -220,6 +261,8 @@ app.post('/import', async (c) => {
       date: e.date,
       meal_type: e.meal_type,
       recipe_id: e.recipe_id ?? null,
+      product_id: e.product_id ?? null,
+      grams: e.grams ?? null,
       servings: e.servings,
       batch_group: e.batch_group ?? null,
       is_leftover: e.is_leftover,

@@ -170,9 +170,12 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
                         const entry = getEntry(date, mealType)
                         return (
                           <td key={date} className="border border-gray-200 px-2 py-2 text-xs text-gray-800 align-top">
-                            {entry?.recipe?.title ?? (entry ? `#${entry.recipe_id}` : pl.print.noMeal)}
-                            {entry && entry.servings !== 1 && (
+                            {entry?.recipe?.title ?? (entry?.product ? entry.product.name : entry ? `#${entry.recipe_id}` : pl.print.noMeal)}
+                            {entry?.recipe && entry.servings !== 1 && (
                               <span className="text-gray-400 ml-1">×{entry.servings}</span>
+                            )}
+                            {entry?.product && (
+                              <span className="text-gray-400 ml-1">{entry.grams ?? entry.product.serving_g ?? 100}g</span>
                             )}
                           </td>
                         )

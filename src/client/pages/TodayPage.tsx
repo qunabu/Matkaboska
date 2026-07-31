@@ -407,7 +407,9 @@ export default function TodayPage() {
                           entry.status === 'skipped' ? 'text-gray-300' :
                           'text-gray-900 dark:text-gray-100'
                         }`}>
-                          {entry.recipe?.title ?? `${pl.today.recipeFallback}${entry.recipe_id}`}
+                          {entry.product
+                            ? `🛒 ${entry.product.name}`
+                            : entry.recipe?.title ?? `${pl.today.recipeFallback}${entry.recipe_id}`}
                         </p>
                         {entry.recipe?.macros && (
                           <p className="text-xs text-gray-400">
@@ -415,6 +417,16 @@ export default function TodayPage() {
                             · {Math.round(entry.recipe.macros.protein_g * entry.servings)}g B
                           </p>
                         )}
+                        {entry.product && (() => {
+                          const f = (entry.grams ?? entry.product.serving_g ?? 100) / 100
+                          return (
+                            <p className="text-xs text-gray-400">
+                              {entry.grams ?? entry.product.serving_g ?? 100} g
+                              {entry.product.kcal != null ? ` · ${Math.round(entry.product.kcal * f)} kcal` : ''}
+                              {entry.product.protein_g != null ? ` · ${Math.round(entry.product.protein_g * f)}g B` : ''}
+                            </p>
+                          )
+                        })()}
                       </div>
                       <div className="flex gap-1">
                         {entry.status !== 'eaten' && (
