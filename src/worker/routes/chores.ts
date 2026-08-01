@@ -1,13 +1,13 @@
 import { Hono } from 'hono'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, chores, push_subscriptions } from '../db/index'
 import { localDateKey, appTimezone } from './habits'
 import { sendPushNotification } from './push'
-import type { Env } from '../types'
+import type { AppEnv } from '../types'
 import type { Db } from '../db/index'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<AppEnv>()
 
 const dayNum = (key: string) => {
   const [y, m, d] = key.split('-').map(Number)
@@ -16,7 +16,6 @@ const dayNum = (key: string) => {
 
 export interface ChoreTimeCtx { tz: string; todayKey: string; dow: number; nowMin: number }
 
-// Is the chore due right now (scheduled today, past its time) and not yet done?
 export function choreDue(chore: typeof chores.$inferSelect, ctx: ChoreTimeCtx): { due: boolean; doneToday: boolean } {
   const lastKey = chore.last_done_at ? localDateKey(ctx.tz, new Date(chore.last_done_at * 1000)) : null
   const doneToday = lastKey === ctx.todayKey
@@ -36,8 +35,8 @@ export function choreDue(chore: typeof chores.$inferSelect, ctx: ChoreTimeCtx): 
   return { due: scheduledToday && timeReached, doneToday: false }
 }
 
-async function timeCtx(db: Db): Promise<ChoreTimeCtx> {
-  const tz = await appTimezone(db)
+async function timeCtx(db: Db, userId: string): Promise<ChoreTimeCtx> {
+  const tz = await appTimezone(db, userId)
   const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: tz, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', weekday: 'short',
@@ -73,31 +72,35 @@ const bodySchema = z.object({
 
 // GET /api/chores
 app.get('/', async (c) => {
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  const ctx = await timeCtx(db)
-  const rows = await db.select().from(chores).orderBy(chores.created_at)
+  const ctx = await timeCtx(db, userId)
+  const rows = await db.select().from(chores).where(eq(chores.user_id, userId)).orderBy(chores.created_at)
   return c.json({ items: rows.map((r) => toApi(r, ctx)), total: rows.length })
 })
 
 // POST /api/chores
 app.post('/', async (c) => {
+  const userId = c.var.userId
   const parsed = bodySchema.safeParse(await c.req.json())
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
   const d = parsed.data
   const db = getDb(c.env.DB)
   const [row] = await db.insert(chores).values({
+    user_id: userId,
     name: d.name.trim(),
     interval_days: d.interval_days ?? null,
     weekdays: d.weekdays ? JSON.stringify(d.weekdays) : null,
     time: d.time ?? '20:00',
     nag_minutes: d.nag_minutes ?? 60,
   }).returning()
-  return c.json(toApi(row, await timeCtx(db)), 201)
+  return c.json(toApi(row, await timeCtx(db, userId)), 201)
 })
 
 // PATCH /api/chores/:id
 app.patch('/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const parsed = bodySchema.partial().safeParse(await c.req.json())
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
   const d = parsed.data
@@ -109,30 +112,36 @@ app.patch('/:id', async (c) => {
   if (d.nag_minutes !== undefined) set.nag_minutes = d.nag_minutes
   if (d.active !== undefined) set.active = d.active
   const db = getDb(c.env.DB)
-  const [row] = await db.update(chores).set(set).where(eq(chores.id, id)).returning()
+  const [row] = await db.update(chores).set(set)
+    .where(and(eq(chores.id, id), eq(chores.user_id, userId)))
+    .returning()
   if (!row) return c.json({ error: 'Not found' }, 404)
-  return c.json(toApi(row, await timeCtx(db)))
+  return c.json(toApi(row, await timeCtx(db, userId)))
 })
 
-// POST /api/chores/:id/done  — mark done now, reset the cycle
+// POST /api/chores/:id/done
 app.post('/:id/done', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
   const [row] = await db.update(chores)
     .set({ last_done_at: Math.floor(Date.now() / 1000), last_notified_at: null })
-    .where(eq(chores.id, id)).returning()
+    .where(and(eq(chores.id, id), eq(chores.user_id, userId)))
+    .returning()
   if (!row) return c.json({ error: 'Not found' }, 404)
-  return c.json(toApi(row, await timeCtx(db)))
+  return c.json(toApi(row, await timeCtx(db, userId)))
 })
 
-// POST /api/chores/:id/remind-now  — test push
+// POST /api/chores/:id/remind-now
 app.post('/:id/remind-now', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  const [row] = await db.select().from(chores).where(eq(chores.id, id))
+  const [row] = await db.select().from(chores)
+    .where(and(eq(chores.id, id), eq(chores.user_id, userId)))
   if (!row) return c.json({ error: 'Not found' }, 404)
   if (!c.env.VAPID_PRIVATE_KEY) return c.json({ error: 'Push not configured' }, 503)
-  const subs = await db.select().from(push_subscriptions)
+  const subs = await db.select().from(push_subscriptions).where(eq(push_subscriptions.user_id, userId))
   if (subs.length === 0) return c.json({ error: 'No subscriptions', sent: 0, total: 0 }, 400)
   const results = await Promise.allSettled(
     subs.map((s) => sendPushNotification(c.env, s.endpoint, s.p256dh, s.auth, {
@@ -147,8 +156,9 @@ app.post('/:id/remind-now', async (c) => {
 // DELETE /api/chores/:id
 app.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  await db.delete(chores).where(eq(chores.id, id))
+  await db.delete(chores).where(and(eq(chores.id, id), eq(chores.user_id, userId)))
   return c.json({ ok: true })
 })
 

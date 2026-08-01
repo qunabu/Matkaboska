@@ -2,10 +2,10 @@ import { Hono } from 'hono'
 import { eq, and, between } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, meal_plan_entries, recipes, products, food_log } from '../db/index'
-import type { Env } from '../types'
+import type { AppEnv } from '../types'
 import type { MealPlanEntry, MealPlanEntryFull, MealType, PlanStatus, Ingredient, Macros, Recipe, PlanProduct } from '../../shared/types'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<AppEnv>()
 
 function toPlanProduct(p: typeof products.$inferSelect): PlanProduct {
   return { id: p.id, name: p.name, kcal: p.kcal, protein_g: p.protein_g, carbs_g: p.carbs_g, fat_g: p.fat_g, serving_g: p.serving_g }
@@ -43,6 +43,7 @@ function parsePlanRow(
 
 // GET /api/plan?from=YYYY-MM-DD&to=YYYY-MM-DD
 app.get('/', async (c) => {
+  const userId = c.var.userId
   const { from, to } = c.req.query()
   if (!from || !to) return c.json({ error: 'from and to required' }, 400)
 
@@ -52,7 +53,7 @@ app.get('/', async (c) => {
     .from(meal_plan_entries)
     .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
     .leftJoin(products, eq(meal_plan_entries.product_id, products.id))
-    .where(between(meal_plan_entries.date, from, to))
+    .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, from, to)))
     .orderBy(meal_plan_entries.date, meal_plan_entries.meal_type)
 
   const items = rows.map(r => parsePlanRow(r.entry, r.recipe, r.product))
@@ -61,6 +62,7 @@ app.get('/', async (c) => {
 
 // GET /api/plan/print?from=YYYY-MM-DD&to=YYYY-MM-DD
 app.get('/print', async (c) => {
+  const userId = c.var.userId
   const { from, to } = c.req.query()
   if (!from || !to) return c.json({ error: 'from and to required' }, 400)
 
@@ -70,7 +72,7 @@ app.get('/print', async (c) => {
     .from(meal_plan_entries)
     .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
     .leftJoin(products, eq(meal_plan_entries.product_id, products.id))
-    .where(between(meal_plan_entries.date, from, to))
+    .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, from, to)))
     .orderBy(meal_plan_entries.date, meal_plan_entries.meal_type)
 
   const items: MealPlanEntryFull[] = rows.map(r => ({
@@ -120,6 +122,7 @@ const PlanEntrySchema = z.object({
 
 // PUT /api/plan/:date/:meal_type
 app.put('/:date/:meal_type', async (c) => {
+  const userId = c.var.userId
   const date = c.req.param('date')
   const meal_type = c.req.param('meal_type')
   const body = await c.req.json()
@@ -129,11 +132,11 @@ app.put('/:date/:meal_type', async (c) => {
   const d = parsed.data
   const db = getDb(c.env.DB)
 
-  // Upsert: delete existing then insert
   await db.delete(meal_plan_entries)
-    .where(and(eq(meal_plan_entries.date, date), eq(meal_plan_entries.meal_type, meal_type)))
+    .where(and(eq(meal_plan_entries.user_id, userId), eq(meal_plan_entries.date, date), eq(meal_plan_entries.meal_type, meal_type)))
 
   const [row] = await db.insert(meal_plan_entries).values({
+    user_id: userId,
     date, meal_type,
     recipe_id: d.recipe_id ?? null,
     product_id: d.product_id ?? null,
@@ -150,23 +153,19 @@ app.put('/:date/:meal_type', async (c) => {
 })
 
 // PATCH /api/plan/:id/status
-// Marking an entry "eaten" logs it into the food_log (macros prefilled from the
-// recipe, scaled by servings) so the daily totals update. The auto-created row
-// is tagged `plan:<id>` in `portion` so it can be removed if the entry is later
-// un-eaten or skipped — keeping the food log idempotent with the plan.
 app.patch('/:id/status', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const { status } = z.object({ status: z.enum(['planned', 'eaten', 'skipped']) }).parse(await c.req.json())
   const db = getDb(c.env.DB)
   const [row] = await db.update(meal_plan_entries)
     .set({ status })
-    .where(eq(meal_plan_entries.id, id))
+    .where(and(eq(meal_plan_entries.id, id), eq(meal_plan_entries.user_id, userId)))
     .returning()
   if (!row) return c.json({ error: 'Not found' }, 404)
 
   const tag = `plan:${id}`
-  // Always clear any previous auto-log for this entry first (idempotent).
-  await db.delete(food_log).where(eq(food_log.portion, tag))
+  await db.delete(food_log).where(and(eq(food_log.portion, tag), eq(food_log.user_id, userId)))
 
   if (status === 'eaten' && row.recipe_id) {
     const [recipe] = await db.select().from(recipes).where(eq(recipes.id, row.recipe_id))
@@ -174,6 +173,7 @@ app.patch('/:id/status', async (c) => {
       const m = JSON.parse(recipe.macros) as Macros
       const mult = row.servings ?? 1
       await db.insert(food_log).values({
+        user_id: userId,
         date: row.date,
         description: recipe.title,
         recipe_id: recipe.id,
@@ -190,6 +190,7 @@ app.patch('/:id/status', async (c) => {
       const g = row.grams ?? product.serving_g ?? 100
       const f = g / 100
       await db.insert(food_log).values({
+        user_id: userId,
         date: row.date,
         description: `${product.name} (${g} g)`,
         kcal: product.kcal != null ? Math.round(product.kcal * f) : null,
@@ -206,24 +207,25 @@ app.patch('/:id/status', async (c) => {
   return c.json(parsePlanRow(row, null, product))
 })
 
-// DELETE /api/plan/entry/:id  — remove a single plan entry (grid supports
-// multiple entries per meal slot, e.g. several snacks per day)
+// DELETE /api/plan/entry/:id
 app.delete('/entry/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  // Also drop any auto-created food_log row tied to this entry.
-  await db.delete(food_log).where(eq(food_log.portion, `plan:${id}`))
-  await db.delete(meal_plan_entries).where(eq(meal_plan_entries.id, id))
+  await db.delete(food_log).where(and(eq(food_log.portion, `plan:${id}`), eq(food_log.user_id, userId)))
+  await db.delete(meal_plan_entries)
+    .where(and(eq(meal_plan_entries.id, id), eq(meal_plan_entries.user_id, userId)))
   return c.json({ ok: true })
 })
 
 // DELETE /api/plan/:date/:meal_type
 app.delete('/:date/:meal_type', async (c) => {
+  const userId = c.var.userId
   const date = c.req.param('date')
   const meal_type = c.req.param('meal_type')
   const db = getDb(c.env.DB)
   await db.delete(meal_plan_entries)
-    .where(and(eq(meal_plan_entries.date, date), eq(meal_plan_entries.meal_type, meal_type)))
+    .where(and(eq(meal_plan_entries.user_id, userId), eq(meal_plan_entries.date, date), eq(meal_plan_entries.meal_type, meal_type)))
   return c.json({ ok: true })
 })
 
@@ -239,8 +241,9 @@ const ImportEntrySchema = z.object({
   status: z.enum(['planned', 'eaten', 'skipped']).default('planned'),
 })
 
-// POST /api/plan/import  – bulk import (used by seed / plan import feature)
+// POST /api/plan/import
 app.post('/import', async (c) => {
+  const userId = c.var.userId
   const body = await c.req.json()
   const parsed = z.object({ entries: z.array(ImportEntrySchema), replace: z.boolean().default(false) }).safeParse(body)
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
@@ -251,13 +254,15 @@ app.post('/import', async (c) => {
   if (replace && entries.length > 0) {
     const dates = [...new Set(entries.map(e => e.date))]
     for (const date of dates) {
-      await db.delete(meal_plan_entries).where(eq(meal_plan_entries.date, date))
+      await db.delete(meal_plan_entries)
+        .where(and(eq(meal_plan_entries.user_id, userId), eq(meal_plan_entries.date, date)))
     }
   }
 
   const inserted = []
   for (const e of entries) {
     const [row] = await db.insert(meal_plan_entries).values({
+      user_id: userId,
       date: e.date,
       meal_type: e.meal_type,
       recipe_id: e.recipe_id ?? null,

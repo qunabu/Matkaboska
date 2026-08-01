@@ -1,17 +1,20 @@
 import { Hono } from 'hono'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, todos } from '../db/index'
-import type { Env } from '../types'
+import type { AppEnv } from '../types'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<AppEnv>()
 
 const priority = z.enum(['high', 'medium', 'low'])
 
 // GET /api/todos
 app.get('/', async (c) => {
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  const rows = await db.select().from(todos).orderBy(todos.sort_order, todos.created_at)
+  const rows = await db.select().from(todos)
+    .where(eq(todos.user_id, userId))
+    .orderBy(todos.sort_order, todos.created_at)
   return c.json({ items: rows, total: rows.length })
 })
 
@@ -22,8 +25,10 @@ app.post('/', async (c) => {
     priority: priority.optional(),
   }).safeParse(await c.req.json())
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
   const [row] = await db.insert(todos).values({
+    user_id: userId,
     title: parsed.data.title.trim(),
     priority: parsed.data.priority ?? 'medium',
   }).returning()
@@ -33,6 +38,7 @@ app.post('/', async (c) => {
 // PATCH /api/todos/:id
 app.patch('/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const parsed = z.object({
     title: z.string().min(1).optional(),
     priority: priority.optional(),
@@ -41,7 +47,9 @@ app.patch('/:id', async (c) => {
   }).safeParse(await c.req.json())
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
   const db = getDb(c.env.DB)
-  const [row] = await db.update(todos).set(parsed.data).where(eq(todos.id, id)).returning()
+  const [row] = await db.update(todos).set(parsed.data)
+    .where(and(eq(todos.id, id), eq(todos.user_id, userId)))
+    .returning()
   if (!row) return c.json({ error: 'Not found' }, 404)
   return c.json(row)
 })
@@ -49,8 +57,9 @@ app.patch('/:id', async (c) => {
 // DELETE /api/todos/:id
 app.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  await db.delete(todos).where(eq(todos.id, id))
+  await db.delete(todos).where(and(eq(todos.id, id), eq(todos.user_id, userId)))
   return c.json({ ok: true })
 })
 

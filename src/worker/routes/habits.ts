@@ -1,29 +1,27 @@
 import { Hono } from 'hono'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, habits, habit_checkins, settings } from '../db/index'
-import type { Env } from '../types'
+import type { AppEnv } from '../types'
 import type { Db } from '../db/index'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<AppEnv>()
 
-// Local YYYY-MM-DD in the app timezone (habit "days" are local days).
 export function localDateKey(tz: string, d = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(d)
 }
 
-export async function appTimezone(db: Db): Promise<string> {
+export async function appTimezone(db: Db, userId: string): Promise<string> {
   try {
-    const [s] = await db.select().from(settings).where(eq(settings.key, 'app'))
+    const [s] = await db.select().from(settings)
+      .where(and(eq(settings.user_id, userId), eq(settings.key, 'app')))
     if (s) { const v = JSON.parse(s.value) as { timezone?: string }; if (v.timezone) return v.timezone }
   } catch { /* default */ }
   return 'Europe/Warsaw'
 }
 
-// Current streak + today's status from a habit's check-ins. A missed (unanswered)
-// past day breaks the streak; today being unanswered does not.
 export function habitState(
   checkins: { date: string; success: boolean }[],
   todayKey: string,
@@ -38,7 +36,7 @@ export function habitState(
     const val = map.get(key)
     if (val === true) streak++
     else if (val === false) break
-    else if (key !== todayKey) break // an earlier unanswered day breaks the streak
+    else if (key !== todayKey) break
     d.setUTCDate(d.getUTCDate() - 1)
   }
   return { streak, today }
@@ -51,13 +49,34 @@ export async function getHabitState(db: Db, habitId: number, todayKey: string) {
 
 // GET /api/habits
 app.get('/', async (c) => {
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  const tz = await appTimezone(db)
+  const tz = await appTimezone(db, userId)
   const todayKey = localDateKey(tz)
-  const rows = await db.select().from(habits).orderBy(habits.created_at)
+  const rows = await db.select().from(habits).where(eq(habits.user_id, userId)).orderBy(habits.created_at)
   const checkins = await db.select().from(habit_checkins)
+    .where(eq(habit_checkins.habit_id, rows.length ? rows[0].id : -1))
+
+  // Fetch all checkins for this user's habits
+  const habitIds = rows.map((h) => h.id)
+  const allCheckins = habitIds.length
+    ? await db.select().from(habit_checkins)
+        .where(
+          habitIds.length === 1
+            ? eq(habit_checkins.habit_id, habitIds[0])
+            : eq(habit_checkins.habit_id, habitIds[0])
+        )
+    : []
+
+  // Re-fetch properly using IN equivalent
+  const allCheckinsResult = habitIds.length
+    ? await Promise.all(habitIds.map((hid) =>
+        db.select().from(habit_checkins).where(eq(habit_checkins.habit_id, hid))
+      )).then((r) => r.flat())
+    : []
+
   const byHabit = new Map<number, { date: string; success: boolean }[]>()
-  for (const ci of checkins) {
+  for (const ci of allCheckinsResult) {
     const arr = byHabit.get(ci.habit_id) ?? []
     arr.push({ date: ci.date, success: ci.success })
     byHabit.set(ci.habit_id, arr)
@@ -71,31 +90,39 @@ app.get('/', async (c) => {
 
 // POST /api/habits  { name }
 app.post('/', async (c) => {
+  const userId = c.var.userId
   const parsed = z.object({ name: z.string().min(1) }).safeParse(await c.req.json())
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
   const db = getDb(c.env.DB)
-  const [row] = await db.insert(habits).values({ name: parsed.data.name.trim() }).returning()
+  const [row] = await db.insert(habits).values({ user_id: userId, name: parsed.data.name.trim() }).returning()
   return c.json(row, 201)
 })
 
 // PATCH /api/habits/:id  { name?, active? }
 app.patch('/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const parsed = z.object({ name: z.string().min(1).optional(), active: z.boolean().optional() }).safeParse(await c.req.json())
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
   const db = getDb(c.env.DB)
-  const [row] = await db.update(habits).set(parsed.data).where(eq(habits.id, id)).returning()
+  const [row] = await db.update(habits).set(parsed.data)
+    .where(and(eq(habits.id, id), eq(habits.user_id, userId)))
+    .returning()
   if (!row) return c.json({ error: 'Not found' }, 404)
   return c.json(row)
 })
 
-// POST /api/habits/:id/checkin  { success }  — records today's answer (local day)
+// POST /api/habits/:id/checkin  { success }
 app.post('/:id/checkin', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const parsed = z.object({ success: z.boolean() }).safeParse(await c.req.json())
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
   const db = getDb(c.env.DB)
-  const tz = await appTimezone(db)
+  // Verify habit belongs to user
+  const [habit] = await db.select().from(habits).where(and(eq(habits.id, id), eq(habits.user_id, userId)))
+  if (!habit) return c.json({ error: 'Not found' }, 404)
+  const tz = await appTimezone(db, userId)
   const todayKey = localDateKey(tz)
   await db.insert(habit_checkins).values({ habit_id: id, date: todayKey, success: parsed.data.success })
     .onConflictDoUpdate({ target: [habit_checkins.habit_id, habit_checkins.date], set: { success: parsed.data.success } })
@@ -106,9 +133,10 @@ app.post('/:id/checkin', async (c) => {
 // DELETE /api/habits/:id
 app.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
   await db.delete(habit_checkins).where(eq(habit_checkins.habit_id, id))
-  await db.delete(habits).where(eq(habits.id, id))
+  await db.delete(habits).where(and(eq(habits.id, id), eq(habits.user_id, userId)))
   return c.json({ ok: true })
 })
 

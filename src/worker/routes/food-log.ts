@@ -1,27 +1,30 @@
 import { Hono } from 'hono'
-import { eq, sql } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, food_log, recipes } from '../db/index'
-import type { Env } from '../types'
+import type { AppEnv, Env } from '../types'
 import type { Macros } from '../../shared/types'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<AppEnv>()
 
 // GET /api/food-log?date=YYYY-MM-DD
 app.get('/', async (c) => {
+  const userId = c.var.userId
   const date = c.req.query('date') ?? todayDate()
   const db = getDb(c.env.DB)
   const rows = await db.select().from(food_log)
-    .where(eq(food_log.date, date))
+    .where(and(eq(food_log.user_id, userId), eq(food_log.date, date)))
     .orderBy(food_log.logged_at)
   return c.json({ items: rows, total: rows.length })
 })
 
 // GET /api/food-log/summary?date=YYYY-MM-DD
 app.get('/summary', async (c) => {
+  const userId = c.var.userId
   const date = c.req.query('date') ?? todayDate()
   const db = getDb(c.env.DB)
-  const rows = await db.select().from(food_log).where(eq(food_log.date, date))
+  const rows = await db.select().from(food_log)
+    .where(and(eq(food_log.user_id, userId), eq(food_log.date, date)))
   const summary = {
     date,
     kcal: sum(rows, 'kcal'),
@@ -34,10 +37,8 @@ app.get('/summary', async (c) => {
 })
 
 // POST /api/food-log/estimate
-// Estimate macros for a free-text food description via Anthropic, then log it.
-// Falls back to a 422 (needs_manual) if no API key is configured or the model
-// can't produce a usable estimate — the client then offers manual entry.
 app.post('/estimate', async (c) => {
+  const userId = c.var.userId
   const parsed = z.object({
     description: z.string().min(1),
     date: z.string().optional(),
@@ -57,6 +58,7 @@ app.post('/estimate', async (c) => {
 
   const db = getDb(c.env.DB)
   const [row] = await db.insert(food_log).values({
+    user_id: userId,
     date: date ?? todayDate(),
     description,
     recipe_id: null,
@@ -105,6 +107,7 @@ async function estimateFoodMacros(env: Env, description: string) {
 
 // POST /api/food-log
 app.post('/', async (c) => {
+  const userId = c.var.userId
   const body = await c.req.json()
   const parsed = z.object({
     date: z.string().optional(),
@@ -127,9 +130,9 @@ app.post('/', async (c) => {
   let fat_g = d.fat_g ?? null
   let description = d.description ?? null
 
-  // Auto-fill macros from recipe if provided
   if (d.recipe_id && !d.kcal) {
-    const [recipe] = await db.select().from(recipes).where(eq(recipes.id, d.recipe_id))
+    const [recipe] = await db.select().from(recipes)
+      .where(and(eq(recipes.id, d.recipe_id), eq(recipes.user_id, userId)))
     if (recipe?.macros) {
       const m = JSON.parse(recipe.macros) as Macros
       const mult = d.servings ?? 1
@@ -142,6 +145,7 @@ app.post('/', async (c) => {
   }
 
   const [row] = await db.insert(food_log).values({
+    user_id: userId,
     date: d.date ?? todayDate(),
     description,
     recipe_id: d.recipe_id ?? null,
@@ -158,8 +162,9 @@ app.post('/', async (c) => {
 // DELETE /api/food-log/:id
 app.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  await db.delete(food_log).where(eq(food_log.id, id))
+  await db.delete(food_log).where(and(eq(food_log.id, id), eq(food_log.user_id, userId)))
   return c.json({ ok: true })
 })
 

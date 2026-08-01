@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
 import { eq, and } from 'drizzle-orm'
-import { getDb, shopping_lists, shopping_items, products as productsTable } from '../db/index'
-import type { Env } from '../types'
+import { getDb, shopping_lists, shopping_items, products as productsTable, settings } from '../db/index'
+import type { AppEnv, Env } from '../types'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<AppEnv>()
 
 const FRISCO = 'https://www.frisco.pl'
 const TOKEN_URL = `${FRISCO}/app/commerce/connect/token`
@@ -21,21 +21,24 @@ type FriscoProduct = {
 type FriscoSearchItem = { productId: string; product?: FriscoProduct }
 type FriscoCartItem = { productId: string; quantity?: number; product?: FriscoProduct }
 type Session = { token: string; uid: string; warehouse: string; visitorId: string }
+type FriscoUserConfig = {
+  refresh_token?: string
+  username?: string
+  password?: string
+  warehouse?: string
+  user_id?: string
+  sid?: string
+}
 
 const isAvailable = (p?: FriscoProduct): boolean =>
   !!p && !!p.isAvailable && !!p.isStocked && (p.stock == null || p.stock > 0)
 
-// --- Never-buy rules ------------------------------------------------------
-// Bread/bakery is bought elsewhere, never on Frisco (matched on the list item
-// name; "bułka tarta"/breadcrumbs is a pantry item and is kept).
 function isBreadName(name: string): boolean {
   const n = name.toLowerCase()
   if (/tart/.test(n)) return false
   return /(chleb|pieczyw|bagietk|ciabatt|tost|cha[łl]k|kajzerk|rogal|bu[łl]k)/.test(n)
 }
 
-// Ready-made / prepared products (ready meals, deli, stuffed & fresh pasta,
-// prepared salads) — matched by Frisco category or an explicit pid blocklist.
 const BLOCKED_CATEGORY_RE = /dania gotowe|garma[żz]|nadziewan/i
 const BLOCKED_PIDS = new Set<string>(['149408', '149464'])
 function isBlockedPick(item: FriscoSearchItem): boolean {
@@ -44,8 +47,6 @@ function isBlockedPick(item: FriscoSearchItem): boolean {
 }
 const pickAllowed = (item: FriscoSearchItem): boolean => isAvailable(item.product) && !isBlockedPick(item)
 
-// Normalize a shopping-list line into a search query: drop parentheticals and
-// everything after "lub / albo / oraz / slash", collapse whitespace.
 function toQuery(raw: string): string {
   let s = raw.split('(')[0]
   const low = s.toLowerCase()
@@ -56,7 +57,6 @@ function toQuery(raw: string): string {
   return s.split(' ').filter(Boolean).join(' ').trim()
 }
 
-// Read the `sub` (user id) claim from a JWT without verifying it.
 function jwtSub(token: string): string | null {
   try {
     const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
@@ -86,31 +86,56 @@ async function tokenGrant(body: Record<string, string>): Promise<{ access_token?
   return res.json()
 }
 
-// Resolve a Frisco access token. Prefer the refresh token; fall back to the
-// password grant only when username+password secrets are set. The literal
-// password is only ever a Worker secret read at runtime.
-async function resolveSession(env: Env): Promise<Session> {
-  const warehouse = env.FRISCO_WAREHOUSE || 'GDA'
-  const visitorId = env.FRISCO_SID || ''
+// Load per-user Frisco config from the settings table, merged with env var fallbacks.
+async function loadFriscoConfig(db: ReturnType<typeof getDb>, userId: string, env: Env): Promise<FriscoUserConfig> {
+  try {
+    const [row] = await db.select().from(settings)
+      .where(and(eq(settings.user_id, userId), eq(settings.key, 'frisco')))
+    if (row) {
+      const userCfg = JSON.parse(row.value) as FriscoUserConfig
+      // User settings take priority; fall back to env vars where unset
+      return {
+        refresh_token: userCfg.refresh_token || env.FRISCO_REFRESH_TOKEN,
+        username: userCfg.username || env.FRISCO_USERNAME,
+        password: userCfg.password || env.FRISCO_PASSWORD,
+        warehouse: userCfg.warehouse || env.FRISCO_WAREHOUSE,
+        user_id: userCfg.user_id || env.FRISCO_USER_ID,
+        sid: userCfg.sid || env.FRISCO_SID,
+      }
+    }
+  } catch { /* fall through to env vars */ }
+  return {
+    refresh_token: env.FRISCO_REFRESH_TOKEN,
+    username: env.FRISCO_USERNAME,
+    password: env.FRISCO_PASSWORD,
+    warehouse: env.FRISCO_WAREHOUSE,
+    user_id: env.FRISCO_USER_ID,
+    sid: env.FRISCO_SID,
+  }
+}
 
-  if (env.FRISCO_REFRESH_TOKEN) {
-    const t = await tokenGrant({ grant_type: 'refresh_token', refresh_token: env.FRISCO_REFRESH_TOKEN })
+async function resolveSession(cfg: FriscoUserConfig): Promise<Session> {
+  const warehouse = cfg.warehouse || 'GDA'
+  const visitorId = cfg.sid || ''
+
+  if (cfg.refresh_token) {
+    const t = await tokenGrant({ grant_type: 'refresh_token', refresh_token: cfg.refresh_token })
     const token = t.access_token
     if (!token) throw new Error('Refresh grant returned no access_token.')
-    const uid = jwtSub(token) || env.FRISCO_USER_ID || ''
+    const uid = jwtSub(token) || cfg.user_id || ''
     if (!uid) throw new Error('Could not determine user id from token; set FRISCO_USER_ID.')
     return { token, uid, warehouse, visitorId }
   }
 
-  if (env.FRISCO_USERNAME && env.FRISCO_PASSWORD) {
+  if (cfg.username && cfg.password) {
     const t = await tokenGrant({
       grant_type: 'password',
-      username: env.FRISCO_USERNAME,
-      password: env.FRISCO_PASSWORD,
+      username: cfg.username,
+      password: cfg.password,
     })
     const token = t.access_token
     if (!token) throw new Error('Password grant returned no access_token.')
-    const uid = jwtSub(token) || env.FRISCO_USER_ID || ''
+    const uid = jwtSub(token) || cfg.user_id || ''
     if (!uid) throw new Error('Could not determine user id from token; set FRISCO_USER_ID.')
     return { token, uid, warehouse, visitorId }
   }
@@ -148,15 +173,12 @@ function cartApi(session: Session) {
   }
 }
 
-// Cap the number of Frisco searches per invocation so we stay under the Workers
-// subrequest limit (50 on the Free plan). PUT is an upsert, so chunks add up.
 const CHUNK = 35
 
-// Remove one product from the Frisco cart (best-effort). Returns true if the
-// product is no longer in the cart afterwards. Used by the shopping list's
-// "mam w domu" action. Throws only on auth failure.
-export async function removeProductFromCart(env: Env, productId: string): Promise<boolean> {
-  const session = await resolveSession(env)
+// Remove one product from the Frisco cart (best-effort). Called by shopping routes.
+export async function removeProductFromCart(env: Env, db: ReturnType<typeof getDb>, userId: string, productId: string): Promise<boolean> {
+  const cfg = await loadFriscoConfig(db, userId, env)
+  const session = await resolveSession(cfg)
   const api = cartApi(session)
   await api.put([{ productId, quantity: 0 }])
   let cart = (await (await api.get()).json()) as { products?: FriscoCartItem[] }
@@ -171,15 +193,9 @@ export async function removeProductFromCart(env: Env, productId: string): Promis
   return !(cart.products || []).some((p) => p.productId === productId)
 }
 
-// POST /api/frisco/order  { listId, offset? }
-// Adds one chunk of the list's (unchecked) items to the Frisco cart, marking
-// each row's `in_frisco` / `frisco_product_id` so the shopping list can show
-// what actually made it into the cart. The client calls this repeatedly
-// (following `nextOffset`) until `done`, so a large list stays under the
-// per-invocation subrequest cap. On the first chunk (offset 0) the cart and all
-// Frisco flags are reset; on the last chunk we re-read the cart, drop
-// slot-unavailable items, and clear their rows' flags.
+// POST /api/frisco/order
 app.post('/order', async (c) => {
+  const userId = c.var.userId
   let listId: number
   let offset: number
   try {
@@ -193,36 +209,32 @@ app.post('/order', async (c) => {
   if (!Number.isFinite(offset) || offset < 0) offset = 0
 
   const db = getDb(c.env.DB)
-  const [list] = await db.select().from(shopping_lists).where(eq(shopping_lists.id, listId))
+  const [list] = await db.select().from(shopping_lists)
+    .where(and(eq(shopping_lists.id, listId), eq(shopping_lists.user_id, userId)))
   if (!list) return c.json({ error: 'list_not_found' }, 404)
   const allRows = await db.select().from(shopping_items).where(eq(shopping_items.list_id, listId))
-  // Only order items not already marked as bought; stable order for chunking.
   const rows = allRows.filter((r) => !r.checked).sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
   if (rows.length === 0) return c.json({ error: 'list_empty' }, 400)
 
   let session: Session
   try {
-    session = await resolveSession(c.env)
+    const cfg = await loadFriscoConfig(db, userId, c.env)
+    session = await resolveSession(cfg)
   } catch (e) {
     return c.json({ error: 'frisco_auth_failed', detail: (e as Error).message }, 502)
   }
   const api = cartApi(session)
 
-  // First chunk clears the cart (PUT is a per-product upsert, not a replace) and
-  // resets the Frisco flags on every unchecked row of this list.
   if (offset === 0) {
     const del = await api.clear()
     if (!del.ok && del.status !== 204) return c.json({ error: 'frisco_clear_failed', status: del.status }, 502)
     await db.update(shopping_items).set({ in_frisco: false, frisco_product_id: null }).where(eq(shopping_items.list_id, listId))
   }
 
-  // Known Frisco pids from the product repository — resolve by exact name so we
-  // don't search the API for products we already know.
-  const repoRows = await db.select().from(productsTable)
+  const repoRows = await db.select().from(productsTable).where(eq(productsTable.user_id, userId))
   const repoPid = new Map<string, string>()
   for (const p of repoRows) { if (p.frisco_product_id) repoPid.set(p.name.trim().toLowerCase(), p.frisco_product_id) }
 
-  // Search this slice, pick available matches, upsert them, and flag each row.
   const slice = rows.slice(offset, offset + CHUNK)
   const added: { item: string; product?: string }[] = []
   const notFound: string[] = []
@@ -232,7 +244,6 @@ app.post('/order', async (c) => {
   const queryCache = new Map<string, { productId: string; name?: string } | null>()
 
   for (const row of slice) {
-    // Never-buy: bread/bakery — leave it on the list, out of the cart.
     if (isBreadName(row.name)) {
       skipped.push(row.name)
       await db.update(shopping_items).set({ in_frisco: false, frisco_product_id: null }).where(eq(shopping_items.id, row.id))
@@ -274,8 +285,6 @@ app.post('/order', async (c) => {
   const nextOffset = offset + CHUNK
   const done = nextOffset >= rows.length
 
-  // Last chunk: cart re-validates against the delivery slot — drop what it flags
-  // and clear the Frisco flag on the affected rows.
   let inCart: number | undefined
   const removedUnavailable: string[] = []
   if (done) {
@@ -311,11 +320,9 @@ app.post('/order', async (c) => {
   })
 })
 
-// POST /api/frisco/item  { itemId, inCart }
-// Toggle a single shopping-list item in the Frisco cart: inCart=false removes
-// the matched product from the cart, inCart=true adds it back (searching by
-// name if we don't have a productId yet). Keeps the row's in_frisco flag in sync.
+// POST /api/frisco/item
 app.post('/item', async (c) => {
+  const userId = c.var.userId
   let itemId: number
   let inCart: boolean
   try {
@@ -330,24 +337,26 @@ app.post('/item', async (c) => {
   const db = getDb(c.env.DB)
   const [item] = await db.select().from(shopping_items).where(eq(shopping_items.id, itemId))
   if (!item) return c.json({ error: 'item_not_found' }, 404)
+  // Verify the item's list belongs to the user
+  const [ownedList] = await db.select({ id: shopping_lists.id }).from(shopping_lists)
+    .where(and(eq(shopping_lists.id, item.list_id), eq(shopping_lists.user_id, userId)))
+  if (!ownedList) return c.json({ error: 'item_not_found' }, 404)
 
   let session: Session
   try {
-    session = await resolveSession(c.env)
+    const cfg = await loadFriscoConfig(db, userId, c.env)
+    session = await resolveSession(cfg)
   } catch (e) {
     return c.json({ error: 'frisco_auth_failed', detail: (e as Error).message }, 502)
   }
   const api = cartApi(session)
 
   if (!inCart) {
-    // Remove from cart.
     const pid = item.frisco_product_id
     if (!pid) {
       await db.update(shopping_items).set({ in_frisco: false }).where(eq(shopping_items.id, itemId))
       return c.json({ inCart: false, removed: false })
     }
-    // Setting quantity 0 is how the Frisco UI drops a line; verify and, if it
-    // lingers, fall back to a clear + re-put of everything else.
     await api.put([{ productId: pid, quantity: 0 }])
     let cart = (await (await api.get()).json()) as { products?: FriscoCartItem[] }
     if ((cart.products || []).some((p) => p.productId === pid)) {
@@ -363,7 +372,6 @@ app.post('/item', async (c) => {
     return c.json({ inCart: false, removed: !stillPresent, productId: pid, cartCount: (cart.products || []).length })
   }
 
-  // Add to cart — respect the never-buy rule for bread/bakery.
   if (isBreadName(item.name)) {
     await db.update(shopping_items).set({ in_frisco: false }).where(eq(shopping_items.id, itemId))
     return c.json({ inCart: false, blocked: true })
@@ -371,8 +379,8 @@ app.post('/item', async (c) => {
   let pid = item.frisco_product_id
   let name: string | undefined
   if (!pid) {
-    // Reuse a stored pid from the product repository (exact name match).
-    const [repoProduct] = await db.select().from(productsTable).where(eq(productsTable.name, item.name))
+    const [repoProduct] = await db.select().from(productsTable)
+      .where(and(eq(productsTable.name, item.name), eq(productsTable.user_id, userId)))
     if (repoProduct?.frisco_product_id) pid = repoProduct.frisco_product_id
   }
   if (!pid) {
