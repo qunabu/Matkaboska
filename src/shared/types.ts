@@ -218,6 +218,19 @@ export interface Idea {
   created_at: number
 }
 
+export interface Chore {
+  id: number
+  name: string
+  interval_days: number | null   // recur every N days
+  weekdays: number[] | null      // or on these weekdays (0=Sun..6=Sat)
+  time: string                   // HH:MM
+  nag_minutes: number
+  active: boolean
+  last_done_at: number | null
+  due: boolean                   // currently due & not done (computed)
+  done_today: boolean            // computed
+}
+
 export interface Habit {
   id: number
   name: string

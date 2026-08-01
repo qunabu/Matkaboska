@@ -32,6 +32,7 @@ const IdeasPage = lazy(() => import('./pages/IdeasPage'))
 const NotesPage = lazy(() => import('./pages/NotesPage'))
 const PantryPage = lazy(() => import('./pages/PantryPage'))
 const HabitsPage = lazy(() => import('./pages/HabitsPage'))
+const ChoresPage = lazy(() => import('./pages/ChoresPage'))
 const HelpPage = lazy(() => import('./pages/HelpPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
@@ -54,6 +55,7 @@ const ALL_NAV_ITEMS = [
   { to: '/tracking',    label: pl.nav.tracking,    icon: '📊',  moduleKey: 'tracking' },
   { to: '/supplements', label: pl.nav.supplements, icon: '💊',  moduleKey: 'supplements' },
   { to: '/reminders',   label: pl.nav.reminders,   icon: '🔔',  moduleKey: 'supplements' },
+  { to: '/chores',      label: pl.nav.chores,      icon: '🧹',  moduleKey: null },
   { to: '/todos',       label: pl.nav.todos,       icon: '✅',  moduleKey: null },
   { to: '/ideas',       label: pl.nav.ideas,       icon: '💡',  moduleKey: null },
   { to: '/habits',      label: pl.nav.habits,      icon: '🔁',  moduleKey: null },
@@ -264,6 +266,7 @@ function AppShell() {
               <Route path="/notes" element={<NotesPage />} />
               <Route path="/pantry" element={<PantryPage />} />
               <Route path="/habits" element={<HabitsPage />} />
+              <Route path="/chores" element={<ChoresPage />} />
               <Route path="/help" element={<HelpPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>

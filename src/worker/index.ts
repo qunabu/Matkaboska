@@ -19,7 +19,8 @@ import { ideasRouter } from './routes/ideas'
 import { voiceNotesRouter } from './routes/voice-notes'
 import { pantryRouter } from './routes/pantry'
 import { habitsRouter, getHabitState } from './routes/habits'
-import { habits } from './db/index'
+import { choresRouter, choreDue } from './routes/chores'
+import { habits, chores } from './db/index'
 import { getDb, reminders, push_subscriptions, settings, supplements, supplement_log } from './db/index'
 import { eq, and } from 'drizzle-orm'
 
@@ -70,6 +71,7 @@ api.route('/api/ideas', ideasRouter)
 api.route('/api/voice-notes', voiceNotesRouter)
 api.route('/api/pantry', pantryRouter)
 api.route('/api/habits', habitsRouter)
+api.route('/api/chores', choresRouter)
 
 type AssetsBinding = { fetch: (r: Request) => Promise<Response> }
 
@@ -244,6 +246,26 @@ export default {
         }))
       )
       await db.update(habits).set({ prompted: true }).where(eq(habits.id, h.id))
+    }
+
+    // Chores: recurring tasks (every N days / on weekdays) that nag every
+    // nag_minutes from their time until marked done.
+    const choreCtx = { tz, todayKey, dow, nowMin }
+    const allChores = await db.select().from(chores)
+    for (const ch of allChores) {
+      if (!ch.active) continue
+      const { due } = choreDue(ch, choreCtx)
+      if (!due) continue
+      if (ch.last_notified_at && (nowUnix - ch.last_notified_at) / 60 < ch.nag_minutes) continue
+      await Promise.allSettled(
+        subs.map((sub) => sendPushNotification(env, sub.endpoint, sub.p256dh, sub.auth, {
+          title: ch.name,
+          body: 'Czas na to zadanie ✅ — kliknij „Zrobione", gdy skończysz',
+          url: '/chores',
+          tag: `chore-${ch.id}`,
+        }))
+      )
+      await db.update(chores).set({ last_notified_at: nowUnix }).where(eq(chores.id, ch.id))
     }
   },
 } satisfies ExportedHandler<Env>

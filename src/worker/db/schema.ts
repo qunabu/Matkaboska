@@ -143,6 +143,19 @@ export const ideas = sqliteTable('ideas', {
   created_at: integer('created_at').notNull().default(unixNow),
 })
 
+export const chores = sqliteTable('chores', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  interval_days: integer('interval_days'),                    // recur every N days (null → use weekdays)
+  weekdays: text('weekdays'),                                 // JSON array of 0..6 (null → use interval)
+  time: text('time').notNull().default('20:00'),              // HH:MM when it becomes due
+  nag_minutes: integer('nag_minutes').notNull().default(60),  // re-notify every N min until done
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  last_done_at: integer('last_done_at'),                      // unix; resets the cycle
+  last_notified_at: integer('last_notified_at'),              // unix; throttles the nag
+  created_at: integer('created_at').notNull().default(unixNow),
+})
+
 export const habits = sqliteTable('habits', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),

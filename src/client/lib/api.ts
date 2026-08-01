@@ -1,7 +1,7 @@
 import type {
   Recipe, RecipeWithNotes, MealPlanEntry, MealPlanEntryFull, FoodLogEntry, DailySummary,
   WaterLog, SupplementWithStatus, SupplementLog, ShoppingList, ShoppingItem,
-  Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote, PantryItem, Habit,
+  Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote, PantryItem, Habit, Chore,
 } from '../../shared/types'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -202,6 +202,19 @@ export const habitsApi = {
   update: (id: number, data: { name?: string; active?: boolean }) =>
     req<{ id: number }>(`/habits/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (id: number) => req<ApiOk>(`/habits/${id}`, { method: 'DELETE' }),
+}
+
+// ── Chores (recurring tasks) ────────────────────────────────────────────────
+
+type ChoreInput = { name?: string; interval_days?: number | null; weekdays?: number[] | null; time?: string; nag_minutes?: number; active?: boolean }
+
+export const choresApi = {
+  list: () => req<ApiList<Chore>>('/chores'),
+  create: (data: ChoreInput) => req<Chore>('/chores', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number, data: ChoreInput) => req<Chore>(`/chores/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  done: (id: number) => req<Chore>(`/chores/${id}/done`, { method: 'POST' }),
+  remindNow: (id: number) => req<{ sent: number; total: number; errors: string[] }>(`/chores/${id}/remind-now`, { method: 'POST' }),
+  delete: (id: number) => req<ApiOk>(`/chores/${id}`, { method: 'DELETE' }),
 }
 
 // ── Pantry ────────────────────────────────────────────────────────────────────
