@@ -34,6 +34,7 @@ const HabitsPage = lazy(() => import('./pages/HabitsPage'))
 const ChoresPage = lazy(() => import('./pages/ChoresPage'))
 const HelpPage = lazy(() => import('./pages/HelpPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const SharedListPage = lazy(() => import('./pages/SharedListPage'))
 
 function PageFallback() {
   return (
@@ -268,6 +269,7 @@ function AppShell() {
               <Route path="/chores" element={<ChoresPage />} />
               <Route path="/help" element={<HelpPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/s/:token" element={<SharedListPage />} />
             </Routes>
           </Suspense>
         </main>
