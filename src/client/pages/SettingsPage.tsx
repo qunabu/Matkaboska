@@ -59,6 +59,71 @@ function ProductsRepo() {
   )
 }
 
+function IntegrationsSection() {
+  const qc = useQueryClient()
+  const { data } = useQuery({ queryKey: ['integrations'], queryFn: () => settingsApi.integrations() })
+  const [username, setUsername] = useState('')
+  const [warehouse, setWarehouse] = useState('')
+  const [password, setPassword] = useState('')
+  const [anthropicKey, setAnthropicKey] = useState('')
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (data) {
+      setUsername(data.frisco.username || '')
+      setWarehouse(data.frisco.warehouse || '')
+    }
+  }, [data])
+
+  const save = useMutation({
+    mutationFn: () => settingsApi.updateIntegrations({
+      frisco: { username, warehouse, ...(password ? { password } : {}) },
+      ...(anthropicKey ? { anthropic_api_key: anthropicKey } : {}),
+    }),
+    onSuccess: () => {
+      setPassword(''); setAnthropicKey('')
+      qc.invalidateQueries({ queryKey: ['integrations'] })
+      setSaved(true); setTimeout(() => setSaved(false), 2000)
+    },
+  })
+
+  const field = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'
+  const passPlaceholder = data?.frisco.hasPassword ? pl.settings.secretPlaceholder : pl.settings.secretEmpty
+  const keyPlaceholder = data?.anthropic.hasKey ? pl.settings.secretPlaceholder : pl.settings.secretEmpty
+
+  return (
+    <section>
+      <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{pl.settings.integrations}</h2>
+      <p className="mb-3 text-xs text-gray-400">{pl.settings.integrationsHint}</p>
+      <div className="space-y-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">{pl.settings.friscoLogin}</label>
+          <input className={field} type="email" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">{pl.settings.friscoPassword}</label>
+          <input className={field} type="password" autoComplete="new-password" placeholder={passPlaceholder} value={password} onChange={(e) => setPassword(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">{pl.settings.friscoWarehouse}</label>
+          <input className={field} type="text" autoComplete="off" value={warehouse} onChange={(e) => setWarehouse(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">{pl.settings.anthropicKey}</label>
+          <input className={field} type="password" autoComplete="off" placeholder={keyPlaceholder} value={anthropicKey} onChange={(e) => setAnthropicKey(e.target.value)} />
+        </div>
+        <button
+          onClick={() => save.mutate()}
+          disabled={save.isPending}
+          className={`w-full rounded-xl py-3 text-sm font-semibold text-white transition-colors ${saved ? 'bg-green-500' : 'bg-primary-600 hover:bg-primary-700'} disabled:opacity-50`}
+        >
+          {saved ? `✓ ${pl.settings.saved}` : pl.common.save}
+        </button>
+      </div>
+    </section>
+  )
+}
+
 declare const __APP_VERSION__: string
 
 export default function SettingsPage() {
@@ -274,6 +339,9 @@ export default function SettingsPage() {
             )}
           </div>
         </section>
+
+        {/* Per-user integrations (Frisco creds, Anthropic key) */}
+        <IntegrationsSection />
 
         {/* Products repository */}
         <ProductsRepo />

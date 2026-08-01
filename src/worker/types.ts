@@ -14,7 +14,13 @@ export type Env = {
   VAPID_SUBJECT: string
   ACCESS_AUD: string
   ACCESS_TEAM_DOMAIN: string
-  // Used in local dev when CF Access is not configured
+  // Google OAuth (self-hosted, like the garaz app — no Cloudflare Access).
+  GOOGLE_CLIENT_ID?: string
+  GOOGLE_CLIENT_SECRET?: string
+  GOOGLE_HD?: string                    // Workspace domain hint for the account picker
+  ALLOWED_GOOGLE_DOMAINS?: string       // comma list; empty = any domain allowed
+  ALLOWED_GOOGLE_EMAILS?: string        // comma list of exact emails; empty = not restricted
+  // Used in local dev when Google OAuth is not configured
   DEV_USER_EMAIL?: string
   // Frisco integration (all optional; set as Worker secrets, never committed).
   FRISCO_REFRESH_TOKEN?: string

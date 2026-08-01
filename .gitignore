@@ -10,3 +10,4 @@ dist/
 # Generated
 .DS_Store
 *.log
+backups/

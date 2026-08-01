@@ -171,6 +171,12 @@ export const ideas = sqliteTable('ideas', {
   ideas_user_idx: index('ideas_user_idx').on(t.user_id),
 }))
 
+export const sessions = sqliteTable('sessions', {
+  token: text('token').primaryKey(),
+  user_id: text('user_id').notNull(),                         // email
+  expires_at: integer('expires_at').notNull(),
+})
+
 export const chores = sqliteTable('chores', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   user_id: text('user_id').notNull().default(''),

@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { getDb, food_log, recipes } from '../db/index'
 import type { AppEnv, Env } from '../types'
 import type { Macros } from '../../shared/types'
+import { resolveAnthropicKey } from './settings'
 
 const app = new Hono<AppEnv>()
 
@@ -47,11 +48,12 @@ app.post('/estimate', async (c) => {
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
   const { description, date, portion } = parsed.data
 
-  if (!c.env.ANTHROPIC_API_KEY) {
+  const apiKey = await resolveAnthropicKey(c.env, userId)
+  if (!apiKey) {
     return c.json({ error: 'needs_manual', message: 'Brak klucza API — wpisz makroskładniki ręcznie.' }, 422)
   }
 
-  const macros = await estimateFoodMacros(c.env, description)
+  const macros = await estimateFoodMacros(c.env, apiKey, description)
   if (!macros) {
     return c.json({ error: 'needs_manual', message: 'Nie udało się oszacować — wpisz makroskładniki ręcznie.' }, 422)
   }
@@ -72,13 +74,13 @@ app.post('/estimate', async (c) => {
   return c.json(row, 201)
 })
 
-async function estimateFoodMacros(env: Env, description: string) {
+async function estimateFoodMacros(env: Env, apiKey: string, description: string) {
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,
+        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({

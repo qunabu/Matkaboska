@@ -5,6 +5,7 @@ import { getDb, recipes, recipe_notes } from '../db/index'
 import type { AppEnv } from '../types'
 import type { Env } from '../types'
 import type { Recipe, RecipeWithNotes, Ingredient, Macros } from '../../shared/types'
+import { resolveAnthropicKey } from './settings'
 
 const app = new Hono<AppEnv>()
 
@@ -128,8 +129,9 @@ app.post('/import', async (c) => {
       macros_assumptions: r.macros_assumptions ?? null,
     }).returning()
 
-    if (!r.macros && c.env.ANTHROPIC_API_KEY) {
-      c.executionCtx.waitUntil(estimateMacros(c.env, row.id, r.title, r.servings, r.ingredients))
+    if (!r.macros) {
+      const apiKey = await resolveAnthropicKey(c.env, userId)
+      if (apiKey) c.executionCtx.waitUntil(estimateMacros(c.env, apiKey, row.id, r.title, r.servings, r.ingredients))
     }
 
     created.push(parseRecipe(row))
@@ -166,8 +168,9 @@ app.post('/', async (c) => {
     macros_assumptions: d.macros_assumptions ?? null,
   }).returning()
 
-  if (!d.macros && c.env.ANTHROPIC_API_KEY) {
-    c.executionCtx.waitUntil(estimateMacros(c.env, row.id, d.title, d.servings, d.ingredients))
+  if (!d.macros) {
+    const apiKey = await resolveAnthropicKey(c.env, userId)
+    if (apiKey) c.executionCtx.waitUntil(estimateMacros(c.env, apiKey, row.id, d.title, d.servings, d.ingredients))
   }
 
   return c.json(parseRecipe(row), 201)
@@ -250,15 +253,17 @@ app.post('/:id/recalc-macros', async (c) => {
     .where(and(eq(recipes.id, id), eq(recipes.user_id, userId)))
   if (!recipe) return c.json({ error: 'Not found' }, 404)
 
+  const apiKey = await resolveAnthropicKey(c.env, userId)
+  if (!apiKey) return c.json({ error: 'needs_manual', message: 'Brak klucza API — dodaj go w Ustawieniach.' }, 422)
   const ingredients = JSON.parse(recipe.ingredients) as Ingredient[]
-  await estimateMacros(c.env, id, recipe.title, recipe.servings, ingredients)
+  await estimateMacros(c.env, apiKey, id, recipe.title, recipe.servings, ingredients)
 
   const [updated] = await db.select().from(recipes)
     .where(and(eq(recipes.id, id), eq(recipes.user_id, userId)))
   return c.json(parseRecipe(updated))
 })
 
-async function estimateMacros(env: Env, recipeId: number, title: string, servings: number, ingredients: Ingredient[]) {
+async function estimateMacros(env: Env, apiKey: string, recipeId: number, title: string, servings: number, ingredients: Ingredient[]) {
   try {
     const ingredientText = ingredients
       .map(i => `${i.amount} ${i.unit} ${i.name}`.trim())
@@ -268,7 +273,7 @@ async function estimateMacros(env: Env, recipeId: number, title: string, serving
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,
+        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({

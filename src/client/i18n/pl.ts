@@ -35,6 +35,8 @@ const pl = {
     save: 'Ustaw PIN',
     wrongPin: 'Nieprawidłowy PIN',
     logout: 'Wyloguj',
+    google: 'Zaloguj przez Google',
+    googleHint: 'Zaloguj się kontem Google, aby uzyskać dostęp do swoich danych.',
   },
 
   update: {
@@ -100,6 +102,15 @@ const pl = {
       tracking: 'Dziennik',
       supplements: 'Suplementy',
     },
+    integrations: 'Integracje',
+    integrationsHint: 'Dane logowania są zapisywane tylko dla Twojego konta.',
+    friscoLogin: 'Frisco — login (e-mail)',
+    friscoPassword: 'Frisco — hasło',
+    friscoWarehouse: 'Frisco — magazyn (np. GDA, WAW)',
+    anthropicKey: 'Klucz API Anthropic',
+    secretSet: '✓ zapisane',
+    secretPlaceholder: 'bez zmian',
+    secretEmpty: 'nie ustawiono',
   },
 
   today: {

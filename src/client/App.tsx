@@ -1,9 +1,10 @@
-import { lazy, Suspense, useState, useEffect } from 'react'
+import { lazy, Suspense, useState, useEffect, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { UpdateBanner, ForceUpdateScreen } from './components/UpdateBanner'
 import { usePwaUpdate } from './hooks/usePwaUpdate'
 import { useModuleSettings } from './lib/moduleSettings'
+import { authApi } from './lib/api'
 import pl from './i18n/pl'
 
 declare const __APP_VERSION__: string
@@ -302,11 +303,37 @@ function AppShell() {
   )
 }
 
+function LoginGate({ children }: { children: ReactNode }) {
+  const { data, isLoading } = useQuery({ queryKey: ['auth'], queryFn: authApi.me, retry: false })
+  if (isLoading) {
+    return <div className="flex h-dvh items-center justify-center text-gray-400">{pl.common.loading}</div>
+  }
+  if (data?.authed) return <>{children}</>
+
+  const err = new URLSearchParams(window.location.search).get('error')
+  return (
+    <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-gray-50 p-6 dark:bg-gray-950">
+      <img src="/icons/icon-192.png" alt="" className="h-20 w-20 rounded-2xl" />
+      <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">{pl.auth.title}</h1>
+      <p className="max-w-xs text-center text-sm text-gray-500 dark:text-gray-400">{pl.auth.googleHint}</p>
+      {err && <p className="max-w-xs text-center text-sm text-red-500">{err}</p>}
+      <a
+        href="/api/auth/google"
+        className="flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-gray-700 shadow ring-1 ring-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-100 dark:ring-gray-700"
+      >
+        <span aria-hidden="true">🔓</span> {pl.auth.google}
+      </a>
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AppShell />
+        <LoginGate>
+          <AppShell />
+        </LoginGate>
       </BrowserRouter>
     </QueryClientProvider>
   )

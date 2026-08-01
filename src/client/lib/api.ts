@@ -282,9 +282,21 @@ export const authApi = {
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
+export interface IntegrationsConfig {
+  frisco: { username: string; warehouse: string; hasPassword: boolean; hasRefreshToken: boolean }
+  anthropic: { hasKey: boolean }
+}
+export interface IntegrationsUpdate {
+  frisco?: { username?: string; password?: string; warehouse?: string }
+  anthropic_api_key?: string
+}
+
 export const settingsApi = {
   get: () => req<AppSettings>('/settings'),
   update: (data: Partial<AppSettings>) => req<AppSettings>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  integrations: () => req<IntegrationsConfig>('/settings/integrations'),
+  updateIntegrations: (data: IntegrationsUpdate) =>
+    req<{ ok: boolean }>('/settings/integrations', { method: 'PUT', body: JSON.stringify(data) }),
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
