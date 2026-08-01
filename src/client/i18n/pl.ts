@@ -315,6 +315,16 @@ const pl = {
     friscoOpenProduct: 'Otwórz produkt na Frisco',
     haveAtHome: 'Mam w domu',
     haveAtHomeTitle: 'Mam w domu — przenieś do spiżarni i usuń z listy oraz koszyka Frisco',
+    share: 'Udostępnij',
+    shareTitle: 'Udostępnij listę',
+    shareHint: 'Każdy z tym linkiem może dopisać swoje artykuły.',
+    shareCopy: 'Kopiuj link',
+    shareCopied: 'Skopiowano ✓',
+    shareRevoke: 'Usuń link',
+    shareRevokeConfirm: 'Usunąć link udostępniania? Osoby, które go mają, stracą dostęp.',
+    shareAddItem: 'Dodaj do listy',
+    shareListTitle: 'Lista zakupów',
+    shareYourItems: 'Twoje propozycje',
   },
 
   pantry: {

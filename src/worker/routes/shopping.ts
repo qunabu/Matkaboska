@@ -2,16 +2,19 @@ import { Hono } from 'hono'
 import { eq, and, between } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, shopping_lists, shopping_items, meal_plan_entries, recipes, pantry_items, products } from '../db/index'
-import type { Env } from '../types'
+import type { AppEnv } from '../types'
 import type { ShoppingList, ShoppingItem, Ingredient, ShopCategory } from '../../shared/types'
 import { removeProductFromCart } from './frisco'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<AppEnv>()
 
 // GET /api/shopping-lists
 app.get('/', async (c) => {
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  const lists = await db.select().from(shopping_lists).orderBy(shopping_lists.created_at)
+  const lists = await db.select().from(shopping_lists)
+    .where(eq(shopping_lists.user_id, userId))
+    .orderBy(shopping_lists.created_at)
 
   const withCounts: ShoppingList[] = []
   for (const list of lists) {
@@ -26,23 +29,24 @@ app.get('/', async (c) => {
   return c.json({ items: withCounts, total: withCounts.length })
 })
 
-// GET /api/shopping-lists/preview?from=&to=  — read-only aggregation (no DB
-// write), used by the printable shopping checklist. Registered before /:id so
-// it isn't shadowed by the id param route.
+// GET /api/shopping-lists/preview?from=&to=
 app.get('/preview', async (c) => {
+  const userId = c.var.userId
   const from = c.req.query('from')
   const to = c.req.query('to')
   if (!from || !to) return c.json({ error: 'from/to required' }, 400)
   const db = getDb(c.env.DB)
-  const items = await aggregateShoppingItems(db, from, to)
+  const items = await aggregateShoppingItems(db, userId, from, to)
   return c.json({ items, total: items.length })
 })
 
 // GET /api/shopping-lists/:id
 app.get('/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  const [list] = await db.select().from(shopping_lists).where(eq(shopping_lists.id, id))
+  const [list] = await db.select().from(shopping_lists)
+    .where(and(eq(shopping_lists.id, id), eq(shopping_lists.user_id, userId)))
   if (!list) return c.json({ error: 'Not found' }, 404)
   const items = await db.select().from(shopping_items)
     .where(eq(shopping_items.list_id, id))
@@ -52,36 +56,74 @@ app.get('/:id', async (c) => {
 
 // POST /api/shopping-lists
 app.post('/', async (c) => {
+  const userId = c.var.userId
   const body = await c.req.json()
   const parsed = z.object({ name: z.string().min(1) }).safeParse(body)
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
   const db = getDb(c.env.DB)
-  const [list] = await db.insert(shopping_lists).values({ name: parsed.data.name, type: 'manual' }).returning()
+  const [list] = await db.insert(shopping_lists)
+    .values({ user_id: userId, name: parsed.data.name, type: 'manual' })
+    .returning()
   return c.json(list, 201)
+})
+
+// POST /api/shopping-lists/:id/share  — generate a share token
+app.post('/:id/share', async (c) => {
+  const id = Number(c.req.param('id'))
+  const userId = c.var.userId
+  const db = getDb(c.env.DB)
+  const [list] = await db.select().from(shopping_lists)
+    .where(and(eq(shopping_lists.id, id), eq(shopping_lists.user_id, userId)))
+  if (!list) return c.json({ error: 'Not found' }, 404)
+
+  // Reuse existing token if already shared
+  if (list.share_token) return c.json({ share_token: list.share_token })
+
+  // Generate a random URL-safe token
+  const bytes = new Uint8Array(18)
+  crypto.getRandomValues(bytes)
+  const token = btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+
+  const [updated] = await db.update(shopping_lists)
+    .set({ share_token: token })
+    .where(eq(shopping_lists.id, id))
+    .returning()
+  return c.json({ share_token: updated.share_token })
+})
+
+// DELETE /api/shopping-lists/:id/share  — revoke share token
+app.delete('/:id/share', async (c) => {
+  const id = Number(c.req.param('id'))
+  const userId = c.var.userId
+  const db = getDb(c.env.DB)
+  const [list] = await db.select().from(shopping_lists)
+    .where(and(eq(shopping_lists.id, id), eq(shopping_lists.user_id, userId)))
+  if (!list) return c.json({ error: 'Not found' }, 404)
+  await db.update(shopping_lists).set({ share_token: null }).where(eq(shopping_lists.id, id))
+  return c.json({ ok: true })
 })
 
 // DELETE /api/shopping-lists/:id
 app.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  await db.delete(shopping_lists).where(eq(shopping_lists.id, id))
+  await db.delete(shopping_lists)
+    .where(and(eq(shopping_lists.id, id), eq(shopping_lists.user_id, userId)))
   return c.json({ ok: true })
 })
 
 const INGREDIENT_CATEGORIES: Record<string, ShopCategory> = {
-  // produce
   cebula: 'produce', czosnek: 'produce', pomidor: 'produce', szpinak: 'produce',
   marchew: 'produce', papryka: 'produce', cukinia: 'produce', brokuł: 'produce',
   awokado: 'produce', cytryna: 'produce', owoce: 'produce', jagody: 'produce',
-  // dairy
   jajk: 'dairy', jogurt: 'dairy', mleko: 'dairy', ser: 'dairy', masło: 'dairy',
   śmietank: 'dairy', twaróg: 'dairy', parmezan: 'dairy', halloumi: 'dairy',
-  // pantry
   makaron: 'pantry', ryż: 'pantry', oliwk: 'pantry', sos: 'pantry', oliw: 'pantry',
   mąk: 'pantry', płatki: 'pantry', odżywk: 'pantry', miód: 'pantry', orzechy: 'pantry',
   czekolad: 'pantry', ciecierzyc: 'pantry', fasol: 'pantry', soczewic: 'pantry',
   tempeh: 'pantry', tofu: 'pantry', konserw: 'pantry', puszk: 'pantry', tuńczyk: 'pantry',
-  // frozen
   mrożon: 'frozen', krewetkl: 'frozen',
 }
 
@@ -93,8 +135,6 @@ function guessCategory(name: string): ShopCategory {
   return 'other'
 }
 
-// Map common Polish declension/variant forms to one canonical name so the same
-// produce merges on the list (e.g. "marchewka"/"marchewki" → "marchew").
 const LEMMAS: Record<string, string> = {
   marchewka: 'marchew', marchewki: 'marchew',
   cebule: 'cebula',
@@ -109,11 +149,6 @@ const LEMMAS: Record<string, string> = {
   cytryny: 'cytryna',
 }
 
-// Normalise an ingredient name for aggregation so variants of the same item
-// merge on the shopping list: drop parenthetical qualifiers ("mleko (lub napój
-// roślinny)" → "mleko", "czosnek (starty)" → "czosnek"), drop trailing use
-// qualifiers ("olej do smażenia" → "olej", "jogurt do podania" → "jogurt"),
-// collapse whitespace, then apply the lemma map above.
 function normalizeName(name: string): string {
   const clean = name
     .replace(/\s*\([^)]*\)/g, '')
@@ -125,16 +160,13 @@ function normalizeName(name: string): string {
 
 type AggregatedItem = { name: string; quantity: number | null; unit: string | null; category: ShopCategory; sort_order: number; frisco_product_id?: string | null }
 
-// Aggregate the plan's recipe ingredients into a deduped shopping list for a
-// date range (pantry items excluded). Shared by generate (persists) and the
-// print preview (read-only).
 async function aggregateShoppingItems(
-  db: ReturnType<typeof getDb>, from: string, to: string,
+  db: ReturnType<typeof getDb>, userId: string, from: string, to: string,
 ): Promise<AggregatedItem[]> {
   const planRows = await db.select({ entry: meal_plan_entries, recipe: recipes })
     .from(meal_plan_entries)
     .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
-    .where(between(meal_plan_entries.date, from, to))
+    .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, from, to)))
 
   const aggregated = new Map<string, { name: string; category: ShopCategory; units: Map<string, number> }>()
   for (const { entry, recipe } of planRows) {
@@ -152,7 +184,7 @@ async function aggregateShoppingItems(
     }
   }
 
-  const pantry = await db.select().from(pantry_items)
+  const pantry = await db.select().from(pantry_items).where(eq(pantry_items.user_id, userId))
   const pantryKeys = new Set(pantry.map((p) => normalizeName(p.name).toLowerCase()))
   for (const key of [...aggregated.keys()]) {
     if (pantryKeys.has(key)) aggregated.delete(key)
@@ -175,13 +207,10 @@ async function aggregateShoppingItems(
     })
   }
 
-  // Product plan entries (e.g. protein boosters) — one line per product, quantity
-  // = number of portions in the range. Carry the Frisco pid so the cart fill can
-  // add them directly without a name search.
   const prodRows = await db.select({ entry: meal_plan_entries, product: products })
     .from(meal_plan_entries)
     .innerJoin(products, eq(meal_plan_entries.product_id, products.id))
-    .where(between(meal_plan_entries.date, from, to))
+    .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, from, to)))
   const prodAgg = new Map<number, { name: string; count: number; frisco: string | null }>()
   for (const { product } of prodRows) {
     let g = prodAgg.get(product.id)
@@ -205,6 +234,7 @@ async function aggregateShoppingItems(
 
 // POST /api/shopping-lists/generate
 app.post('/generate', async (c) => {
+  const userId = c.var.userId
   const body = await c.req.json()
   const parsed = z.object({
     from: z.string(),
@@ -215,10 +245,11 @@ app.post('/generate', async (c) => {
   const { from, to, name } = parsed.data
 
   const db = getDb(c.env.DB)
-  const aggregated = await aggregateShoppingItems(db, from, to)
+  const aggregated = await aggregateShoppingItems(db, userId, from, to)
 
   const listName = name ?? `Lista ${from} – ${to}`
   const [list] = await db.insert(shopping_lists).values({
+    user_id: userId,
     name: listName,
     type: 'generated',
     date_range_start: from,
@@ -236,7 +267,6 @@ app.post('/generate', async (c) => {
     frisco_product_id: it.frisco_product_id ?? null,
   }))
 
-  // D1 allows at most 100 bound parameters per query; cap each batch at 10 rows.
   const CHUNK = 10
   for (let i = 0; i < itemsToInsert.length; i += CHUNK) {
     await db.insert(shopping_items).values(itemsToInsert.slice(i, i + CHUNK))
@@ -248,6 +278,7 @@ app.post('/generate', async (c) => {
 
 // POST /api/shopping-items
 app.post('/items', async (c) => {
+  const userId = c.var.userId
   const body = await c.req.json()
   const parsed = z.object({
     list_id: z.number().int(),
@@ -258,6 +289,10 @@ app.post('/items', async (c) => {
   }).safeParse(body)
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
   const db = getDb(c.env.DB)
+  // Verify list belongs to user
+  const [list] = await db.select({ id: shopping_lists.id }).from(shopping_lists)
+    .where(and(eq(shopping_lists.id, parsed.data.list_id), eq(shopping_lists.user_id, userId)))
+  if (!list) return c.json({ error: 'Not found' }, 404)
   const [item] = await db.insert(shopping_items).values({
     ...parsed.data,
     quantity: parsed.data.quantity ?? null,
@@ -270,6 +305,7 @@ app.post('/items', async (c) => {
 // PATCH /api/shopping-items/:id
 app.patch('/items/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const body = await c.req.json()
   const parsed = z.object({
     checked: z.boolean().optional(),
@@ -281,20 +317,29 @@ app.patch('/items/:id', async (c) => {
   }).safeParse(body)
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
   const db = getDb(c.env.DB)
+  const [existing] = await db.select({ list_id: shopping_items.list_id }).from(shopping_items)
+    .where(eq(shopping_items.id, id))
+  if (!existing) return c.json({ error: 'Not found' }, 404)
+  const [list] = await db.select({ id: shopping_lists.id }).from(shopping_lists)
+    .where(and(eq(shopping_lists.id, existing.list_id), eq(shopping_lists.user_id, userId)))
+  if (!list) return c.json({ error: 'Not found' }, 404)
   const [item] = await db.update(shopping_items).set(parsed.data).where(eq(shopping_items.id, id)).returning()
-  if (!item) return c.json({ error: 'Not found' }, 404)
   return c.json(item)
 })
 
-// DELETE /api/shopping-items/:id — also drops the product from the Frisco cart
-// if it was there, so deleting a line keeps the cart in sync.
+// DELETE /api/shopping-items/:id
 app.delete('/items/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
   const [item] = await db.select().from(shopping_items).where(eq(shopping_items.id, id))
+  if (!item) return c.json({ ok: true })
+  const [list] = await db.select({ id: shopping_lists.id }).from(shopping_lists)
+    .where(and(eq(shopping_lists.id, item.list_id), eq(shopping_lists.user_id, userId)))
+  if (!list) return c.json({ error: 'Not found' }, 404)
   let removedFromCart = false
-  if (item?.in_frisco && item.frisco_product_id) {
-    try { removedFromCart = await removeProductFromCart(c.env, item.frisco_product_id) }
+  if (item.in_frisco && item.frisco_product_id) {
+    try { removedFromCart = await removeProductFromCart(c.env, getDb(c.env.DB), userId, item.frisco_product_id) }
     catch { /* Frisco auth/network issue — still delete the row */ }
   }
   await db.delete(shopping_items).where(eq(shopping_items.id, id))
@@ -302,22 +347,28 @@ app.delete('/items/:id', async (c) => {
 })
 
 // POST /api/shopping-lists/items/:id/have-at-home
-// "Mam to w domu": move the item to the pantry, drop it from the Frisco cart
-// (if it was there), and remove it from the shopping list.
 app.post('/items/:id/have-at-home', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
   const [item] = await db.select().from(shopping_items).where(eq(shopping_items.id, id))
   if (!item) return c.json({ error: 'Not found' }, 404)
+  const [list] = await db.select({ id: shopping_lists.id }).from(shopping_lists)
+    .where(and(eq(shopping_lists.id, item.list_id), eq(shopping_lists.user_id, userId)))
+  if (!list) return c.json({ error: 'Not found' }, 404)
 
   let removedFromCart = false
   if (item.in_frisco && item.frisco_product_id) {
-    try { removedFromCart = await removeProductFromCart(c.env, item.frisco_product_id) }
+    try { removedFromCart = await removeProductFromCart(c.env, getDb(c.env.DB), userId, item.frisco_product_id) }
     catch { /* Frisco auth/network issue — still move to pantry */ }
   }
 
-  await db.insert(pantry_items).values({ name: item.name })
-    .onConflictDoNothing({ target: pantry_items.name })
+  const existing = await db.select({ id: pantry_items.id }).from(pantry_items)
+    .where(and(eq(pantry_items.user_id, userId), eq(pantry_items.name, item.name)))
+    .limit(1)
+  if (existing.length === 0) {
+    await db.insert(pantry_items).values({ user_id: userId, name: item.name })
+  }
   await db.delete(shopping_items).where(eq(shopping_items.id, id))
 
   return c.json({ ok: true, pantry: item.name, removedFromCart })

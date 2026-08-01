@@ -168,6 +168,7 @@ export interface ShoppingList {
   type: 'generated' | 'manual'
   date_range_start: string | null
   date_range_end: string | null
+  share_token?: string | null
   created_at: number
   item_count?: number
   checked_count?: number

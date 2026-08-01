@@ -1,33 +1,28 @@
 import { Hono } from 'hono'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, water_log, settings } from '../db/index'
-import type { Env } from '../types'
-import type { AppSettings } from '../../shared/types'
+import { getDb, water_log } from '../db/index'
+import { getSettings } from './settings'
+import type { AppEnv } from '../types'
 
-const app = new Hono<{ Bindings: Env }>()
-
-async function getWaterTarget(env: Env): Promise<number> {
-  const db = getDb(env.DB)
-  const [row] = await db.select().from(settings).where(eq(settings.key, 'app'))
-  if (!row) return 8
-  const s = JSON.parse(row.value) as Partial<AppSettings>
-  return s.water_glasses_target ?? 8
-}
+const app = new Hono<AppEnv>()
 
 // GET /api/water?date=YYYY-MM-DD
 app.get('/', async (c) => {
+  const userId = c.var.userId
   const date = c.req.query('date') ?? todayDate()
   const db = getDb(c.env.DB)
-  const [row] = await db.select().from(water_log).where(eq(water_log.date, date))
+  const [row] = await db.select().from(water_log)
+    .where(and(eq(water_log.user_id, userId), eq(water_log.date, date)))
   if (row) return c.json(row)
 
-  const target = await getWaterTarget(c.env)
-  return c.json({ id: null, date, glasses: 0, target_glasses: target })
+  const s = await getSettings(c.env, userId)
+  return c.json({ id: null, date, glasses: 0, target_glasses: s.water_glasses_target })
 })
 
 // PUT /api/water/:date  — upsert; body: { glasses } or { delta: +1/-1 }
 app.put('/:date', async (c) => {
+  const userId = c.var.userId
   const date = c.req.param('date')
   const body = await c.req.json()
   const parsed = z.object({
@@ -39,8 +34,10 @@ app.put('/:date', async (c) => {
 
   const d = parsed.data
   const db = getDb(c.env.DB)
-  const [existing] = await db.select().from(water_log).where(eq(water_log.date, date))
-  const target = d.target_glasses ?? existing?.target_glasses ?? await getWaterTarget(c.env)
+  const [existing] = await db.select().from(water_log)
+    .where(and(eq(water_log.user_id, userId), eq(water_log.date, date)))
+  const s = await getSettings(c.env, userId)
+  const target = d.target_glasses ?? existing?.target_glasses ?? s.water_glasses_target
 
   let glasses: number
   if (d.glasses !== undefined) {
@@ -52,8 +49,11 @@ app.put('/:date', async (c) => {
   }
 
   const [row] = await db.insert(water_log)
-    .values({ date, glasses, target_glasses: target })
-    .onConflictDoUpdate({ target: water_log.date, set: { glasses, target_glasses: target } })
+    .values({ user_id: userId, date, glasses, target_glasses: target })
+    .onConflictDoUpdate({
+      target: [water_log.user_id, water_log.date],
+      set: { glasses, target_glasses: target },
+    })
     .returning()
   return c.json(row)
 })

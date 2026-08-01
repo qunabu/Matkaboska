@@ -117,6 +117,11 @@ export const shoppingApi = {
   // "Mam w domu": move item to pantry, drop from Frisco cart, remove from list.
   haveAtHome: (itemId: number) =>
     req<{ ok: boolean; pantry: string; removedFromCart: boolean }>(`/shopping-lists/items/${itemId}/have-at-home`, { method: 'POST', body: '{}' }),
+  shareList: (id: number) => req<{ share_token: string }>(`/shopping-lists/${id}/share`, { method: 'POST' }),
+  revokeShare: (id: number) => req<ApiOk>(`/shopping-lists/${id}/share`, { method: 'DELETE' }),
+  getShared: (token: string) => req<ShoppingList & { items: ShoppingItem[] }>(`/s/${token}`),
+  addSharedItem: (token: string, data: { name: string; quantity?: number | null; unit?: string | null; category?: string }) =>
+    req<ShoppingItem>(`/s/${token}/items`, { method: 'POST', body: JSON.stringify(data) }),
   // Fill the Frisco cart. The server processes the list in chunks (to stay
   // under the Workers subrequest cap), so we loop until `done`, merging results.
   // Add/remove a single item in the Frisco cart (drives the per-item checkbox).
@@ -268,11 +273,10 @@ export const pushApi = {
   test: () => req('/push/test', { method: 'POST' }),
 }
 
-// ── Auth (PIN gate) ─────────────────────────────────────────────────────────
+// ── Auth (CF Access / Google) ────────────────────────────────────────────────
 
 export const authApi = {
-  me: () => req<{ authed: boolean; needsSetup: boolean }>('/auth/me'),
-  login: (pin: string) => req<ApiOk>('/auth/login', { method: 'POST', body: JSON.stringify({ pin }) }),
+  me: () => req<{ authed: boolean; email: string }>('/auth/me'),
   logout: () => req<ApiOk>('/auth/logout', { method: 'POST' }),
 }
 

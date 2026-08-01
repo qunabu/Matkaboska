@@ -1,9 +1,8 @@
-import { lazy, Suspense, useState, useEffect, type ReactNode } from 'react'
+import { lazy, Suspense, useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom'
-import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { UpdateBanner, ForceUpdateScreen } from './components/UpdateBanner'
 import { usePwaUpdate } from './hooks/usePwaUpdate'
-import { authApi } from './lib/api'
 import { useModuleSettings } from './lib/moduleSettings'
 import pl from './i18n/pl'
 
@@ -35,6 +34,7 @@ const HabitsPage = lazy(() => import('./pages/HabitsPage'))
 const ChoresPage = lazy(() => import('./pages/ChoresPage'))
 const HelpPage = lazy(() => import('./pages/HelpPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const SharedListPage = lazy(() => import('./pages/SharedListPage'))
 
 function PageFallback() {
   return (
@@ -269,6 +269,7 @@ function AppShell() {
               <Route path="/chores" element={<ChoresPage />} />
               <Route path="/help" element={<HelpPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/s/:token" element={<SharedListPage />} />
             </Routes>
           </Suspense>
         </main>
@@ -301,60 +302,11 @@ function AppShell() {
   )
 }
 
-function PinGate({ children }: { children: ReactNode }) {
-  const qc = useQueryClient()
-  const [pin, setPin] = useState('')
-  const [err, setErr] = useState(false)
-
-  const { data, isLoading } = useQuery({ queryKey: ['auth'], queryFn: authApi.me, retry: false })
-  const login = useMutation({
-    mutationFn: () => authApi.login(pin),
-    onSuccess: () => { setErr(false); setPin(''); qc.invalidateQueries({ queryKey: ['auth'] }) },
-    onError: () => setErr(true),
-  })
-
-  if (isLoading) {
-    return <div className="flex h-dvh items-center justify-center text-gray-400">{pl.common.loading}</div>
-  }
-  if (data?.authed) return <>{children}</>
-
-  const setup = data?.needsSetup
-  return (
-    <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-gray-50 p-6 dark:bg-gray-950">
-      <img src="/icons/icon-192.png" alt="" className="h-20 w-20 rounded-2xl" />
-      <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">{pl.auth.title}</h1>
-      <p className="max-w-xs text-center text-sm text-gray-500 dark:text-gray-400">
-        {setup ? pl.auth.setupHint : pl.auth.loginTitle}
-      </p>
-      <input
-        type="password"
-        inputMode="numeric"
-        autoFocus
-        value={pin}
-        onChange={(e) => { setPin(e.target.value); setErr(false) }}
-        onKeyDown={(e) => e.key === 'Enter' && pin.length >= 4 && login.mutate()}
-        placeholder={pl.auth.pinPlaceholder}
-        className="w-56 rounded-xl border border-gray-200 px-4 py-3 text-center text-lg tracking-widest outline-none focus:border-primary-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-      />
-      {err && <p className="text-sm text-red-500">{pl.auth.wrongPin}</p>}
-      <button
-        onClick={() => login.mutate()}
-        disabled={pin.length < 4 || login.isPending}
-        className="w-56 rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white disabled:opacity-50"
-      >
-        {setup ? pl.auth.save : pl.auth.enter}
-      </button>
-    </div>
-  )
-}
-
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <PinGate>
-          <AppShell />
-        </PinGate>
+        <AppShell />
       </BrowserRouter>
     </QueryClientProvider>
   )

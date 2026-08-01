@@ -20,6 +20,8 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
   const qc = useQueryClient()
   const [newItem, setNewItem] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [showShare, setShowShare] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
   const [orderResult, setOrderResult] = useState<FriscoOrderResult | null>(null)
   const orderMutation = useMutation({
     mutationFn: () => shoppingApi.friscoOrder(listId),
@@ -70,6 +72,27 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
     onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
   })
 
+  const shareMutation = useMutation({
+    mutationFn: () => shoppingApi.shareList(listId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
+  })
+
+  const revokeMutation = useMutation({
+    mutationFn: () => shoppingApi.revokeShare(listId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['shopping-list', listId] })
+      setShowShare(false)
+    },
+  })
+
+  function copyShareLink(token: string) {
+    const url = `${window.location.origin}/s/${token}`
+    navigator.clipboard.writeText(url).then(() => {
+      setShareCopied(true)
+      setTimeout(() => setShareCopied(false), 2000)
+    })
+  }
+
   if (isLoading) return <p className="p-4 text-gray-500">{pl.common.loading}</p>
   if (!data) return null
 
@@ -92,6 +115,12 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{data.name}</h1>
         <div className="flex gap-2">
           <button
+            onClick={() => setShowShare(!showShare)}
+            className={`rounded-lg px-3 py-2 text-sm font-medium text-white ${data.share_token ? 'bg-amber-500' : 'bg-gray-500'}`}
+          >
+            🔗 {pl.shopping.share}
+          </button>
+          <button
             onClick={() => { setOrderResult(null); orderMutation.mutate() }}
             disabled={orderMutation.isPending}
             className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
@@ -106,6 +135,45 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
           </button>
         </div>
       </div>
+
+      {showShare && (
+        <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+          <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">{pl.shopping.shareTitle}</p>
+          <p className="mb-3 text-xs text-gray-500">{pl.shopping.shareHint}</p>
+          {data.share_token ? (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  readOnly
+                  value={`${window.location.origin}/s/${data.share_token}`}
+                  className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300"
+                />
+                <button
+                  onClick={() => copyShareLink(data.share_token!)}
+                  className="rounded-lg bg-primary-600 px-3 py-2 text-xs font-medium text-white"
+                >
+                  {shareCopied ? pl.shopping.shareCopied : pl.shopping.shareCopy}
+                </button>
+              </div>
+              <button
+                onClick={() => { if (confirm(pl.shopping.shareRevokeConfirm)) revokeMutation.mutate() }}
+                disabled={revokeMutation.isPending}
+                className="text-xs text-red-500 hover:text-red-700 disabled:opacity-40"
+              >
+                {pl.shopping.shareRevoke}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => shareMutation.mutate()}
+              disabled={shareMutation.isPending}
+              className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {shareMutation.isPending ? '…' : `🔗 ${pl.shopping.share}`}
+            </button>
+          )}
+        </div>
+      )}
 
       {orderMutation.isError && (
         <p className="mb-3 text-sm text-red-500">{(orderMutation.error as Error).message}</p>

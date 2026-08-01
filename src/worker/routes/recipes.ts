@@ -2,10 +2,11 @@ import { Hono } from 'hono'
 import { eq, like, and, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, recipes, recipe_notes } from '../db/index'
+import type { AppEnv } from '../types'
 import type { Env } from '../types'
 import type { Recipe, RecipeWithNotes, Ingredient, Macros } from '../../shared/types'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<AppEnv>()
 
 function parseRecipe(row: typeof recipes.$inferSelect): Recipe {
   return {
@@ -21,12 +22,13 @@ function parseRecipe(row: typeof recipes.$inferSelect): Recipe {
 
 // GET /api/recipes
 app.get('/', async (c) => {
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
   const { search, category, tag, seafood } = c.req.query()
 
   let q = db.select().from(recipes).$dynamic()
 
-  const filters = []
+  const filters: ReturnType<typeof eq>[] = [eq(recipes.user_id, userId)]
   if (category) filters.push(eq(recipes.category, category))
   if (seafood === '1') filters.push(eq(recipes.is_seafood, true))
   if (search) {
@@ -38,7 +40,7 @@ app.get('/', async (c) => {
     )
   }
   if (tag) filters.push(like(recipes.tags, `%${tag}%`))
-  if (filters.length) q = q.where(and(...filters))
+  q = q.where(and(...filters))
 
   const rows = await q.orderBy(recipes.title)
   return c.json({ items: rows.map(parseRecipe), total: rows.length })
@@ -47,8 +49,10 @@ app.get('/', async (c) => {
 // GET /api/recipes/:id
 app.get('/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  const [recipe] = await db.select().from(recipes).where(eq(recipes.id, id))
+  const [recipe] = await db.select().from(recipes)
+    .where(and(eq(recipes.id, id), eq(recipes.user_id, userId)))
   if (!recipe) return c.json({ error: 'Not found' }, 404)
 
   const notes = await db.select().from(recipe_notes)
@@ -89,6 +93,7 @@ function toSlug(title: string) {
 
 // POST /api/recipes/import  – bulk import from JSON
 app.post('/import', async (c) => {
+  const userId = c.var.userId
   const body = await c.req.json()
   const parsed = z.object({ recipes: z.array(RecipeBodySchema) }).safeParse(body)
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
@@ -100,12 +105,14 @@ app.post('/import', async (c) => {
     let slug = toSlug(r.title)
     let suffix = 2
     while (true) {
-      const existing = await db.select({ id: recipes.id }).from(recipes).where(eq(recipes.slug, slug)).limit(1)
+      const existing = await db.select({ id: recipes.id }).from(recipes)
+        .where(and(eq(recipes.user_id, userId), eq(recipes.slug, slug))).limit(1)
       if (existing.length === 0) break
       slug = `${toSlug(r.title)}-${suffix++}`
     }
 
     const [row] = await db.insert(recipes).values({
+      user_id: userId,
       title: r.title,
       slug,
       category: r.category,
@@ -133,6 +140,7 @@ app.post('/import', async (c) => {
 
 // POST /api/recipes
 app.post('/', async (c) => {
+  const userId = c.var.userId
   const body = await c.req.json()
   const parsed = RecipeBodySchema.safeParse(body)
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
@@ -142,6 +150,7 @@ app.post('/', async (c) => {
   const slug = toSlug(d.title)
 
   const [row] = await db.insert(recipes).values({
+    user_id: userId,
     title: d.title,
     slug,
     category: d.category,
@@ -157,7 +166,6 @@ app.post('/', async (c) => {
     macros_assumptions: d.macros_assumptions ?? null,
   }).returning()
 
-  // Auto-estimate macros if not provided
   if (!d.macros && c.env.ANTHROPIC_API_KEY) {
     c.executionCtx.waitUntil(estimateMacros(c.env, row.id, d.title, d.servings, d.ingredients))
   }
@@ -168,6 +176,7 @@ app.post('/', async (c) => {
 // PATCH /api/recipes/:id
 app.patch('/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const body = await c.req.json()
   const parsed = RecipeBodySchema.partial().safeParse(body)
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
@@ -189,7 +198,9 @@ app.patch('/:id', async (c) => {
   if (d.macros_confidence !== undefined) updates.macros_confidence = d.macros_confidence
   if (d.macros_assumptions !== undefined) updates.macros_assumptions = d.macros_assumptions
 
-  const [row] = await db.update(recipes).set(updates).where(eq(recipes.id, id)).returning()
+  const [row] = await db.update(recipes).set(updates)
+    .where(and(eq(recipes.id, id), eq(recipes.user_id, userId)))
+    .returning()
   if (!row) return c.json({ error: 'Not found' }, 404)
   return c.json(parseRecipe(row))
 })
@@ -197,25 +208,35 @@ app.patch('/:id', async (c) => {
 // DELETE /api/recipes/:id
 app.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  await db.delete(recipes).where(eq(recipes.id, id))
+  await db.delete(recipes).where(and(eq(recipes.id, id), eq(recipes.user_id, userId)))
   return c.json({ ok: true })
 })
 
 // POST /api/recipes/:id/notes
 app.post('/:id/notes', async (c) => {
   const recipe_id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const body = await c.req.json()
   const { body: text } = z.object({ body: z.string().min(1) }).parse(body)
   const db = getDb(c.env.DB)
+  const [recipe] = await db.select({ id: recipes.id }).from(recipes)
+    .where(and(eq(recipes.id, recipe_id), eq(recipes.user_id, userId)))
+  if (!recipe) return c.json({ error: 'Not found' }, 404)
   const [note] = await db.insert(recipe_notes).values({ recipe_id, body: text }).returning()
   return c.json(note, 201)
 })
 
 // DELETE /api/recipes/:id/notes/:noteId
 app.delete('/:id/notes/:noteId', async (c) => {
+  const recipe_id = Number(c.req.param('id'))
   const noteId = Number(c.req.param('noteId'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
+  const [recipe] = await db.select({ id: recipes.id }).from(recipes)
+    .where(and(eq(recipes.id, recipe_id), eq(recipes.user_id, userId)))
+  if (!recipe) return c.json({ error: 'Not found' }, 404)
   await db.delete(recipe_notes).where(eq(recipe_notes.id, noteId))
   return c.json({ ok: true })
 })
@@ -223,14 +244,17 @@ app.delete('/:id/notes/:noteId', async (c) => {
 // POST /api/recipes/:id/recalc-macros
 app.post('/:id/recalc-macros', async (c) => {
   const id = Number(c.req.param('id'))
+  const userId = c.var.userId
   const db = getDb(c.env.DB)
-  const [recipe] = await db.select().from(recipes).where(eq(recipes.id, id))
+  const [recipe] = await db.select().from(recipes)
+    .where(and(eq(recipes.id, id), eq(recipes.user_id, userId)))
   if (!recipe) return c.json({ error: 'Not found' }, 404)
 
   const ingredients = JSON.parse(recipe.ingredients) as Ingredient[]
   await estimateMacros(c.env, id, recipe.title, recipe.servings, ingredients)
 
-  const [updated] = await db.select().from(recipes).where(eq(recipes.id, id))
+  const [updated] = await db.select().from(recipes)
+    .where(and(eq(recipes.id, id), eq(recipes.user_id, userId)))
   return c.json(parseRecipe(updated))
 })
 
