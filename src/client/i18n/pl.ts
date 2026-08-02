@@ -567,6 +567,7 @@ const pl = {
     protein: 'Białko',
     carbs: 'Węglowodany',
     fat: 'Tłuszcze',
+    iron: 'Żelazo',
     g: 'g',
   },
 } as const

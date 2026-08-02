@@ -106,16 +106,17 @@ export default function RecipeDetailPage() {
               {recalcMutation.isPending ? '…' : pl.recipes.recalcMacros}
             </button>
           </div>
-          <div className="grid grid-cols-4 gap-3 text-center">
+          <div className="grid grid-cols-5 gap-3 text-center">
             {[
               { label: pl.macros.kcal, value: recipe.macros.kcal, unit: '' },
               { label: pl.macros.protein, value: recipe.macros.protein_g, unit: 'g' },
               { label: pl.macros.carbs, value: recipe.macros.carbs_g, unit: 'g' },
               { label: pl.macros.fat, value: recipe.macros.fat_g, unit: 'g' },
+              { label: pl.macros.iron, value: recipe.macros.iron_mg ?? 0, unit: 'mg' },
             ].map(({ label, value, unit }) => (
               <div key={label}>
                 <div className="text-xl font-bold text-orange-700 dark:text-orange-300">
-                  {Math.round(value)}{unit}
+                  {Math.round(value * 10) / 10}{unit}
                 </div>
                 <div className="text-xs text-orange-600 dark:text-orange-400">{label}</div>
               </div>

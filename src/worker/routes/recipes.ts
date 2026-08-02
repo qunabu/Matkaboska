@@ -78,7 +78,7 @@ const RecipeBodySchema = z.object({
   source: z.string().nullable().optional(),
   macros: z.object({
     kcal: z.number(), protein_g: z.number(), carbs_g: z.number(),
-    fat_g: z.number(), fiber_g: z.number(),
+    fat_g: z.number(), fiber_g: z.number(), iron_mg: z.number().optional().default(0),
   }).nullable().optional(),
   macros_confidence: z.enum(['low', 'medium', 'high']).nullable().optional(),
   macros_assumptions: z.string().nullable().optional(),
@@ -282,7 +282,7 @@ async function estimateMacros(env: Env, apiKey: string, recipeId: number, title:
         system: 'You are a nutrition estimator. Return ONLY valid JSON, no prose, no code fences.',
         messages: [{
           role: 'user',
-          content: `Estimate macronutrients per serving for this recipe.\nTitle: ${title}\nServings: ${servings}\nIngredients: ${ingredientText}\n\nReturn exactly this JSON:\n{"per_serving":{"kcal":0,"protein_g":0,"carbs_g":0,"fat_g":0,"fiber_g":0},"confidence":"medium","assumptions":"brief note"}`,
+          content: `Estimate macronutrients per serving for this recipe.\nTitle: ${title}\nServings: ${servings}\nIngredients: ${ingredientText}\n\nReturn exactly this JSON:\n{"per_serving":{"kcal":0,"protein_g":0,"carbs_g":0,"fat_g":0,"fiber_g":0,"iron_mg":0},"confidence":"medium","assumptions":"brief note"}`,
         }],
       }),
     })
@@ -297,7 +297,7 @@ async function estimateMacros(env: Env, apiKey: string, recipeId: number, title:
     const MacroResult = z.object({
       per_serving: z.object({
         kcal: z.number(), protein_g: z.number(), carbs_g: z.number(),
-        fat_g: z.number(), fiber_g: z.number(),
+        fat_g: z.number(), fiber_g: z.number(), iron_mg: z.number().optional().default(0),
       }),
       confidence: z.enum(['low', 'medium', 'high']).optional(),
       assumptions: z.string().optional(),

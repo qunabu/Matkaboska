@@ -10,7 +10,7 @@ function buildPrompt(dishes: string[]): string {
   const list = dishes.map((d, i) => `${i + 1}. ${d}`).join('\n')
   return `Jestem użytkownikiem aplikacji do planowania posiłków. Wygeneruj przepisy w formacie JSON dla poniższych dań.
 Zwróć WYŁĄCZNIE tablicę JSON (bez komentarzy, bez bloków kodu), gdzie każdy element ma pola:
-{"title": string (po polsku), "category": jedno z ["breakfast","lunch","dinner","snack","soup","salad","smoothie","dessert","other"], "servings": liczba, "prep_minutes": liczba lub null, "ingredients": [{"name": string, "amount": string, "unit": string}], "steps": [string], "tags": [string], "is_seafood": boolean, "macros": {"kcal": liczba, "protein_g": liczba, "carbs_g": liczba, "fat_g": liczba, "fiber_g": liczba}}
+{"title": string (po polsku), "category": jedno z ["breakfast","lunch","dinner","snack","soup","salad","smoothie","dessert","other"], "servings": liczba, "prep_minutes": liczba lub null, "ingredients": [{"name": string, "amount": string, "unit": string}], "steps": [string], "tags": [string], "is_seafood": boolean, "macros": {"kcal": liczba, "protein_g": liczba, "carbs_g": liczba, "fat_g": liczba, "fiber_g": liczba, "iron_mg": liczba}}
 Makroskładniki podawaj na 1 porcję, realistycznie oszacowane. Składniki z realnymi ilościami (amount + unit, np. "200"/"g", "2"/"szt").
 
 Dania:
