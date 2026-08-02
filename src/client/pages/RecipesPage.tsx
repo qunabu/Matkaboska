@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { recipesApi, onboardingApi } from '../lib/api'
 import pl from '../i18n/pl'
 import type { Category } from '../../shared/types'
 import RecipeImportModal from '../components/RecipeImportModal'
+import StarterImportModal from '../components/StarterImportModal'
 
 const CATEGORIES: { value: Category | ''; label: string }[] = [
   { value: '', label: pl.recipes.all },
@@ -34,15 +35,14 @@ export default function RecipesPage() {
 
   const qc = useQueryClient()
   const { data: starter } = useQuery({ queryKey: ['starter-info'], queryFn: () => onboardingApi.starterInfo() })
-  const starterMut = useMutation({
-    mutationFn: () => onboardingApi.importStarter(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['recipes'] })
-      qc.invalidateQueries({ queryKey: ['starter-info'] })
-    },
-  })
+  const [starterModal, setStarterModal] = useState(false)
   // Offer the starter import while the user's own collection is still thin (< 10).
   const showStarter = !!starter && !starter.isSource && starter.available > 0 && starter.mine < 10
+  function onStarterImported() {
+    setStarterModal(false)
+    qc.invalidateQueries({ queryKey: ['recipes'] })
+    qc.invalidateQueries({ queryKey: ['starter-info'] })
+  }
 
   return (
     <div className="mx-auto max-w-2xl p-4">
@@ -73,13 +73,15 @@ export default function RecipesPage() {
             <p className="text-xs text-primary-700/80 dark:text-primary-300/80">{pl.onboarding.starterHint(starter!.available)}</p>
           </div>
           <button
-            onClick={() => starterMut.mutate()}
-            disabled={starterMut.isPending}
-            className="shrink-0 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+            onClick={() => setStarterModal(true)}
+            className="shrink-0 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
           >
-            {starterMut.isPending ? pl.onboarding.importing : pl.onboarding.starterBtn(starter!.available)}
+            {pl.onboarding.starterBtn(starter!.available)}
           </button>
         </div>
+      )}
+      {starterModal && (
+        <StarterImportModal onClose={() => setStarterModal(false)} onImported={onStarterImported} />
       )}
 
       {/* Search */}

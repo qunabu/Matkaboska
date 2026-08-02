@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { onboardingApi } from '../lib/api'
+import StarterImportModal from '../components/StarterImportModal'
 import pl from '../i18n/pl'
 
 const MIN_DISHES = 10
@@ -40,10 +41,7 @@ export default function OnboardingPage({ onDone }: { onDone: () => void }) {
   })
 
   const { data: starter } = useQuery({ queryKey: ['starter-info'], queryFn: () => onboardingApi.starterInfo() })
-  const starterMut = useMutation({
-    mutationFn: () => onboardingApi.importStarter(),
-    onSuccess: (r) => setImported(r.imported),
-  })
+  const [showStarter, setShowStarter] = useState(false)
   const canImportStarter = !!starter && starter.available > 0 && !starter.isSource
 
   const setDish = (i: number, v: string) =>
@@ -117,14 +115,16 @@ export default function OnboardingPage({ onDone }: { onDone: () => void }) {
             <p className="mb-1 text-sm font-semibold text-primary-800 dark:text-primary-200">{pl.onboarding.starterTitle}</p>
             <p className="mb-3 text-xs text-primary-700/80 dark:text-primary-300/80">{pl.onboarding.starterHint(starter!.available)}</p>
             <button
-              onClick={() => starterMut.mutate()}
-              disabled={starterMut.isPending}
-              className="w-full rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+              onClick={() => setShowStarter(true)}
+              className="w-full rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700"
             >
-              {starterMut.isPending ? pl.onboarding.importing : pl.onboarding.starterBtn(starter!.available)}
+              {pl.onboarding.starterBtn(starter!.available)}
             </button>
             <p className="mt-3 text-[11px] uppercase tracking-wide text-gray-400">{pl.onboarding.orDivider}</p>
           </div>
+        )}
+        {showStarter && (
+          <StarterImportModal onClose={() => setShowStarter(false)} onImported={(n) => { setShowStarter(false); setImported(n) }} />
         )}
 
         {/* Targets */}

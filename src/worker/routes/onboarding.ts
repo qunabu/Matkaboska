@@ -31,16 +31,39 @@ app.get('/starter-info', async (c) => {
   return c.json({ available: src.length, mine: mine.length, isSource: userId === source })
 })
 
-// POST /api/onboarding/import-starter — copy every starter-account recipe into the
-// current user's collection (skipping any slug they already have).
+// GET /api/onboarding/starter-recipes — the starter recipes (for a pick list) plus
+// the slugs the current user already owns.
+app.get('/starter-recipes', async (c) => {
+  const userId = c.var.userId
+  const source = starterUser(c)
+  const db = getDb(c.env.DB)
+  const [src, mine] = await Promise.all([
+    db.select({ slug: recipes.slug, title: recipes.title, category: recipes.category, macros: recipes.macros })
+      .from(recipes).where(eq(recipes.user_id, source)),
+    db.select({ slug: recipes.slug }).from(recipes).where(eq(recipes.user_id, userId)),
+  ])
+  const items = src.map((r) => {
+    let kcal = 0, protein_g = 0, iron_mg = 0
+    try { const m = r.macros ? JSON.parse(r.macros) : null; if (m) { kcal = m.kcal ?? 0; protein_g = m.protein_g ?? 0; iron_mg = m.iron_mg ?? 0 } } catch { /* ignore */ }
+    return { slug: r.slug, title: r.title, category: r.category, kcal, protein_g, iron_mg }
+  }).sort((a, b) => a.title.localeCompare(b.title, 'pl'))
+  return c.json({ items, mineSlugs: mine.map((m) => m.slug), isSource: userId === source })
+})
+
+// POST /api/onboarding/import-starter — copy starter recipes into the current
+// user's collection. Body { slugs?: string[] } imports only those; omitted =
+// import all. Any slug the user already has is skipped.
 app.post('/import-starter', async (c) => {
   const userId = c.var.userId
   const source = starterUser(c)
   if (userId === source) return c.json({ imported: 0, reason: 'is_source' })
+  const body = await c.req.json().catch(() => ({})) as { slugs?: string[] }
+  const wanted = Array.isArray(body.slugs) ? new Set(body.slugs) : null
   const db = getDb(c.env.DB)
   const src = await db.select().from(recipes).where(eq(recipes.user_id, source))
   let imported = 0
   for (const r of src) {
+    if (wanted && !wanted.has(r.slug)) continue
     const [dup] = await db.select({ id: recipes.id }).from(recipes)
       .where(and(eq(recipes.user_id, userId), eq(recipes.slug, r.slug))).limit(1)
     if (dup) continue

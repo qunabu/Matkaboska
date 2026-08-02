@@ -66,9 +66,15 @@ const pl = {
     doneBody: (n: number) => `Zaimportowano ${n} przepisów. Miłego planowania! 🌈`,
     enter: 'Wejdź do aplikacji',
     starterTitle: 'Masz już gotowe przepisy do wzięcia 🙌',
-    starterHint: (n: number) => `Zaimportuj ${n} gotowych przepisów (z żelazem i makro) jednym kliknięciem.`,
-    starterBtn: (n: number) => `📥 Zaimportuj ${n} przepisów`,
+    starterHint: (n: number) => `Wybierz z ${n} gotowych przepisów (z żelazem i makro) i zaimportuj.`,
+    starterBtn: (n: number) => `📥 Wybierz z ${n} przepisów`,
     orDivider: '— albo dodaj własne poniżej —',
+    pickTitle: 'Wybierz przepisy do zaimportowania',
+    selectAll: 'Zaznacz wszystkie',
+    deselectAll: 'Odznacz wszystkie',
+    selectedCount: (n: number, total: number) => `${n}/${total} zaznaczonych`,
+    alreadyHave: 'już masz',
+    importSelected: (n: number) => n > 0 ? `📥 Zaimportuj ${n}` : 'Zaznacz przepisy',
   },
 
   notifications: {
