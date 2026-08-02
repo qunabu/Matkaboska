@@ -5,33 +5,77 @@ import pl from '../i18n/pl'
 
 const MIN_DISHES = 10
 
+// The JSON schema we ask the external LLM to emit, embedded in the prompt.
+function buildPrompt(dishes: string[]): string {
+  const list = dishes.map((d, i) => `${i + 1}. ${d}`).join('\n')
+  return `Jestem użytkownikiem aplikacji do planowania posiłków. Wygeneruj przepisy w formacie JSON dla poniższych dań.
+Zwróć WYŁĄCZNIE tablicę JSON (bez komentarzy, bez bloków kodu), gdzie każdy element ma pola:
+{"title": string (po polsku), "category": jedno z ["breakfast","lunch","dinner","snack","soup","salad","smoothie","dessert","other"], "servings": liczba, "prep_minutes": liczba lub null, "ingredients": [{"name": string, "amount": string, "unit": string}], "steps": [string], "tags": [string], "is_seafood": boolean, "macros": {"kcal": liczba, "protein_g": liczba, "carbs_g": liczba, "fat_g": liczba, "fiber_g": liczba}}
+Makroskładniki podawaj na 1 porcję, realistycznie oszacowane. Składniki z realnymi ilościami (amount + unit, np. "200"/"g", "2"/"szt").
+
+Dania:
+${list}`
+}
+
 export default function OnboardingPage({ onDone }: { onDone: () => void }) {
   const [kcal, setKcal] = useState(2300)
   const [protein, setProtein] = useState(150)
   const [dishes, setDishes] = useState<string[]>(() => Array(MIN_DISHES).fill(''))
+  const [json, setJson] = useState('')
+  const [jsonErr, setJsonErr] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
   const [imported, setImported] = useState<number | null>(null)
 
   const filled = dishes.map((d) => d.trim()).filter(Boolean)
-  const canSubmit = filled.length >= MIN_DISHES && kcal > 0 && protein > 0
+  const ready = filled.length >= MIN_DISHES && kcal > 0 && protein > 0
+  const prompt = buildPrompt(filled)
 
-  const generate = useMutation({
-    mutationFn: () => onboardingApi.generate({
-      dishes: filled,
+  const importMut = useMutation({
+    mutationFn: (recipes: unknown[]) => onboardingApi.import({
+      recipes,
       kcal_target: Math.round(kcal),
       protein_g_target: Math.round(protein),
     }),
     onSuccess: (r) => setImported(r.imported),
   })
 
-  const errMsg = generate.isError
-    ? ((generate.error as Error).message.includes('needs_key') ? pl.onboarding.errorKey : pl.onboarding.error)
-    : null
-
   const setDish = (i: number, v: string) =>
     setDishes((prev) => prev.map((d, idx) => (idx === i ? v : d)))
 
+  function copyPrompt() {
+    navigator.clipboard?.writeText(prompt).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(() => {})
+  }
+
+  function doImport() {
+    setJsonErr(null)
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(json)
+    } catch {
+      setJsonErr(pl.onboarding.jsonInvalid)
+      return
+    }
+    // Accept a bare array or an object wrapping it under a "recipes" key.
+    const arr = Array.isArray(parsed)
+      ? parsed
+      : (parsed && typeof parsed === 'object' && Array.isArray((parsed as { recipes?: unknown[] }).recipes))
+        ? (parsed as { recipes: unknown[] }).recipes
+        : null
+    if (!arr || arr.length === 0) {
+      setJsonErr(pl.onboarding.jsonInvalid)
+      return
+    }
+    importMut.mutate(arr)
+  }
+
   const numField = 'w-24 rounded-lg border border-gray-200 bg-white px-3 py-2 text-center text-sm text-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'
   const dishField = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'
+  const linkBtn = 'flex-1 whitespace-nowrap rounded-lg bg-primary-600 px-3 py-2.5 text-center text-sm font-semibold text-white hover:bg-primary-700'
+  const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(prompt)}`
+  const chatgptUrl = `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`
 
   // ── Success screen ──────────────────────────────────────────────────────────
   if (imported !== null) {
@@ -53,7 +97,7 @@ export default function OnboardingPage({ onDone }: { onDone: () => void }) {
   // ── Onboarding form ─────────────────────────────────────────────────────────
   return (
     <div className="min-h-dvh bg-gray-50 dark:bg-gray-950">
-      <div className="mx-auto max-w-lg p-4 pb-28">
+      <div className="mx-auto max-w-lg p-4">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           <img src="/icons/icon-192.png" alt="" className="h-16 w-16 rounded-2xl" />
           <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">{pl.onboarding.title}</h1>
@@ -77,8 +121,8 @@ export default function OnboardingPage({ onDone }: { onDone: () => void }) {
           </div>
         </section>
 
-        {/* Dishes */}
-        <section>
+        {/* Step 1: dishes */}
+        <section className="mb-6">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">{pl.onboarding.dishesTitle}</h2>
             <span className={`text-xs font-semibold ${filled.length >= MIN_DISHES ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
@@ -104,20 +148,43 @@ export default function OnboardingPage({ onDone }: { onDone: () => void }) {
           </button>
         </section>
 
-        {errMsg && <p className="mt-4 text-center text-sm text-red-500">{errMsg}</p>}
-      </div>
+        {/* Step 2: generate via external assistant */}
+        <section className={`mb-6 ${ready ? '' : 'pointer-events-none opacity-40'}`}>
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">{pl.onboarding.genStep}</h2>
+          <p className="mb-3 text-xs text-gray-400">{ready ? pl.onboarding.genHint : pl.onboarding.needMore}</p>
+          <div className="flex flex-wrap gap-2">
+            <a href={claudeUrl} target="_blank" rel="noopener noreferrer" className={linkBtn}>{pl.onboarding.openClaude}</a>
+            <a href={chatgptUrl} target="_blank" rel="noopener noreferrer" className={linkBtn}>{pl.onboarding.openChatgpt}</a>
+            <button
+              onClick={copyPrompt}
+              className="flex-1 whitespace-nowrap rounded-lg bg-gray-100 px-3 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200"
+            >
+              {copied ? pl.onboarding.copied : pl.onboarding.copyPrompt}
+            </button>
+          </div>
+        </section>
 
-      {/* Sticky submit */}
-      <div className="fixed inset-x-0 bottom-0 border-t border-gray-200 bg-white/95 p-4 backdrop-blur dark:border-gray-800 dark:bg-gray-900/95">
-        <div className="mx-auto max-w-lg">
+        {/* Step 3: paste + import */}
+        <section className="mb-6">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">{pl.onboarding.pasteStep}</h2>
+          <textarea
+            value={json}
+            onChange={(e) => setJson(e.target.value)}
+            placeholder={pl.onboarding.pastePlaceholder}
+            rows={6}
+            className="w-full rounded-lg border border-gray-200 bg-white p-3 font-mono text-xs text-gray-900 placeholder:text-gray-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+          />
+          {(jsonErr || importMut.isError) && (
+            <p className="mt-2 text-sm text-red-500">{jsonErr ?? pl.onboarding.error}</p>
+          )}
           <button
-            onClick={() => generate.mutate()}
-            disabled={!canSubmit || generate.isPending}
-            className="w-full rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+            onClick={doImport}
+            disabled={!ready || !json.trim() || importMut.isPending}
+            className="mt-3 w-full rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
           >
-            {generate.isPending ? pl.onboarding.generating : canSubmit ? pl.onboarding.generate : pl.onboarding.needMore}
+            {importMut.isPending ? pl.onboarding.importing : pl.onboarding.importBtn}
           </button>
-        </div>
+        </section>
       </div>
     </div>
   )

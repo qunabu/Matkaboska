@@ -2,8 +2,8 @@ import { Hono } from 'hono'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, recipes, settings } from '../db/index'
-import type { AppEnv, Env } from '../types'
-import { resolveAnthropicKey, getSettings } from './settings'
+import type { AppEnv } from '../types'
+import { getSettings } from './settings'
 
 const app = new Hono<AppEnv>()
 
@@ -18,14 +18,16 @@ app.get('/status', async (c) => {
 
 const CATEGORIES = ['breakfast', 'lunch', 'dinner', 'snack', 'soup', 'salad', 'smoothie', 'dessert', 'other'] as const
 
-const GeneratedRecipe = z.object({
+// One recipe from the pasted JSON. Lenient: bad/missing fields fall back to
+// sensible defaults so a slightly-off LLM answer still imports.
+const IncomingRecipe = z.object({
   title: z.string().min(1),
   category: z.enum(CATEGORIES).catch('other'),
   servings: z.number().int().positive().catch(2),
   prep_minutes: z.number().int().nonnegative().nullable().catch(null),
   ingredients: z.array(z.object({
     name: z.string().min(1),
-    amount: z.string().catch(''),
+    amount: z.union([z.string(), z.number()]).transform(String).catch(''),
     unit: z.string().catch(''),
   })).catch([]),
   steps: z.array(z.string()).catch([]),
@@ -36,7 +38,7 @@ const GeneratedRecipe = z.object({
     fat_g: z.number(), fiber_g: z.number().catch(0),
   }).nullable().catch(null),
 })
-type GeneratedRecipe = z.infer<typeof GeneratedRecipe>
+type IncomingRecipe = z.infer<typeof IncomingRecipe>
 
 function toSlug(title: string) {
   return title.toLowerCase()
@@ -46,67 +48,19 @@ function toSlug(title: string) {
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
-// Ask Claude to turn a list of dish names into structured recipe JSON.
-async function generateRecipes(env: Env, apiKey: string, dishes: string[]): Promise<GeneratedRecipe[]> {
-  const list = dishes.map((d, i) => `${i + 1}. ${d}`).join('\n')
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
-      max_tokens: 8000,
-      system: 'Jesteś polskim asystentem kulinarnym. Zamieniasz nazwy dań na przepisy jako ŚCISŁY JSON. Zwracasz WYŁĄCZNIE tablicę JSON, bez prozy, bez bloków kodu. Makroskładniki podawaj na 1 porcję, realistycznie oszacowane.',
-      messages: [{
-        role: 'user',
-        content: `Dla każdej z poniższych potraw stwórz obiekt przepisu.\n${list}\n\nZwróć dokładnie tablicę JSON, gdzie każdy element ma pola:\n{"title": string (po polsku), "category": jedno z ["breakfast","lunch","dinner","snack","soup","salad","smoothie","dessert","other"], "servings": liczba (domyślnie 2), "prep_minutes": liczba lub null, "ingredients": [{"name": string, "amount": string, "unit": string}], "steps": [string, ...] (2-5 krótkich kroków), "tags": [string, ...], "is_seafood": boolean, "macros": {"kcal": liczba, "protein_g": liczba, "carbs_g": liczba, "fat_g": liczba, "fiber_g": liczba}}\n\nSkładniki podawaj z realnymi ilościami (amount + unit, np. "200"/"g", "2"/"szt"). Zwróć TYLKO tablicę JSON.`,
-      }],
-    }),
-  })
-  if (!response.ok) throw new Error(`anthropic ${response.status}`)
-  const data = await response.json() as { content?: Array<{ text?: string }> }
-  let text = (data.content?.[0]?.text ?? '').replace(/```json|```/g, '').trim()
-  // Be tolerant: grab the outermost JSON array if the model added stray text.
-  const start = text.indexOf('[')
-  const end = text.lastIndexOf(']')
-  if (start >= 0 && end > start) text = text.slice(start, end + 1)
-  const parsed = JSON.parse(text) as unknown[]
-  if (!Array.isArray(parsed)) throw new Error('not an array')
-  return parsed
-    .map((r) => GeneratedRecipe.safeParse(r))
-    .filter((r): r is { success: true; data: GeneratedRecipe } => r.success)
-    .map((r) => r.data)
-}
-
-// POST /api/onboarding/generate — build the user's starter recipes from a list
-// of dishes, and store their daily kcal / protein targets.
-app.post('/generate', async (c) => {
+// POST /api/onboarding/import — import recipe JSON (produced by any LLM) and
+// store the user's daily kcal / protein targets. No API key required.
+app.post('/import', async (c) => {
   const userId = c.var.userId
   const parsed = z.object({
-    dishes: z.array(z.string().transform((s) => s.trim()).pipe(z.string().min(1))).min(1),
+    recipes: z.array(IncomingRecipe).min(1),
     kcal_target: z.number().int().positive().max(10000),
     protein_g_target: z.number().int().positive().max(1000),
   }).safeParse(await c.req.json())
-  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
-  const { dishes, kcal_target, protein_g_target } = parsed.data
-
-  const apiKey = await resolveAnthropicKey(c.env, userId)
-  if (!apiKey) {
-    return c.json({ error: 'needs_key', message: 'Brak klucza API Anthropic — dodaj go w Ustawieniach.' }, 422)
+  if (!parsed.success) {
+    return c.json({ error: 'invalid', message: 'Nieprawidłowy JSON przepisów.' }, 400)
   }
-
-  let generated: GeneratedRecipe[]
-  try {
-    generated = await generateRecipes(c.env, apiKey, dishes)
-  } catch {
-    return c.json({ error: 'generation_failed', message: 'Nie udało się wygenerować przepisów. Spróbuj ponownie.' }, 502)
-  }
-  if (generated.length === 0) {
-    return c.json({ error: 'generation_failed', message: 'Nie udało się odczytać przepisów. Spróbuj ponownie.' }, 502)
-  }
+  const { recipes: incoming, kcal_target, protein_g_target } = parsed.data
 
   const db = getDb(c.env.DB)
 
@@ -120,7 +74,7 @@ app.post('/generate', async (c) => {
   // Insert recipes, skipping slug collisions for this user.
   const seen = new Set<string>()
   let imported = 0
-  for (const r of generated) {
+  for (const r of incoming as IncomingRecipe[]) {
     let slug = toSlug(r.title) || 'przepis'
     if (seen.has(slug)) continue
     const [dup] = await db.select({ id: recipes.id }).from(recipes)
@@ -146,6 +100,9 @@ app.post('/generate', async (c) => {
     imported++
   }
 
+  if (imported === 0) {
+    return c.json({ error: 'invalid', message: 'Nie zaimportowano żadnego przepisu.' }, 400)
+  }
   return c.json({ imported })
 })
 

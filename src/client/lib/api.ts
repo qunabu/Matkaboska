@@ -305,8 +305,8 @@ export const settingsApi = {
 
 export const onboardingApi = {
   status: () => req<{ needsOnboarding: boolean }>('/onboarding/status'),
-  generate: (data: { dishes: string[]; kcal_target: number; protein_g_target: number }) =>
-    req<{ imported: number }>('/onboarding/generate', { method: 'POST', body: JSON.stringify(data) }),
+  import: (data: { recipes: unknown[]; kcal_target: number; protein_g_target: number }) =>
+    req<{ imported: number }>('/onboarding/import', { method: 'POST', body: JSON.stringify(data) }),
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
