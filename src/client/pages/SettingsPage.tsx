@@ -178,12 +178,14 @@ export default function SettingsPage() {
 
   const [kcalTarget, setKcalTarget] = useState(settings?.kcal_target ?? 2300)
   const [proteinTarget, setProteinTarget] = useState(settings?.protein_g_target ?? 150)
+  const [ironTarget, setIronTarget] = useState(settings?.iron_mg_target ?? 27)
   const [waterTarget, setWaterTarget] = useState(settings?.water_glasses_target ?? 8)
 
   useEffect(() => {
     if (settings) {
       setKcalTarget(settings.kcal_target)
       setProteinTarget(settings.protein_g_target)
+      setIronTarget(settings.iron_mg_target ?? 27)
       setWaterTarget(settings.water_glasses_target)
     }
   }, [settings])
@@ -192,6 +194,7 @@ export default function SettingsPage() {
     mutationFn: () => settingsApi.update({
       kcal_target: kcalTarget,
       protein_g_target: proteinTarget,
+      iron_mg_target: ironTarget,
       water_glasses_target: waterTarget,
     }),
     onSuccess: () => {
@@ -287,6 +290,7 @@ export default function SettingsPage() {
               {[
                 { label: pl.settings.kcal, value: kcalTarget, setter: setKcalTarget, min: 500, max: 5000, step: 50 },
                 { label: pl.settings.protein, value: proteinTarget, setter: setProteinTarget, min: 20, max: 400, step: 5 },
+                { label: pl.settings.iron, value: ironTarget, setter: setIronTarget, min: 5, max: 60, step: 1 },
                 { label: pl.settings.water, value: waterTarget, setter: setWaterTarget, min: 1, max: 20, step: 1 },
               ].map(({ label, value, setter, min, max, step }) => (
                 <div key={label} className="flex items-center justify-between px-4 py-3">

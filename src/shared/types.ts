@@ -263,6 +263,7 @@ export interface AppSettings {
   protein_g_target: number
   carbs_g_target: number
   fat_g_target: number
+  iron_mg_target: number
   water_glasses_target: number
   timezone: string
   quiet_hours_start: string | null  // HH:MM
@@ -274,6 +275,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   protein_g_target: 150,
   carbs_g_target: 250,
   fat_g_target: 80,
+  iron_mg_target: 27,
   water_glasses_target: 8,
   timezone: 'Europe/Warsaw',
   quiet_hours_start: '22:00',

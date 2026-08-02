@@ -125,6 +125,7 @@ const pl = {
     targets: 'Cele dzienne',
     kcal: 'Kalorie (kcal)',
     protein: 'Białko (g)',
+    iron: 'Żelazo (mg)',
     water: 'Woda (szklanek)',
     timezone: 'Strefa czasowa',
     appearance: 'Wygląd i dźwięk',

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { planApi, recipesApi, productsApi, todayDate, getWeekStart, weekDates, addDays } from '../lib/api'
+import { planApi, recipesApi, productsApi, settingsApi, todayDate, getWeekStart, weekDates, addDays } from '../lib/api'
 import pl from '../i18n/pl'
 import type { MealType } from '../../shared/types'
 import WeekPrintView from '../components/WeekPrintView'
@@ -151,6 +151,8 @@ export default function PlanPage() {
     queryKey: ['plan', weekStart, weekEnd],
     queryFn: () => planApi.list(weekStart, weekEnd),
   })
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: () => settingsApi.get() })
+  const ironTarget = settings?.iron_mg_target ?? 27
 
   const appendMealMutation = useMutation({
     mutationFn: ({ date, mealType, recipeId, servings }: { date: string; mealType: MealType; recipeId: number; servings: number }) =>
@@ -366,8 +368,15 @@ export default function PlanPage() {
                       <div className="text-[10px] leading-tight text-gray-400">
                         {Math.round(t.protein_g)}g B · {Math.round(t.carbs_g)}g W · {Math.round(t.fat_g)}g T
                       </div>
-                      <div className="text-[10px] leading-tight text-emerald-600 dark:text-emerald-400">
-                        {Math.round(t.iron_mg * 10) / 10}mg Fe
+                      <div
+                        className={`text-[10px] font-medium leading-tight ${
+                          t.iron_mg >= ironTarget
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-gray-400'
+                        }`}
+                        title={`Cel: ${ironTarget} mg Fe`}
+                      >
+                        {Math.round(t.iron_mg * 10) / 10}/{ironTarget} mg Fe
                       </div>
                     </td>
                   )
