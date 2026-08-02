@@ -5,6 +5,7 @@ import { shoppingApi, todayDate, addDays } from '../lib/api'
 import type { FriscoOrderResult } from '../lib/api'
 import pl from '../i18n/pl'
 import type { ShoppingItem, ShopCategory } from '../../shared/types'
+import FriscoSearchModal from '../components/FriscoSearchModal'
 
 const CAT_LABELS: Record<ShopCategory, string> = {
   produce: pl.shopping.categories.produce,
@@ -23,6 +24,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
   const [showShare, setShowShare] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
   const [orderResult, setOrderResult] = useState<FriscoOrderResult | null>(null)
+  const [friscoSearch, setFriscoSearch] = useState<{ id: number; name: string } | null>(null)
   const orderMutation = useMutation({
     mutationFn: () => shoppingApi.friscoOrder(listId),
     onSuccess: (r) => { setOrderResult(r); qc.invalidateQueries({ queryKey: ['shopping-list', listId] }) },
@@ -306,6 +308,13 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                     )}
                   </span>
                   <button
+                    onClick={() => setFriscoSearch({ id: item.id, name: item.name })}
+                    title={pl.shopping.friscoSearchTitle}
+                    className="shrink-0 rounded-lg bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-primary-100 hover:text-primary-700 dark:bg-gray-700 dark:text-gray-200"
+                  >
+                    🔍
+                  </button>
+                  <button
                     onClick={() => haveAtHomeMutation.mutate(item.id)}
                     disabled={haveAtHomeMutation.isPending && haveAtHomeMutation.variables === item.id}
                     title={pl.shopping.haveAtHomeTitle}
@@ -326,6 +335,13 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
         )
       })}
 
+      {friscoSearch && (
+        <FriscoSearchModal
+          item={friscoSearch}
+          onClose={() => setFriscoSearch(null)}
+          onPicked={() => { setFriscoSearch(null); qc.invalidateQueries({ queryKey: ['shopping-list', listId] }) }}
+        />
+      )}
     </div>
   )
 }

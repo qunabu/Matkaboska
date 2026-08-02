@@ -134,6 +134,12 @@ export const shoppingApi = {
     req<{ inCart: boolean; notFound?: boolean; productId?: string }>('/frisco/item', {
       method: 'POST', body: JSON.stringify({ itemId, inCart }),
     }),
+  friscoSearch: (q: string) =>
+    req<{ items: FriscoCandidate[] }>(`/frisco/search?q=${encodeURIComponent(q)}`),
+  friscoPickItem: (itemId: number, productId: string) =>
+    req<{ inCart: boolean; productId: string }>('/frisco/item/pick', {
+      method: 'POST', body: JSON.stringify({ itemId, productId }),
+    }),
   friscoOrder: async (listId: number): Promise<FriscoOrderResult> => {
     const merged: FriscoOrderResult = {
       listName: '', total: 0, inCart: 0, added: [], notFound: [], skipped: [], removedUnavailable: [],
@@ -178,6 +184,13 @@ export interface FriscoOrderResult {
   notFound: string[]
   skipped: string[]
   removedUnavailable: string[]
+}
+
+export interface FriscoCandidate {
+  productId: string
+  name: string
+  available: boolean
+  allowed: boolean
 }
 
 // ── Todos ─────────────────────────────────────────────────────────────────────

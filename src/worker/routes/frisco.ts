@@ -396,4 +396,61 @@ app.post('/item', async (c) => {
   return c.json({ inCart: true, productId: pid, product: name })
 })
 
+// GET /api/frisco/search?q= — read-only Frisco search so the user can review
+// candidate products before adding one to the cart.
+app.get('/search', async (c) => {
+  const userId = c.var.userId
+  const q = toQuery(c.req.query('q') || '')
+  if (!q) return c.json({ items: [] })
+  const db = getDb(c.env.DB)
+  let session: Session
+  try {
+    const cfg = await loadFriscoConfig(db, userId, c.env)
+    session = await resolveSession(cfg)
+  } catch (e) {
+    return c.json({ error: 'frisco_auth_failed', detail: (e as Error).message }, 502)
+  }
+  try {
+    const sr = (await (await cartApi(session).search(q)).json()) as { products?: FriscoSearchItem[] }
+    const items = (sr.products || []).slice(0, 12).map((it) => ({
+      productId: it.productId,
+      name: it.product?.name?.pl ?? `#${it.productId}`,
+      available: isAvailable(it.product),
+      allowed: pickAllowed(it),
+    }))
+    return c.json({ items })
+  } catch {
+    return c.json({ error: 'search_failed' }, 502)
+  }
+})
+
+// POST /api/frisco/item/pick — add a specific chosen product to the cart for an item.
+app.post('/item/pick', async (c) => {
+  const userId = c.var.userId
+  const body = await c.req.json().catch(() => ({})) as { itemId?: number | string; productId?: string; quantity?: number }
+  const itemId = Number(body.itemId)
+  const productId = String(body.productId || '')
+  if (!Number.isFinite(itemId) || !productId) return c.json({ error: 'invalid_body' }, 400)
+
+  const db = getDb(c.env.DB)
+  const [item] = await db.select().from(shopping_items).where(eq(shopping_items.id, itemId))
+  if (!item) return c.json({ error: 'item_not_found' }, 404)
+  const [ownedList] = await db.select({ id: shopping_lists.id }).from(shopping_lists)
+    .where(and(eq(shopping_lists.id, item.list_id), eq(shopping_lists.user_id, userId)))
+  if (!ownedList) return c.json({ error: 'item_not_found' }, 404)
+
+  let session: Session
+  try {
+    const cfg = await loadFriscoConfig(db, userId, c.env)
+    session = await resolveSession(cfg)
+  } catch (e) {
+    return c.json({ error: 'frisco_auth_failed', detail: (e as Error).message }, 502)
+  }
+  const qty = Math.max(1, Math.floor(Number(body.quantity) || 1))
+  const putRes = await cartApi(session).put([{ productId, quantity: qty }])
+  if (!putRes.ok) return c.json({ error: 'frisco_put_failed', status: putRes.status }, 502)
+  await db.update(shopping_items).set({ in_frisco: true, frisco_product_id: productId }).where(eq(shopping_items.id, itemId))
+  return c.json({ inCart: true, productId })
+})
+
 export const friscoRouter = app
