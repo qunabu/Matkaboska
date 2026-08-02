@@ -1,5 +1,5 @@
 -- Multi-tenant: add user_id to all data tables and migrate existing data
--- to the owner account (mateusz.wojczal@handsontable.com).
+-- to the owner account (qunabu.com@gmail.com).
 
 ALTER TABLE recipes ADD COLUMN user_id TEXT NOT NULL DEFAULT '';
 ALTER TABLE meal_plan_entries ADD COLUMN user_id TEXT NOT NULL DEFAULT '';
@@ -20,21 +20,21 @@ ALTER TABLE products ADD COLUMN user_id TEXT NOT NULL DEFAULT '';
 
 --> statement-breakpoint
 -- Migrate existing data to owner account
-UPDATE recipes SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE meal_plan_entries SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE food_log SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE water_log SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE supplements SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE shopping_lists SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE reminders SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE todos SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE ideas SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE chores SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE habits SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE pantry_items SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE voice_notes SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE push_subscriptions SET user_id = 'mateusz.wojczal@handsontable.com';
-UPDATE products SET user_id = 'mateusz.wojczal@handsontable.com';
+UPDATE recipes SET user_id = 'qunabu.com@gmail.com';
+UPDATE meal_plan_entries SET user_id = 'qunabu.com@gmail.com';
+UPDATE food_log SET user_id = 'qunabu.com@gmail.com';
+UPDATE water_log SET user_id = 'qunabu.com@gmail.com';
+UPDATE supplements SET user_id = 'qunabu.com@gmail.com';
+UPDATE shopping_lists SET user_id = 'qunabu.com@gmail.com';
+UPDATE reminders SET user_id = 'qunabu.com@gmail.com';
+UPDATE todos SET user_id = 'qunabu.com@gmail.com';
+UPDATE ideas SET user_id = 'qunabu.com@gmail.com';
+UPDATE chores SET user_id = 'qunabu.com@gmail.com';
+UPDATE habits SET user_id = 'qunabu.com@gmail.com';
+UPDATE pantry_items SET user_id = 'qunabu.com@gmail.com';
+UPDATE voice_notes SET user_id = 'qunabu.com@gmail.com';
+UPDATE push_subscriptions SET user_id = 'qunabu.com@gmail.com';
+UPDATE products SET user_id = 'qunabu.com@gmail.com';
 
 --> statement-breakpoint
 -- Recreate settings table with composite primary key (user_id, key)
@@ -44,7 +44,7 @@ CREATE TABLE settings_new (
   value TEXT NOT NULL,
   PRIMARY KEY (user_id, key)
 );
-INSERT INTO settings_new SELECT 'mateusz.wojczal@handsontable.com', key, value FROM settings;
+INSERT INTO settings_new SELECT 'qunabu.com@gmail.com', key, value FROM settings;
 DROP TABLE settings;
 ALTER TABLE settings_new RENAME TO settings;
 

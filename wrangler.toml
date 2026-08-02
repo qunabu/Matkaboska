@@ -25,14 +25,15 @@ binding = "AI"
 
 [vars]
 APP_VERSION = "dev"
-DEV_USER_EMAIL = "mateusz.wojczal@handsontable.com"
+DEV_USER_EMAIL = "qunabu.com@gmail.com"
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
 VAPID_PUBLIC_KEY = "BKq2zqGbmL2lz_d2G-rQhTGY6HwIL9rAk3ECLyhHufNBGhaH3kCSNTkw3OByN7nhE3a7MAL_r3yAzdfkx-6y_ug"
-VAPID_SUBJECT = "mailto:mateusz.wojczal@handsontable.com"
-# Google OAuth (client id/secret are Worker secrets). Restrict who may sign in:
-# domain allowlist + account-picker hint. Empty ALLOWED_* = any Google account.
-ALLOWED_GOOGLE_DOMAINS = "handsontable.com"
-GOOGLE_HD = "handsontable.com"
+VAPID_SUBJECT = "mailto:qunabu.com@gmail.com"
+# Google OAuth (client id/secret are Worker secrets). Who may sign in: exact
+# email allowlist. Add emails/domains here to open onboarding to more users;
+# both ALLOWED_* empty = any Google account. No GOOGLE_HD (consumer gmail login).
+ALLOWED_GOOGLE_DOMAINS = ""
+ALLOWED_GOOGLE_EMAILS = "qunabu.com@gmail.com"
 
 [triggers]
 crons = ["*/15 * * * *"]
