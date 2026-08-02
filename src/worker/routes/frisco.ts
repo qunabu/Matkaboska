@@ -86,31 +86,25 @@ async function tokenGrant(body: Record<string, string>): Promise<{ access_token?
   return res.json()
 }
 
-// Load per-user Frisco config from the settings table, merged with env var fallbacks.
+// Load Frisco credentials for a user. These are PER-USER ONLY (settings key
+// 'frisco', scoped by user_id) and never shared: there is no env fallback for the
+// account-identifying fields (login/password/refresh_token/user_id/sid), so one
+// user can never end up ordering on another user's Frisco account. The only env
+// fallback is the warehouse/region, which is not account-identifying.
 async function loadFriscoConfig(db: ReturnType<typeof getDb>, userId: string, env: Env): Promise<FriscoUserConfig> {
+  let userCfg: FriscoUserConfig = {}
   try {
     const [row] = await db.select().from(settings)
       .where(and(eq(settings.user_id, userId), eq(settings.key, 'frisco')))
-    if (row) {
-      const userCfg = JSON.parse(row.value) as FriscoUserConfig
-      // User settings take priority; fall back to env vars where unset
-      return {
-        refresh_token: userCfg.refresh_token || env.FRISCO_REFRESH_TOKEN,
-        username: userCfg.username || env.FRISCO_USERNAME,
-        password: userCfg.password || env.FRISCO_PASSWORD,
-        warehouse: userCfg.warehouse || env.FRISCO_WAREHOUSE,
-        user_id: userCfg.user_id || env.FRISCO_USER_ID,
-        sid: userCfg.sid || env.FRISCO_SID,
-      }
-    }
-  } catch { /* fall through to env vars */ }
+    if (row) userCfg = JSON.parse(row.value) as FriscoUserConfig
+  } catch { /* no per-user config yet */ }
   return {
-    refresh_token: env.FRISCO_REFRESH_TOKEN,
-    username: env.FRISCO_USERNAME,
-    password: env.FRISCO_PASSWORD,
-    warehouse: env.FRISCO_WAREHOUSE,
-    user_id: env.FRISCO_USER_ID,
-    sid: env.FRISCO_SID,
+    refresh_token: userCfg.refresh_token,
+    username: userCfg.username,
+    password: userCfg.password,
+    user_id: userCfg.user_id,
+    sid: userCfg.sid,
+    warehouse: userCfg.warehouse || env.FRISCO_WAREHOUSE || 'GDA',
   }
 }
 
@@ -140,7 +134,7 @@ async function resolveSession(cfg: FriscoUserConfig): Promise<Session> {
     return { token, uid, warehouse, visitorId }
   }
 
-  throw new Error('Frisco auth not configured: set FRISCO_REFRESH_TOKEN (recommended) or FRISCO_USERNAME + FRISCO_PASSWORD as Worker secrets.')
+  throw new Error('Konto Frisco nie jest skonfigurowane — dodaj swój login i hasło Frisco w Ustawieniach → Integracje.')
 }
 
 function cartApi(session: Session) {
