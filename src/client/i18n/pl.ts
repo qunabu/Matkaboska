@@ -65,6 +65,10 @@ const pl = {
     doneTitle: 'Gotowe!',
     doneBody: (n: number) => `Zaimportowano ${n} przepisów. Miłego planowania! 🌈`,
     enter: 'Wejdź do aplikacji',
+    starterTitle: 'Masz już gotowe przepisy do wzięcia 🙌',
+    starterHint: (n: number) => `Zaimportuj ${n} gotowych przepisów (z żelazem i makro) jednym kliknięciem.`,
+    starterBtn: (n: number) => `📥 Zaimportuj ${n} przepisów`,
+    orDivider: '— albo dodaj własne poniżej —',
   },
 
   notifications: {

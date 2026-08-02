@@ -22,6 +22,8 @@ export type Env = {
   ALLOWED_GOOGLE_EMAILS?: string        // comma list of exact emails; empty = not restricted
   // Used in local dev when Google OAuth is not configured
   DEV_USER_EMAIL?: string
+  // Account whose recipes new/empty users may import as a starter set.
+  STARTER_RECIPES_USER?: string
   // Frisco integration (all optional; set as Worker secrets, never committed).
   FRISCO_REFRESH_TOKEN?: string
   FRISCO_USERNAME?: string

@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, recipes, settings } from '../db/index'
-import type { AppEnv } from '../types'
+import type { AppEnv, Env } from '../types'
 import { getSettings } from './settings'
 
 const app = new Hono<AppEnv>()
@@ -14,6 +14,45 @@ app.get('/status', async (c) => {
   const rows = await db.select({ id: recipes.id }).from(recipes)
     .where(eq(recipes.user_id, userId)).limit(1)
   return c.json({ needsOnboarding: rows.length === 0 })
+})
+
+const starterUser = (c: { env: Env }) => c.env.STARTER_RECIPES_USER || 'qunabu.com@gmail.com'
+
+// GET /api/onboarding/starter-info — how many recipes the current user has vs how
+// many are available to import from the shared starter account.
+app.get('/starter-info', async (c) => {
+  const userId = c.var.userId
+  const source = starterUser(c)
+  const db = getDb(c.env.DB)
+  const [src, mine] = await Promise.all([
+    db.select({ id: recipes.id }).from(recipes).where(eq(recipes.user_id, source)),
+    db.select({ id: recipes.id }).from(recipes).where(eq(recipes.user_id, userId)),
+  ])
+  return c.json({ available: src.length, mine: mine.length, isSource: userId === source })
+})
+
+// POST /api/onboarding/import-starter — copy every starter-account recipe into the
+// current user's collection (skipping any slug they already have).
+app.post('/import-starter', async (c) => {
+  const userId = c.var.userId
+  const source = starterUser(c)
+  if (userId === source) return c.json({ imported: 0, reason: 'is_source' })
+  const db = getDb(c.env.DB)
+  const src = await db.select().from(recipes).where(eq(recipes.user_id, source))
+  let imported = 0
+  for (const r of src) {
+    const [dup] = await db.select({ id: recipes.id }).from(recipes)
+      .where(and(eq(recipes.user_id, userId), eq(recipes.slug, r.slug))).limit(1)
+    if (dup) continue
+    await db.insert(recipes).values({
+      user_id: userId, title: r.title, slug: r.slug, category: r.category, servings: r.servings,
+      prep_minutes: r.prep_minutes, ingredients: r.ingredients, steps: r.steps, tags: r.tags,
+      is_seafood: r.is_seafood, source: r.source, macros: r.macros,
+      macros_confidence: r.macros_confidence, macros_assumptions: r.macros_assumptions,
+    })
+    imported++
+  }
+  return c.json({ imported })
 })
 
 const CATEGORIES = ['breakfast', 'lunch', 'dinner', 'snack', 'soup', 'salad', 'smoothie', 'dessert', 'other'] as const

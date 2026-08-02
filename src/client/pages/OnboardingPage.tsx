@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { onboardingApi } from '../lib/api'
 import pl from '../i18n/pl'
 
@@ -38,6 +38,13 @@ export default function OnboardingPage({ onDone }: { onDone: () => void }) {
     }),
     onSuccess: (r) => setImported(r.imported),
   })
+
+  const { data: starter } = useQuery({ queryKey: ['starter-info'], queryFn: () => onboardingApi.starterInfo() })
+  const starterMut = useMutation({
+    mutationFn: () => onboardingApi.importStarter(),
+    onSuccess: (r) => setImported(r.imported),
+  })
+  const canImportStarter = !!starter && starter.available > 0 && !starter.isSource
 
   const setDish = (i: number, v: string) =>
     setDishes((prev) => prev.map((d, idx) => (idx === i ? v : d)))
@@ -103,6 +110,22 @@ export default function OnboardingPage({ onDone }: { onDone: () => void }) {
           <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">{pl.onboarding.title}</h1>
           <p className="max-w-sm text-sm text-gray-600 dark:text-gray-300">{pl.onboarding.intro}</p>
         </div>
+
+        {/* Quick start: import the shared starter recipes in one click */}
+        {canImportStarter && (
+          <div className="mb-6 rounded-2xl border border-primary-200 bg-primary-50 p-4 text-center dark:border-primary-500/30 dark:bg-primary-500/10">
+            <p className="mb-1 text-sm font-semibold text-primary-800 dark:text-primary-200">{pl.onboarding.starterTitle}</p>
+            <p className="mb-3 text-xs text-primary-700/80 dark:text-primary-300/80">{pl.onboarding.starterHint(starter!.available)}</p>
+            <button
+              onClick={() => starterMut.mutate()}
+              disabled={starterMut.isPending}
+              className="w-full rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+            >
+              {starterMut.isPending ? pl.onboarding.importing : pl.onboarding.starterBtn(starter!.available)}
+            </button>
+            <p className="mt-3 text-[11px] uppercase tracking-wide text-gray-400">{pl.onboarding.orDivider}</p>
+          </div>
+        )}
 
         {/* Targets */}
         <section className="mb-6">

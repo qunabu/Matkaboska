@@ -26,6 +26,7 @@ binding = "AI"
 [vars]
 APP_VERSION = "dev"
 DEV_USER_EMAIL = "qunabu.com@gmail.com"
+STARTER_RECIPES_USER = "qunabu.com@gmail.com"
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
 VAPID_PUBLIC_KEY = "BKq2zqGbmL2lz_d2G-rQhTGY6HwIL9rAk3ECLyhHufNBGhaH3kCSNTkw3OByN7nhE3a7MAL_r3yAzdfkx-6y_ug"
 VAPID_SUBJECT = "mailto:qunabu.com@gmail.com"

@@ -327,6 +327,8 @@ export const onboardingApi = {
   status: () => req<{ needsOnboarding: boolean }>('/onboarding/status'),
   import: (data: { recipes: unknown[]; kcal_target: number; protein_g_target: number }) =>
     req<{ imported: number }>('/onboarding/import', { method: 'POST', body: JSON.stringify(data) }),
+  starterInfo: () => req<{ available: number; mine: number; isSource: boolean }>('/onboarding/starter-info'),
+  importStarter: () => req<{ imported: number }>('/onboarding/import-starter', { method: 'POST' }),
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

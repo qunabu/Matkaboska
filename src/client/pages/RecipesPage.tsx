@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { recipesApi } from '../lib/api'
+import { recipesApi, onboardingApi } from '../lib/api'
 import pl from '../i18n/pl'
 import type { Category } from '../../shared/types'
 import RecipeImportModal from '../components/RecipeImportModal'
@@ -32,6 +32,18 @@ export default function RecipesPage() {
 
   const recipes = data?.items ?? []
 
+  const qc = useQueryClient()
+  const { data: starter } = useQuery({ queryKey: ['starter-info'], queryFn: () => onboardingApi.starterInfo() })
+  const starterMut = useMutation({
+    mutationFn: () => onboardingApi.importStarter(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['recipes'] })
+      qc.invalidateQueries({ queryKey: ['starter-info'] })
+    },
+  })
+  // Offer the starter import while the user's own collection is still thin (< 10).
+  const showStarter = !!starter && !starter.isSource && starter.available > 0 && starter.mine < 10
+
   return (
     <div className="mx-auto max-w-2xl p-4">
       <div className="mb-4 flex items-center justify-between">
@@ -52,6 +64,23 @@ export default function RecipesPage() {
           </Link>
         </div>
       </div>
+
+      {/* Starter recipes import (shown while the user's collection is thin) */}
+      {showStarter && (
+        <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-primary-200 bg-primary-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-primary-500/30 dark:bg-primary-500/10">
+          <div>
+            <p className="text-sm font-semibold text-primary-800 dark:text-primary-200">{pl.onboarding.starterTitle}</p>
+            <p className="text-xs text-primary-700/80 dark:text-primary-300/80">{pl.onboarding.starterHint(starter!.available)}</p>
+          </div>
+          <button
+            onClick={() => starterMut.mutate()}
+            disabled={starterMut.isPending}
+            className="shrink-0 rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+          >
+            {starterMut.isPending ? pl.onboarding.importing : pl.onboarding.starterBtn(starter!.available)}
+          </button>
+        </div>
+      )}
 
       {/* Search */}
       <div className="mb-3">
