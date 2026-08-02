@@ -55,6 +55,9 @@ export const planApi = {
     req<{ inserted: number }>(`/plan/import`, { method: 'POST', body: JSON.stringify({ entries: [{ date, meal_type, product_id, grams, servings: 1 }], replace: false }) }),
   generateWeek: (weekStart: string) =>
     req<{ inserted: number }>(`/plan/generate-week`, { method: 'POST', body: JSON.stringify({ weekStart }) }),
+  shareToken: () => req<{ token: string }>(`/plan/share-token`),
+  listSharedFull: (token: string, from: string, to: string) =>
+    req<ApiList<MealPlanEntryFull>>(`/s/plan/${token}?from=${from}&to=${to}`),
 }
 
 // ── Food log ──────────────────────────────────────────────────────────────────

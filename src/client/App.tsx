@@ -1,12 +1,13 @@
 import { lazy, Suspense, useState, useEffect, type ReactNode } from 'react'
-import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, NavLink, useLocation, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UpdateBanner, ForceUpdateScreen } from './components/UpdateBanner'
 import { usePwaUpdate } from './hooks/usePwaUpdate'
 import { useModuleSettings } from './lib/moduleSettings'
-import { authApi, onboardingApi } from './lib/api'
+import { authApi, onboardingApi, getWeekStart, weekDates } from './lib/api'
 import OnboardingPage from './pages/OnboardingPage'
 import NotificationBell from './components/NotificationBell'
+import WeekPrintView from './components/WeekPrintView'
 import { useTheme } from './lib/theme'
 import pl from './i18n/pl'
 
@@ -373,10 +374,18 @@ function OnboardingGate({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+function SharedPlanView() {
+  const { token, weekStart } = useParams()
+  const valid = weekStart && /^\d{4}-\d{2}-\d{2}$/.test(weekStart)
+  const start = getWeekStart(valid ? weekStart : new Date().toISOString().slice(0, 10))
+  const end = weekDates(start)[6]
+  return <WeekPrintView shareToken={token} weekStart={start} weekEnd={end} />
+}
+
 function AppRoutes() {
   const location = useLocation()
-  // Public, standalone shared shopping list — no login and no app shell, so a
-  // share link opens for anyone who has the token.
+  // Public, standalone shared views — no login and no app shell, so a share link
+  // opens for anyone who has the token (read-only).
   if (location.pathname.startsWith('/s/')) {
     return (
       <Suspense fallback={<PageFallback />}>
@@ -384,6 +393,13 @@ function AppRoutes() {
           <Route path="/s/:token" element={<SharedListPage />} />
         </Routes>
       </Suspense>
+    )
+  }
+  if (location.pathname.startsWith('/p/')) {
+    return (
+      <Routes>
+        <Route path="/p/:token/:weekStart" element={<SharedPlanView />} />
+      </Routes>
     )
   }
   return (

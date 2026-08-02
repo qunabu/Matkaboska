@@ -1,12 +1,26 @@
 import { Hono } from 'hono'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, shopping_lists, shopping_items } from '../db/index'
+import { getDb, shopping_lists, shopping_items, settings } from '../db/index'
+import { loadFullPlan } from './plan'
 import type { AppEnv } from '../types'
 
 // Public shared list routes — accessible by any authenticated user with the token.
 // No ownership check: the token IS the proof of access.
 const app = new Hono<AppEnv>()
+
+// GET /api/s/plan/:token?from&to — public, READ-ONLY weekly plan for a share link.
+app.get('/plan/:token', async (c) => {
+  const token = c.req.param('token')
+  const { from, to } = c.req.query()
+  if (!from || !to) return c.json({ error: 'from and to required' }, 400)
+  const db = getDb(c.env.DB)
+  const [row] = await db.select().from(settings)
+    .where(and(eq(settings.key, 'plan_share_token'), eq(settings.value, token)))
+  if (!row) return c.json({ error: 'Not found' }, 404)
+  const items = await loadFullPlan(c.env, row.user_id, from, to)
+  return c.json({ items })
+})
 
 // GET /api/s/:token — view a shared shopping list
 app.get('/:token', async (c) => {

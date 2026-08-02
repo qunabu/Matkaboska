@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { planApi, shoppingApi, formatDate, weekDates } from '../lib/api'
@@ -26,28 +26,30 @@ function formatLongDate(dateStr: string) {
   return `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${new Intl.DateTimeFormat('pl-PL', { month: 'long' }).format(d)}`
 }
 
-function MacroRow({ recipe, servings }: { recipe: Recipe; servings: number }) {
-  if (!recipe.macros) return null
-  const m = recipe.macros
-  const factor = servings / recipe.servings
-  return (
-    <div className="mt-1 text-xs text-gray-500 flex flex-wrap gap-x-3">
-      <span>{Math.round(m.kcal * factor)} {pl.print.kcal}</span>
-      <span>{pl.print.protein}: {Math.round(m.protein_g * factor)}g</span>
-      <span>{pl.print.carbs}: {Math.round(m.carbs_g * factor)}g</span>
-      <span>{pl.print.fat}: {Math.round(m.fat_g * factor)}g</span>
-    </div>
-  )
+// Macros are stored per serving, so a plan entry's contribution is macro × servings.
+function entryMacros(e: MealPlanEntryFull) {
+  if (e.recipe?.macros) {
+    const m = e.recipe.macros, s = e.servings ?? 1
+    return { kcal: m.kcal * s, protein_g: m.protein_g * s, carbs_g: m.carbs_g * s, fat_g: m.fat_g * s, iron_mg: (m.iron_mg ?? 0) * s }
+  }
+  if (e.product) {
+    const g = (e.grams ?? e.product.serving_g ?? 100) / 100
+    return { kcal: (e.product.kcal ?? 0) * g, protein_g: (e.product.protein_g ?? 0) * g, carbs_g: (e.product.carbs_g ?? 0) * g, fat_g: (e.product.fat_g ?? 0) * g, iron_mg: 0 }
+  }
+  return { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, iron_mg: 0 }
 }
 
 interface WeekPrintViewProps {
   weekStart: string
   weekEnd: string
-  onClose: () => void
+  onClose?: () => void
+  shareToken?: string  // when set: public, read-only view fetched via the share link
 }
 
-export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrintViewProps) {
+export default function WeekPrintView({ weekStart, weekEnd, onClose, shareToken }: WeekPrintViewProps) {
   const printRoot = useRef<HTMLDivElement>(null)
+  const shared = !!shareToken
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -74,7 +76,7 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
     `
     document.head.appendChild(style)
 
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose?.() }
     window.addEventListener('keydown', handleKey)
 
     return () => {
@@ -85,8 +87,8 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
   }, [onClose])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['plan-print', weekStart, weekEnd],
-    queryFn: () => planApi.listFull(weekStart, weekEnd),
+    queryKey: shared ? ['plan-shared', shareToken, weekStart, weekEnd] : ['plan-print', weekStart, weekEnd],
+    queryFn: () => shared ? planApi.listSharedFull(shareToken!, weekStart, weekEnd) : planApi.listFull(weekStart, weekEnd),
     staleTime: 60_000,
   })
 
@@ -94,6 +96,7 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
     queryKey: ['plan-shopping-preview', weekStart, weekEnd],
     queryFn: () => shoppingApi.shoppingPreview(weekStart, weekEnd),
     staleTime: 60_000,
+    enabled: !shared,  // shopping preview is authed-only
   })
   const shopItems = (shopData?.items ?? [])
     .slice()
@@ -111,6 +114,23 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
     return e.recipe_id ? `#${e.recipe_id}` : pl.print.noMeal
   }
 
+  // Average daily macros + iron across the week (days that have any meals).
+  const dayTotals = dates.map((d) => entries.filter((e) => e.date === d).reduce((s, e) => {
+    const m = entryMacros(e)
+    return { kcal: s.kcal + m.kcal, protein_g: s.protein_g + m.protein_g, carbs_g: s.carbs_g + m.carbs_g, fat_g: s.fat_g + m.fat_g, iron_mg: s.iron_mg + m.iron_mg }
+  }, { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, iron_mg: 0 }))
+  const activeDays = dayTotals.filter((t) => t.kcal > 0).length || 1
+  const sum = dayTotals.reduce((s, t) => ({ kcal: s.kcal + t.kcal, protein_g: s.protein_g + t.protein_g, carbs_g: s.carbs_g + t.carbs_g, fat_g: s.fat_g + t.fat_g, iron_mg: s.iron_mg + t.iron_mg }), { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, iron_mg: 0 })
+  const avg = { kcal: sum.kcal / activeDays, protein_g: sum.protein_g / activeDays, carbs_g: sum.carbs_g / activeDays, fat_g: sum.fat_g / activeDays, iron_mg: sum.iron_mg / activeDays }
+
+  async function copyShareLink() {
+    try {
+      const { token } = await planApi.shareToken()
+      await navigator.clipboard.writeText(`${window.location.origin}/p/${token}/${weekStart}`)
+      setCopied(true); setTimeout(() => setCopied(false), 2500)
+    } catch { /* ignore */ }
+  }
+
   return createPortal(
     <div
       id="week-print-root"
@@ -123,12 +143,22 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
           {pl.print.previewTitle} — {formatShortDate(weekStart)} – {formatShortDate(weekEnd)}
         </h2>
         <div className="flex gap-2">
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-          >
-            {pl.print.close}
-          </button>
+          {!shared && (
+            <button
+              onClick={copyShareLink}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+            >
+              {copied ? `✓ ${pl.print.linkCopied}` : `🔗 ${pl.print.share}`}
+            </button>
+          )}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+            >
+              {pl.print.close}
+            </button>
+          )}
           <button
             onClick={() => window.print()}
             className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
@@ -143,11 +173,30 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
       ) : (
         <div className="mx-auto max-w-4xl px-8 py-10 print:max-w-full print:px-0 print:py-0">
           {/* Title */}
-          <div className="mb-8 text-center print:mb-3">
+          <div className="mb-6 text-center print:mb-2">
             <h1 className="text-2xl font-bold text-gray-900 print:text-lg">{pl.print.weekHeading}</h1>
             <p className="mt-1 text-gray-500 print:text-xs">
               {formatDate(weekStart)} – {formatDate(weekEnd)}
             </p>
+          </div>
+
+          {/* Average daily macros + iron */}
+          <div className="mb-8 print-avoid-break print:mb-3">
+            <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">{pl.print.avgDaily}</p>
+            <div className="mx-auto grid max-w-2xl grid-cols-5 gap-2 text-center">
+              {[
+                { label: pl.print.kcal, value: Math.round(avg.kcal), unit: '' },
+                { label: pl.print.protein, value: Math.round(avg.protein_g), unit: 'g' },
+                { label: pl.print.carbs, value: Math.round(avg.carbs_g), unit: 'g' },
+                { label: pl.print.fat, value: Math.round(avg.fat_g), unit: 'g' },
+                { label: 'Żelazo', value: Math.round(avg.iron_mg * 10) / 10, unit: 'mg' },
+              ].map((x) => (
+                <div key={x.label} className="rounded-lg border border-gray-200 py-2 print:py-1">
+                  <div className="text-lg font-bold text-gray-900 print:text-sm">{x.value}{x.unit}</div>
+                  <div className="text-[11px] uppercase tracking-wide text-gray-500 print:text-[9px]">{x.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Summary grid */}
@@ -239,10 +288,11 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose }: WeekPrint
                                 <h4 className="text-base font-bold text-gray-900">{recipe.title}</h4>
                                 {recipe.macros && (
                                   <span className="flex flex-wrap gap-x-2 text-xs text-gray-500">
-                                    <span className="font-semibold text-gray-600">{Math.round(recipe.macros.kcal * entry.servings / recipe.servings)} {pl.print.kcal}</span>
-                                    <span>{pl.print.protein}: {Math.round(recipe.macros.protein_g * entry.servings / recipe.servings)}g</span>
-                                    <span>{pl.print.carbs}: {Math.round(recipe.macros.carbs_g * entry.servings / recipe.servings)}g</span>
-                                    <span>{pl.print.fat}: {Math.round(recipe.macros.fat_g * entry.servings / recipe.servings)}g</span>
+                                    <span className="font-semibold text-gray-600">{Math.round(recipe.macros.kcal * entry.servings)} {pl.print.kcal}</span>
+                                    <span>{pl.print.protein}: {Math.round(recipe.macros.protein_g * entry.servings)}g</span>
+                                    <span>{pl.print.carbs}: {Math.round(recipe.macros.carbs_g * entry.servings)}g</span>
+                                    <span>{pl.print.fat}: {Math.round(recipe.macros.fat_g * entry.servings)}g</span>
+                                    <span>Fe: {Math.round((recipe.macros.iron_mg ?? 0) * entry.servings * 10) / 10}mg</span>
                                   </span>
                                 )}
                               </div>

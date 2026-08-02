@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
 import { eq, and, between } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, meal_plan_entries, recipes, products, food_log } from '../db/index'
-import type { AppEnv } from '../types'
+import { getDb, meal_plan_entries, recipes, products, food_log, settings } from '../db/index'
+import type { AppEnv, Env } from '../types'
 import type { MealPlanEntry, MealPlanEntryFull, MealType, PlanStatus, Ingredient, Macros, Recipe, PlanProduct } from '../../shared/types'
 
 const app = new Hono<AppEnv>()
@@ -61,12 +61,10 @@ app.get('/', async (c) => {
 })
 
 // GET /api/plan/print?from=YYYY-MM-DD&to=YYYY-MM-DD
-app.get('/print', async (c) => {
-  const userId = c.var.userId
-  const { from, to } = c.req.query()
-  if (!from || !to) return c.json({ error: 'from and to required' }, 400)
-
-  const db = getDb(c.env.DB)
+// Full weekly plan (entries + recipe + product) for a user and date range.
+// Shared by the authed /print route and the public shared-plan endpoint.
+export async function loadFullPlan(env: Env, userId: string, from: string, to: string): Promise<MealPlanEntryFull[]> {
+  const db = getDb(env.DB)
   const rows = await db
     .select({ entry: meal_plan_entries, recipe: recipes, product: products })
     .from(meal_plan_entries)
@@ -75,7 +73,7 @@ app.get('/print', async (c) => {
     .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, from, to)))
     .orderBy(meal_plan_entries.date, meal_plan_entries.meal_type)
 
-  const items: MealPlanEntryFull[] = rows.map(r => ({
+  return rows.map(r => ({
     id: r.entry.id,
     date: r.entry.date,
     meal_type: r.entry.meal_type as MealType,
@@ -106,8 +104,27 @@ app.get('/print', async (c) => {
       updated_at: r.recipe.updated_at,
     } as Recipe : undefined,
   }))
+}
 
+app.get('/print', async (c) => {
+  const { from, to } = c.req.query()
+  if (!from || !to) return c.json({ error: 'from and to required' }, 400)
+  const items = await loadFullPlan(c.env, c.var.userId, from, to)
   return c.json({ items, total: items.length })
+})
+
+// GET /api/plan/share-token — a stable per-user token for read-only plan sharing.
+app.get('/share-token', async (c) => {
+  const userId = c.var.userId
+  const db = getDb(c.env.DB)
+  const [row] = await db.select().from(settings)
+    .where(and(eq(settings.user_id, userId), eq(settings.key, 'plan_share_token')))
+  if (row?.value) return c.json({ token: row.value })
+  const bytes = new Uint8Array(16); crypto.getRandomValues(bytes)
+  const token = [...bytes].map(b => b.toString(16).padStart(2, '0')).join('')
+  await db.insert(settings).values({ user_id: userId, key: 'plan_share_token', value: token })
+    .onConflictDoUpdate({ target: [settings.user_id, settings.key], set: { value: token } })
+  return c.json({ token })
 })
 
 const PlanEntrySchema = z.object({
