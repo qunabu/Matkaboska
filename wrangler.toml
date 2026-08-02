@@ -29,11 +29,12 @@ DEV_USER_EMAIL = "qunabu.com@gmail.com"
 ANTHROPIC_MODEL = "claude-sonnet-4-6"
 VAPID_PUBLIC_KEY = "BKq2zqGbmL2lz_d2G-rQhTGY6HwIL9rAk3ECLyhHufNBGhaH3kCSNTkw3OByN7nhE3a7MAL_r3yAzdfkx-6y_ug"
 VAPID_SUBJECT = "mailto:qunabu.com@gmail.com"
-# Google OAuth (client id/secret are Worker secrets). Who may sign in: exact
-# email allowlist. Add emails/domains here to open onboarding to more users;
-# both ALLOWED_* empty = any Google account. No GOOGLE_HD (consumer gmail login).
+# Google OAuth (client id/secret are Worker secrets). Access is OPEN: both lists
+# empty = any Google account may sign in (anyone with the link). Each account is
+# an isolated tenant (data scoped by user_id). To restrict later, list emails in
+# ALLOWED_GOOGLE_EMAILS or domains in ALLOWED_GOOGLE_DOMAINS. No GOOGLE_HD.
 ALLOWED_GOOGLE_DOMAINS = ""
-ALLOWED_GOOGLE_EMAILS = "qunabu.com@gmail.com"
+ALLOWED_GOOGLE_EMAILS = ""
 
 [triggers]
 crons = ["*/15 * * * *"]

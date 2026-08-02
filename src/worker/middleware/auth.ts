@@ -2,13 +2,13 @@ import { createMiddleware } from 'hono/factory'
 import { googleEnabled, readCookie, sessionEmail } from '../lib/google-auth'
 import type { AppEnv } from '../types'
 
-// Endpoints reachable without a session (login flow, health, public shared list).
+// Endpoints reachable without a session (login flow + health only). Shared lists
+// (/api/s/) now require login too — a share link asks the recipient to sign in.
 function isPublic(path: string): boolean {
   return (
     path.startsWith('/api/auth/') ||
     path === '/api/version' ||
-    path === '/api/health' ||
-    path.startsWith('/api/s/')
+    path === '/api/health'
   )
 }
 
