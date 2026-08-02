@@ -71,7 +71,9 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose, shareToken 
         .print-controls { display: none !important; }
         .print-avoid-break { page-break-inside: avoid; break-inside: avoid; }
         table { border-collapse: collapse; }
-        th, td { border: 1px solid #ccc; padding: 3px 6px; font-size: 10px; }
+        th, td { border: 1px solid #ccc; padding: 5px 7px; font-size: 10px; vertical-align: top; }
+        td ul { list-style: disc; padding-left: 12px; }
+        td li { margin-bottom: 2px; }
       }
     `
     document.head.appendChild(style)
@@ -225,8 +227,8 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose, shareToken 
                         return (
                           <td key={date} className="border border-gray-200 px-2 py-2 text-xs text-gray-800 align-top">
                             {slot.length === 0 ? pl.print.noMeal : (
-                              <ul className="space-y-0.5">
-                                {slot.map(e => <li key={e.id}>{entryLabel(e)}</li>)}
+                              <ul className="list-disc space-y-1.5 pl-3.5 marker:text-gray-400 print:space-y-1">
+                                {slot.map(e => <li key={e.id} className="pl-0.5 leading-snug">{entryLabel(e)}</li>)}
                               </ul>
                             )}
                           </td>
