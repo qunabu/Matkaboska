@@ -114,6 +114,7 @@ export default function RecipesPage() {
                     <span className="text-blue-500">{Math.round(recipe.macros.protein_g)}g B</span>
                     <span className="text-yellow-600 dark:text-yellow-500">{Math.round(recipe.macros.carbs_g)}g W</span>
                     <span className="text-red-400">{Math.round(recipe.macros.fat_g)}g T</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">{Math.round((recipe.macros.iron_mg ?? 0) * 10) / 10}mg Fe</span>
                   </span>
                 )}
               </div>
