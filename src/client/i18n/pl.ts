@@ -121,6 +121,7 @@ const pl = {
   settings: {
     title: 'Ustawienia',
     about: 'O aplikacji',
+    built: 'Zbudowano',
     targets: 'Cele dzienne',
     kcal: 'Kalorie (kcal)',
     protein: 'Białko (g)',
