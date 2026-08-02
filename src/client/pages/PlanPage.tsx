@@ -189,7 +189,7 @@ export default function PlanPage() {
   // Sum planned kcal + macros for a day: recipe macros × servings, plus product
   // macros (per 100 g) × grams/100.
   function dayTotals(date: string) {
-    let kcal = 0, protein_g = 0, carbs_g = 0, fat_g = 0
+    let kcal = 0, protein_g = 0, carbs_g = 0, fat_g = 0, iron_mg = 0
     for (const e of entries) {
       if (e.date !== date) continue
       if (e.recipe?.macros) {
@@ -199,6 +199,7 @@ export default function PlanPage() {
         protein_g += (m.protein_g ?? 0) * mult
         carbs_g += (m.carbs_g ?? 0) * mult
         fat_g += (m.fat_g ?? 0) * mult
+        iron_mg += (m.iron_mg ?? 0) * mult
       } else if (e.product) {
         const f = (e.grams ?? e.product.serving_g ?? 100) / 100
         kcal += (e.product.kcal ?? 0) * f
@@ -207,7 +208,7 @@ export default function PlanPage() {
         fat_g += (e.product.fat_g ?? 0) * f
       }
     }
-    return { kcal, protein_g, carbs_g, fat_g }
+    return { kcal, protein_g, carbs_g, fat_g, iron_mg }
   }
 
   return (
@@ -364,6 +365,9 @@ export default function PlanPage() {
                       </div>
                       <div className="text-[10px] leading-tight text-gray-400">
                         {Math.round(t.protein_g)}g B · {Math.round(t.carbs_g)}g W · {Math.round(t.fat_g)}g T
+                      </div>
+                      <div className="text-[10px] leading-tight text-emerald-600 dark:text-emerald-400">
+                        {Math.round(t.iron_mg * 10) / 10}mg Fe
                       </div>
                     </td>
                   )
