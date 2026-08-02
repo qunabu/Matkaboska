@@ -35,7 +35,7 @@ const IncomingRecipe = z.object({
   is_seafood: z.boolean().catch(false),
   macros: z.object({
     kcal: z.number(), protein_g: z.number(), carbs_g: z.number(),
-    fat_g: z.number(), fiber_g: z.number().catch(0),
+    fat_g: z.number(), fiber_g: z.number().catch(0), iron_mg: z.number().catch(0),
   }).nullable().catch(null),
 })
 type IncomingRecipe = z.infer<typeof IncomingRecipe>
