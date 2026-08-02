@@ -6,19 +6,31 @@ import pl from '../i18n/pl'
 
 const MIN_DISHES = 10
 
-// Tolerant JSON extraction from a pasted LLM reply: strips ```json code fences and
-// any prose around the JSON, then grabs the outermost array (or object).
+// Tolerant JSON extraction from a pasted LLM reply. Handles: ```json code fences
+// (even several), prose before/after, curly quotes, and trailing commas.
 function extractJson(raw: string): unknown | null {
-  let t = raw.trim()
-  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  if (fence) t = fence[1].trim()
-  const tryParse = (s: string) => { try { return JSON.parse(s) } catch { return undefined } }
-  let v = tryParse(t)
+  const clean = (s: string) => s
+    .replace(/[“”„‟]/g, '"')   // curly / low double quotes → "
+    .replace(/[‘’‚‛]/g, "'")   // curly single quotes → '
+    .replace(/,\s*([\]}])/g, '$1')                 // trailing commas before ] or }
+  const tryParse = (s: string) => { try { return JSON.parse(clean(s)) } catch { return undefined } }
+
+  let v = tryParse(raw.trim())
   if (v !== undefined) return v
-  const a = t.indexOf('['), b = t.lastIndexOf(']')
-  if (a >= 0 && b > a) { v = tryParse(t.slice(a, b + 1)); if (v !== undefined) return v }
-  const oa = t.indexOf('{'), ob = t.lastIndexOf('}')
-  if (oa >= 0 && ob > oa) { v = tryParse(t.slice(oa, ob + 1)); if (v !== undefined) return v }
+
+  // Try each fenced code block in turn.
+  for (const m of raw.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)) {
+    v = tryParse(m[1].trim())
+    if (v !== undefined) return v
+  }
+  // Fall back to the outermost array, then object, found anywhere in the text.
+  const carve = (open: string, close: string) => {
+    const a = raw.indexOf(open), b = raw.lastIndexOf(close)
+    return a >= 0 && b > a ? raw.slice(a, b + 1) : null
+  }
+  for (const s of [carve('[', ']'), carve('{', '}')]) {
+    if (s) { v = tryParse(s); if (v !== undefined) return v }
+  }
   return null
 }
 
