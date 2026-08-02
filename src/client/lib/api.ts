@@ -53,6 +53,8 @@ export const planApi = {
     req<{ inserted: number }>(`/plan/import`, { method: 'POST', body: JSON.stringify({ entries: [{ date, meal_type, recipe_id, servings }], replace: false }) }),
   appendProduct: (date: string, meal_type: string, product_id: number, grams: number) =>
     req<{ inserted: number }>(`/plan/import`, { method: 'POST', body: JSON.stringify({ entries: [{ date, meal_type, product_id, grams, servings: 1 }], replace: false }) }),
+  generateWeek: (weekStart: string) =>
+    req<{ inserted: number }>(`/plan/generate-week`, { method: 'POST', body: JSON.stringify({ weekStart }) }),
 }
 
 // ── Food log ──────────────────────────────────────────────────────────────────
@@ -297,6 +299,14 @@ export const settingsApi = {
   integrations: () => req<IntegrationsConfig>('/settings/integrations'),
   updateIntegrations: (data: IntegrationsUpdate) =>
     req<{ ok: boolean }>('/settings/integrations', { method: 'PUT', body: JSON.stringify(data) }),
+}
+
+// ── Onboarding ────────────────────────────────────────────────────────────────
+
+export const onboardingApi = {
+  status: () => req<{ needsOnboarding: boolean }>('/onboarding/status'),
+  generate: (data: { dishes: string[]; kcal_target: number; protein_g_target: number }) =>
+    req<{ imported: number }>('/onboarding/generate', { method: 'POST', body: JSON.stringify(data) }),
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

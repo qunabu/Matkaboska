@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { planApi, recipesApi, productsApi, todayDate, getWeekStart, weekDates, addDays } from '../lib/api'
 import pl from '../i18n/pl'
@@ -135,10 +135,14 @@ function MealPicker({ onPick, onPickProduct, onClose }: MealPickerProps) {
 
 export default function PlanPage() {
   const qc = useQueryClient()
-  const [weekStart, setWeekStart] = useState(() => getWeekStart(todayDate()))
+  const navigate = useNavigate()
+  const { weekStart: weekParam } = useParams()
+  const today = todayDate()
+  // The week is driven by the URL (/plan/:weekStart); /plan shows the current week.
+  const weekStart = getWeekStart(weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam) ? weekParam : today)
+  const goToWeek = (start: string) => navigate(`/plan/${start}`)
   const dates = weekDates(weekStart)
   const weekEnd = dates[6]
-  const today = todayDate()
 
   const [picking, setPicking] = useState<{ date: string; mealType: MealType } | null>(null)
   const [showPrint, setShowPrint] = useState(false)
@@ -165,7 +169,18 @@ export default function PlanPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['plan'] }),
   })
 
+  const generateWeekMutation = useMutation({
+    mutationFn: () => planApi.generateWeek(weekStart),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['plan'] }),
+    onError: (e: Error) => window.alert(e.message.includes('no_recipes') ? pl.plan.generateNoRecipes : pl.plan.generateError),
+  })
+
   const entries = data?.items ?? []
+
+  function generateWeek() {
+    if (entries.length > 0 && !window.confirm(pl.plan.generateConfirm)) return
+    generateWeekMutation.mutate()
+  }
 
   function getEntries(date: string, mealType: MealType) {
     return entries.filter(e => e.date === date && e.meal_type === mealType)
@@ -201,7 +216,15 @@ export default function PlanPage() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.plan.title}</h1>
         <div className="flex gap-2">
           <button
-            onClick={() => setWeekStart(getWeekStart(today))}
+            onClick={generateWeek}
+            disabled={generateWeekMutation.isPending}
+            title={pl.plan.generateWeek}
+            className="rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+          >
+            {generateWeekMutation.isPending ? '✨…' : `✨ ${pl.plan.generateWeek}`}
+          </button>
+          <button
+            onClick={() => goToWeek(getWeekStart(today))}
             className="rounded-lg bg-primary-100 px-3 py-1.5 text-sm font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-400"
           >
             {pl.plan.today}
@@ -219,7 +242,7 @@ export default function PlanPage() {
       {/* Week nav */}
       <div className="mb-4 flex items-center gap-2">
         <button
-          onClick={() => setWeekStart(addDays(weekStart, -7))}
+          onClick={() => goToWeek(addDays(weekStart, -7))}
           className="rounded-lg bg-gray-100 px-3 py-2 text-sm dark:bg-gray-700"
         >
           ‹
@@ -228,7 +251,7 @@ export default function PlanPage() {
           {formatShortDate(weekStart)} – {formatShortDate(weekEnd)}
         </div>
         <button
-          onClick={() => setWeekStart(addDays(weekStart, 7))}
+          onClick={() => goToWeek(addDays(weekStart, 7))}
           className="rounded-lg bg-gray-100 px-3 py-2 text-sm dark:bg-gray-700"
         >
           ›

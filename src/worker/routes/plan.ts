@@ -279,4 +279,77 @@ app.post('/import', async (c) => {
   return c.json({ inserted: inserted.length })
 })
 
+// Which recipe categories are eligible for each meal slot.
+const SLOT_CATEGORIES: Record<string, string[]> = {
+  breakfast: ['breakfast', 'smoothie'],
+  lunch: ['lunch', 'soup', 'salad', 'other'],
+  dinner: ['dinner', 'soup', 'salad', 'other'],
+  snack: ['snack', 'dessert', 'smoothie'],
+}
+const GEN_SLOTS: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack']
+
+function addDaysStr(date: string, n: number): string {
+  const d = new Date(date + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
+
+// POST /api/plan/generate-week — fill a whole week from the user's own recipes,
+// matching each meal slot to sensible categories and avoiding same-day repeats.
+app.post('/generate-week', async (c) => {
+  const userId = c.var.userId
+  const parsed = z.object({
+    weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  }).safeParse(await c.req.json())
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
+  const { weekStart } = parsed.data
+  const dates = Array.from({ length: 7 }, (_, i) => addDaysStr(weekStart, i))
+
+  const db = getDb(c.env.DB)
+  const all = await db.select({ id: recipes.id, category: recipes.category })
+    .from(recipes).where(eq(recipes.user_id, userId))
+  if (all.length === 0) {
+    return c.json({ error: 'no_recipes', message: 'Brak przepisów — dodaj je najpierw.' }, 422)
+  }
+
+  const pool = (slot: MealType) => {
+    const cats = SLOT_CATEGORIES[slot]
+    const matched = all.filter((r) => cats.includes(r.category))
+    return matched.length > 0 ? matched : all
+  }
+  const pick = (arr: { id: number }[]) => arr[Math.floor(Math.random() * arr.length)]
+
+  // Replace the whole week.
+  await db.delete(meal_plan_entries)
+    .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, dates[0], dates[6])))
+
+  let inserted = 0
+  for (const date of dates) {
+    const usedToday = new Set<number>()
+    for (const slot of GEN_SLOTS) {
+      const p = pool(slot)
+      // Prefer a recipe not yet used today; fall back to any if the pool is small.
+      const fresh = p.filter((r) => !usedToday.has(r.id))
+      const choice = pick(fresh.length > 0 ? fresh : p)
+      if (!choice) continue
+      usedToday.add(choice.id)
+      await db.insert(meal_plan_entries).values({
+        user_id: userId,
+        date,
+        meal_type: slot,
+        recipe_id: choice.id,
+        product_id: null,
+        grams: null,
+        servings: 1,
+        batch_group: null,
+        is_leftover: false,
+        status: 'planned',
+      })
+      inserted++
+    }
+  }
+
+  return c.json({ inserted })
+})
+
 export { app as planRouter }

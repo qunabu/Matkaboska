@@ -39,6 +39,26 @@ const pl = {
     googleHint: 'Zaloguj się kontem Google, aby uzyskać dostęp do swoich danych.',
   },
 
+  onboarding: {
+    title: 'Matka Boska Cię wita 🌈🙏',
+    intro: 'Zanim zaczniemy — podaj przynajmniej 10 dań, które lubisz jeść, a Matka Boska wyczaruje z nich Twoje przepisy (składniki i makro).',
+    targetsTitle: 'Twoje cele dzienne',
+    kcal: 'Kalorie (kcal)',
+    protein: 'Białko (g)',
+    dishesTitle: 'Twoje dania',
+    dishPlaceholder: 'np. Owsianka z owocami',
+    addDish: '+ Dodaj danie',
+    counter: (n: number) => `${n}/10 dań`,
+    generate: '🙏 Poproś Matkę Boską o przepisy',
+    generating: 'Matka Boska gotuje… 🍲',
+    needMore: 'Podaj jeszcze przynajmniej 10 dań.',
+    doneTitle: 'Gotowe!',
+    doneBody: (n: number) => `Matka Boska stworzyła ${n} przepisów. Miłego planowania! 🌈`,
+    errorKey: 'Brak klucza API Anthropic — dodaj go w Ustawieniach, aby generować przepisy.',
+    error: 'Coś poszło nie tak. Spróbuj ponownie.',
+    enter: 'Wejdź do aplikacji',
+  },
+
   update: {
     available: 'Dostępna nowa wersja aplikacji',
     refresh: 'Odśwież',
@@ -256,6 +276,10 @@ const pl = {
     },
     generateShopping: 'Generuj listę zakupów',
     printWeek: 'Drukuj tydzień',
+    generateWeek: 'Generuj tydzień',
+    generateConfirm: 'Wygenerować nowy tydzień z Twoich dań? Obecny plan tego tygodnia zostanie zastąpiony.',
+    generateNoRecipes: 'Nie masz jeszcze przepisów. Dodaj kilka dań, zanim wygenerujesz tydzień.',
+    generateError: 'Nie udało się wygenerować tygodnia. Spróbuj ponownie.',
   },
 
   print: {

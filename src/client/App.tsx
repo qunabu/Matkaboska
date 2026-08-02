@@ -1,10 +1,11 @@
 import { lazy, Suspense, useState, useEffect, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from 'react-router-dom'
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UpdateBanner, ForceUpdateScreen } from './components/UpdateBanner'
 import { usePwaUpdate } from './hooks/usePwaUpdate'
 import { useModuleSettings } from './lib/moduleSettings'
-import { authApi } from './lib/api'
+import { authApi, onboardingApi } from './lib/api'
+import OnboardingPage from './pages/OnboardingPage'
 import pl from './i18n/pl'
 
 declare const __APP_VERSION__: string
@@ -257,7 +258,8 @@ function AppShell() {
               <Route path="/recipes/new" element={<RecipeFormPage />} />
               <Route path="/recipes/:id" element={<RecipeDetailPage />} />
               <Route path="/recipes/:id/edit" element={<RecipeFormPage />} />
-              <Route path="/plan/*" element={<PlanPage />} />
+              <Route path="/plan" element={<PlanPage />} />
+              <Route path="/plan/:weekStart" element={<PlanPage />} />
               <Route path="/shopping/*" element={<ShoppingPage />} />
               <Route path="/tracking/*" element={<TrackingPage />} />
               <Route path="/supplements/*" element={<SupplementsPage />} />
@@ -327,12 +329,26 @@ function LoginGate({ children }: { children: ReactNode }) {
   )
 }
 
+function OnboardingGate({ children }: { children: ReactNode }) {
+  const qc = useQueryClient()
+  const { data, isLoading } = useQuery({ queryKey: ['onboarding-status'], queryFn: onboardingApi.status, retry: false })
+  if (isLoading) {
+    return <div className="flex h-dvh items-center justify-center text-gray-400">{pl.common.loading}</div>
+  }
+  if (data?.needsOnboarding) {
+    return <OnboardingPage onDone={() => qc.invalidateQueries()} />
+  }
+  return <>{children}</>
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <LoginGate>
-          <AppShell />
+          <OnboardingGate>
+            <AppShell />
+          </OnboardingGate>
         </LoginGate>
       </BrowserRouter>
     </QueryClientProvider>

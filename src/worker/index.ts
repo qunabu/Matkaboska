@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 import type { AppEnv } from './types'
 import { accessAuth } from './middleware/auth'
 import { authRouter } from './routes/auth'
+import { onboardingRouter } from './routes/onboarding'
 import { recipesRouter } from './routes/recipes'
 import { planRouter } from './routes/plan'
 import { settingsRouter } from './routes/settings'
@@ -34,6 +35,7 @@ api.use('*', accessAuth)
 api.route('/api/s', sharedListRouter)
 
 api.route('/api/auth', authRouter)
+api.route('/api/onboarding', onboardingRouter)
 
 api.get('/api/health', (c) =>
   c.json({ ok: true, timestamp: new Date().toISOString() })
