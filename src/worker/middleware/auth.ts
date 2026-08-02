@@ -2,13 +2,15 @@ import { createMiddleware } from 'hono/factory'
 import { googleEnabled, readCookie, sessionEmail } from '../lib/google-auth'
 import type { AppEnv } from '../types'
 
-// Endpoints reachable without a session (login flow + health only). Shared lists
-// (/api/s/) now require login too — a share link asks the recipient to sign in.
+// Endpoints reachable without a session: login flow, health, and shared lists.
+// A shared-list link (/api/s/<token>) is a public capability URL — the token is
+// the secret — so the recipient can open it without signing in.
 function isPublic(path: string): boolean {
   return (
     path.startsWith('/api/auth/') ||
     path === '/api/version' ||
-    path === '/api/health'
+    path === '/api/health' ||
+    path.startsWith('/api/s/')
   )
 }
 

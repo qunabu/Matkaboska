@@ -305,7 +305,6 @@ function AppShell() {
               <Route path="/chores" element={<ChoresPage />} />
               <Route path="/help" element={<HelpPage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/s/:token" element={<SharedListPage />} />
             </Routes>
           </Suspense>
         </main>
@@ -374,15 +373,33 @@ function OnboardingGate({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+function AppRoutes() {
+  const location = useLocation()
+  // Public, standalone shared shopping list — no login and no app shell, so a
+  // share link opens for anyone who has the token.
+  if (location.pathname.startsWith('/s/')) {
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route path="/s/:token" element={<SharedListPage />} />
+        </Routes>
+      </Suspense>
+    )
+  }
+  return (
+    <LoginGate>
+      <OnboardingGate>
+        <AppShell />
+      </OnboardingGate>
+    </LoginGate>
+  )
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <LoginGate>
-          <OnboardingGate>
-            <AppShell />
-          </OnboardingGate>
-        </LoginGate>
+        <AppRoutes />
       </BrowserRouter>
     </QueryClientProvider>
   )
