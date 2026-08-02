@@ -301,6 +301,23 @@ export const settingsApi = {
     req<{ ok: boolean }>('/settings/integrations', { method: 'PUT', body: JSON.stringify(data) }),
 }
 
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+export interface AppNotification {
+  id: number
+  title: string
+  body: string
+  url: string | null
+  read_at: number | null
+  created_at: number
+}
+
+export const notificationsApi = {
+  list: () => req<{ items: AppNotification[]; unread: number }>('/notifications'),
+  read: (id: number) => req<ApiOk>(`/notifications/${id}/read`, { method: 'POST' }),
+  readAll: () => req<ApiOk>('/notifications/read-all', { method: 'POST' }),
+}
+
 // ── Onboarding ────────────────────────────────────────────────────────────────
 
 export const onboardingApi = {

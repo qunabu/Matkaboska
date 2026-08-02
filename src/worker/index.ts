@@ -13,7 +13,8 @@ import { foodLogRouter } from './routes/food-log'
 import { productsRouter } from './routes/products'
 import { waterRouter } from './routes/water'
 import { supplementsRouter } from './routes/supplements'
-import { pushRouter, sendPushNotification } from './routes/push'
+import { pushRouter, notify } from './routes/push'
+import { notificationsRouter } from './routes/notifications'
 import { friscoRouter } from './routes/frisco'
 import { todosRouter } from './routes/todos'
 import { ideasRouter } from './routes/ideas'
@@ -36,6 +37,7 @@ api.route('/api/s', sharedListRouter)
 
 api.route('/api/auth', authRouter)
 api.route('/api/onboarding', onboardingRouter)
+api.route('/api/notifications', notificationsRouter)
 
 api.get('/api/health', (c) =>
   c.json({ ok: true, timestamp: new Date().toISOString() })
@@ -154,17 +156,15 @@ export default {
           if (firedKey === todayKey) continue
         }
 
-        await Promise.allSettled(
-          subs.map((sub) => sendPushNotification(env, sub.endpoint, sub.p256dh, sub.auth, {
-            title: reminder.label,
-            body: reminder.type === 'water' ? 'Pamiętaj o wypiciu wody 💧'
-              : reminder.type === 'supplement' ? 'Czas na suplementy 💊'
-              : reminder.type === 'cook' ? 'Czas gotować 🍲'
-              : reminder.type === 'prep' ? 'Przygotuj jedzenie na jutro 🥘'
-              : 'Przypomnienie 🌈',
-            url: '/',
-          }))
-        )
+        await notify(env, userId, subs, {
+          title: reminder.label,
+          body: reminder.type === 'water' ? 'Pamiętaj o wypiciu wody 💧'
+            : reminder.type === 'supplement' ? 'Czas na suplementy 💊'
+            : reminder.type === 'cook' ? 'Czas gotować 🍲'
+            : reminder.type === 'prep' ? 'Przygotuj jedzenie na jutro 🥘'
+            : 'Przypomnienie 🌈',
+          url: '/',
+        })
         await db.update(reminders).set({ last_fired_at: Math.floor(Date.now() / 1000) })
           .where(eq(reminders.id, reminder.id))
       }
@@ -192,16 +192,14 @@ export default {
 
         if (sup.last_notified_at && (nowUnix - sup.last_notified_at) / 60 < NAG_MIN) continue
 
-        await Promise.allSettled(
-          subs.map((sub) => sendPushNotification(env, sub.endpoint, sub.p256dh, sub.auth, {
-            title: sup.name,
-            body: sup.kind === 'medication'
-              ? 'Czas na lek 💊 — kliknij „Przyjmij", gdy weźmiesz'
-              : 'Czas na suplement 💊 — kliknij „Przyjmij", gdy weźmiesz',
-            url: '/supplements',
-            tag: `sup-${sup.id}`,
-          }))
-        )
+        await notify(env, userId, subs, {
+          title: sup.name,
+          body: sup.kind === 'medication'
+            ? 'Czas na lek 💊 — kliknij „Przyjmij", gdy weźmiesz'
+            : 'Czas na suplement 💊 — kliknij „Przyjmij", gdy weźmiesz',
+          url: '/supplements',
+          tag: `sup-${sup.id}`,
+        })
         await db.update(supplements).set({ last_notified_at: nowUnix }).where(eq(supplements.id, sup.id))
       }
 
@@ -227,14 +225,12 @@ export default {
         const body = st.streak > 0
           ? `Już ${st.streak} ${st.streak === 1 ? 'dzień' : 'dni'} 🔥 — czy dziś też się udało?`
           : 'Czy dziś się udało? Kliknij, aby odpowiedzieć.'
-        await Promise.allSettled(
-          subs.map((sub) => sendPushNotification(env, sub.endpoint, sub.p256dh, sub.auth, {
-            title: h.name,
-            body,
-            url: '/habits',
-            tag: `habit-${h.id}`,
-          }))
-        )
+        await notify(env, userId, subs, {
+          title: h.name,
+          body,
+          url: '/habits',
+          tag: `habit-${h.id}`,
+        })
         await db.update(habits).set({ prompted: true }).where(eq(habits.id, h.id))
       }
 
@@ -245,14 +241,12 @@ export default {
         const { due } = choreDue(ch, choreCtx)
         if (!due) continue
         if (ch.last_notified_at && (nowUnix - ch.last_notified_at) / 60 < ch.nag_minutes) continue
-        await Promise.allSettled(
-          subs.map((sub) => sendPushNotification(env, sub.endpoint, sub.p256dh, sub.auth, {
-            title: ch.name,
-            body: 'Czas na to zadanie ✅ — kliknij „Zrobione", gdy skończysz',
-            url: '/chores',
-            tag: `chore-${ch.id}`,
-          }))
-        )
+        await notify(env, userId, subs, {
+          title: ch.name,
+          body: 'Czas na to zadanie ✅ — kliknij „Zrobione", gdy skończysz',
+          url: '/chores',
+          tag: `chore-${ch.id}`,
+        })
         await db.update(chores).set({ last_notified_at: nowUnix }).where(eq(chores.id, ch.id))
       }
     }

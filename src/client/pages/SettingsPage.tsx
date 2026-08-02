@@ -2,7 +2,22 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, pushApi, productsApi, authApi } from '../lib/api'
 import { MODULE_KEYS, getModuleSettings, setModuleSetting } from '../lib/moduleSettings'
+import { soundEnabled, setSoundEnabled } from '../lib/sound'
+import { useTheme } from '../lib/theme'
 import pl from '../i18n/pl'
+
+function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-primary-600' : 'bg-gray-200 dark:bg-gray-600'}`}
+    >
+      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
+    </button>
+  )
+}
 
 function ProductsRepo() {
   const qc = useQueryClient()
@@ -133,6 +148,8 @@ export default function SettingsPage() {
   const [vapidKey, setVapidKey] = useState<string | null>(null)
   const [testMsg, setTestMsg] = useState<'sent' | 'denied' | 'error' | 'unsupported' | null>(null)
   const [moduleSettings, setModuleSettings] = useState(getModuleSettings)
+  const { theme, toggle: toggleTheme } = useTheme()
+  const [sound, setSound] = useState(soundEnabled)
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -293,6 +310,27 @@ export default function SettingsPage() {
           >
             {saved ? `✓ ${pl.settings.saved}` : pl.common.save}
           </button>
+        </section>
+
+        {/* Appearance & sound */}
+        <section>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            {pl.settings.appearance}
+          </h2>
+          <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+            <div className="divide-y divide-gray-50 dark:divide-gray-700">
+              <div className="flex items-center justify-between px-4 py-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {theme === 'dark' ? pl.theme.toLight : pl.theme.toDark}
+                </label>
+                <Toggle checked={theme === 'dark'} onChange={toggleTheme} />
+              </div>
+              <div className="flex items-center justify-between px-4 py-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{pl.theme.sound}</label>
+                <Toggle checked={sound} onChange={() => { const next = !sound; setSound(next); setSoundEnabled(next) }} />
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* Notifications */}

@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, chores, push_subscriptions } from '../db/index'
+import { getDb, chores, push_subscriptions, notifications } from '../db/index'
 import { localDateKey, appTimezone } from './habits'
 import { sendPushNotification } from './push'
 import type { AppEnv } from '../types'
@@ -143,6 +143,7 @@ app.post('/:id/remind-now', async (c) => {
   if (!c.env.VAPID_PRIVATE_KEY) return c.json({ error: 'Push not configured' }, 503)
   const subs = await db.select().from(push_subscriptions).where(eq(push_subscriptions.user_id, userId))
   if (subs.length === 0) return c.json({ error: 'No subscriptions', sent: 0, total: 0 }, 400)
+  await db.insert(notifications).values({ user_id: userId, title: row.name, body: 'Czas na to zadanie ✅ — kliknij „Zrobione", gdy skończysz', url: '/chores', read_at: null }).catch(() => {})
   const results = await Promise.allSettled(
     subs.map((s) => sendPushNotification(c.env, s.endpoint, s.p256dh, s.auth, {
       title: row.name, body: 'Czas na to zadanie ✅ — kliknij „Zrobione", gdy skończysz', url: '/chores', tag: `chore-${row.id}`,

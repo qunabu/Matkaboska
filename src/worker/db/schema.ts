@@ -253,6 +253,18 @@ export const push_subscriptions = sqliteTable('push_subscriptions', {
   push_sub_user_idx: index('push_sub_user_idx').on(t.user_id),
 }))
 
+export const notifications = sqliteTable('notifications', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  user_id: text('user_id').notNull().default(''),
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  url: text('url'),
+  read_at: integer('read_at'),
+  created_at: integer('created_at').notNull().default(unixNow),
+}, (t) => ({
+  notifications_user_idx: index('notifications_user_idx').on(t.user_id),
+}))
+
 export const settings = sqliteTable('settings', {
   user_id: text('user_id').notNull().default(''),
   key: text('key').notNull(),

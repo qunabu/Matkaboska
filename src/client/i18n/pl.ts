@@ -67,6 +67,22 @@ const pl = {
     enter: 'Wejdź do aplikacji',
   },
 
+  notifications: {
+    title: 'Powiadomienia',
+    empty: 'Brak powiadomień',
+    markAllRead: 'Oznacz wszystkie jako przeczytane',
+    now: 'teraz',
+    min: (n: number) => `${n} min temu`,
+    hour: (n: number) => `${n} godz temu`,
+    day: (n: number) => `${n} dni temu`,
+  },
+
+  theme: {
+    toDark: 'Tryb ciemny',
+    toLight: 'Tryb jasny',
+    sound: 'Dźwięk powiadomień',
+  },
+
   update: {
     available: 'Dostępna nowa wersja aplikacji',
     refresh: 'Odśwież',
@@ -110,6 +126,7 @@ const pl = {
     protein: 'Białko (g)',
     water: 'Woda (szklanek)',
     timezone: 'Strefa czasowa',
+    appearance: 'Wygląd i dźwięk',
     notifications: 'Powiadomienia',
     enableNotifications: 'Włącz powiadomienia',
     notificationsGranted: 'Powiadomienia włączone',

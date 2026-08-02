@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { eq, and, inArray } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, supplements, supplement_log, push_subscriptions } from '../db/index'
+import { getDb, supplements, supplement_log, push_subscriptions, notifications } from '../db/index'
 import { sendPushNotification } from './push'
 import type { AppEnv } from '../types'
 import type { Supplement, SupSchedule } from '../../shared/types'
@@ -183,14 +183,13 @@ app.post('/:id/remind-now', async (c) => {
   if (!c.env.VAPID_PRIVATE_KEY) return c.json({ error: 'Push not configured' }, 503)
   const subs = await db.select().from(push_subscriptions).where(eq(push_subscriptions.user_id, userId))
   if (subs.length === 0) return c.json({ error: 'No subscriptions', sent: 0, total: 0 }, 400)
+  const body = sup.kind === 'medication'
+    ? 'Czas na lek 💊 — kliknij „Przyjmij", gdy weźmiesz'
+    : 'Czas na suplement 💊 — kliknij „Przyjmij", gdy weźmiesz'
+  await db.insert(notifications).values({ user_id: userId, title: sup.name, body, url: '/supplements', read_at: null }).catch(() => {})
   const results = await Promise.allSettled(
     subs.map((s) => sendPushNotification(c.env, s.endpoint, s.p256dh, s.auth, {
-      title: sup.name,
-      body: sup.kind === 'medication'
-        ? 'Czas na lek 💊 — kliknij „Przyjmij", gdy weźmiesz'
-        : 'Czas na suplement 💊 — kliknij „Przyjmij", gdy weźmiesz',
-      url: '/supplements',
-      tag: `sup-${sup.id}`,
+      title: sup.name, body, url: '/supplements', tag: `sup-${sup.id}`,
     }))
   )
   const sent = results.filter((r) => r.status === 'fulfilled').length

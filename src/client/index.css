@@ -6,14 +6,46 @@
   :root {
     color-scheme: light dark;
   }
+  html.dark { color-scheme: dark; }
+  html:not(.dark) { color-scheme: light; }
 
   html {
     -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
+    @apply bg-gray-50 text-gray-900 antialiased dark:text-gray-100;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
+
+  /* SpaceX-style near-black canvas with a faint top glow in dark mode. */
+  html.dark body {
+    background-color: #050506;
+    background-image:
+      radial-gradient(80rem 40rem at 50% -12rem, rgba(124, 58, 237, 0.14), transparent 60%),
+      radial-gradient(60rem 30rem at 100% 0, rgba(37, 99, 235, 0.08), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  /* Global, restrained motion — everything eases rather than snaps. */
+  a, button, input, textarea, select, [role="switch"], [role="button"] {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+    transition-duration: 160ms;
+    transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  /* Sleeker scrollbars in dark mode. */
+  html.dark * {
+    scrollbar-color: #2a2a30 transparent;
+  }
+  html.dark ::-webkit-scrollbar { width: 8px; height: 8px; }
+  html.dark ::-webkit-scrollbar-thumb { background: #26262c; border-radius: 8px; }
+
+  ::selection { background: rgba(124, 58, 237, 0.35); }
 
   /* Respect safe areas on notched phones */
   .h-safe-area-inset-bottom {
@@ -24,5 +56,9 @@
 @layer utilities {
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* Frosted panel used by the top bar / nav for the SpaceX chrome. */
+  .glass {
+    @apply border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-white/10 dark:bg-ink-800/70;
   }
 }

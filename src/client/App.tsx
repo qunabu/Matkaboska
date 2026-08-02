@@ -6,6 +6,8 @@ import { usePwaUpdate } from './hooks/usePwaUpdate'
 import { useModuleSettings } from './lib/moduleSettings'
 import { authApi, onboardingApi } from './lib/api'
 import OnboardingPage from './pages/OnboardingPage'
+import NotificationBell from './components/NotificationBell'
+import { useTheme } from './lib/theme'
 import pl from './i18n/pl'
 
 declare const __APP_VERSION__: string
@@ -85,9 +87,9 @@ function BottomNav() {
   return (
     <>
       {moreOpen && (
-        <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setMoreOpen(false)}>
+        <div className="fixed inset-0 z-40 animate-fade-in bg-black/50 backdrop-blur-sm md:hidden" onClick={() => setMoreOpen(false)}>
           <div
-            className="absolute bottom-14 left-0 right-0 space-y-1 rounded-t-2xl bg-white p-2 shadow-2xl dark:bg-gray-900"
+            className="glass absolute bottom-16 left-2 right-2 animate-fade-in-up space-y-0.5 rounded-2xl border p-2 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {overflow.map((item) => (
@@ -96,9 +98,9 @@ function BottomNav() {
                 to={item.to}
                 onClick={() => setMoreOpen(false)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium ${
+                  `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium ${
                     isActive
-                      ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                      ? 'bg-primary-600/10 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300'
                       : 'text-gray-700 dark:text-gray-300'
                   }`
                 }
@@ -112,13 +114,17 @@ function BottomNav() {
       )}
       <nav
         aria-label="Nawigacja główna"
-        className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 md:hidden"
+        className="glass fixed bottom-0 left-0 right-0 z-40 border-t md:hidden"
       >
         <div className="flex">
           {primary.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.to === '/'} className={linkClass}>
-              <span className="text-xl leading-none" aria-hidden="true">{item.icon}</span>
-              <span>{item.label}</span>
+              {({ isActive }) => (
+                <>
+                  <span className={`text-xl leading-none transition-transform ${isActive ? 'scale-110' : ''}`} aria-hidden="true">{item.icon}</span>
+                  <span>{item.label}</span>
+                </>
+              )}
             </NavLink>
           ))}
           <button
@@ -142,26 +148,29 @@ function SideNav() {
   const navItems = ALL_NAV_ITEMS.filter(i => !i.moduleKey || modules[i.moduleKey as keyof typeof modules])
 
   return (
-    <aside className="hidden w-56 shrink-0 border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 md:flex md:flex-col">
-      <div className="px-4 py-5">
-        <span className="block text-lg font-bold text-primary-600">{pl.nav.appName}</span>
-        <span className="block text-xs text-gray-400">{pl.nav.appTagline}</span>
+    <aside className="glass hidden w-60 shrink-0 border-r md:flex md:flex-col">
+      <div className="flex items-center gap-3 px-5 py-5">
+        <img src="/icons/icon-192.png" alt="" className="h-9 w-9 rounded-xl ring-1 ring-black/5 dark:ring-white/10" />
+        <div>
+          <span className="block text-sm font-bold tracking-tight text-gray-900 dark:text-gray-100">{pl.nav.appName}</span>
+          <span className="block text-[10px] uppercase tracking-[0.18em] text-gray-400">{pl.nav.appTagline}</span>
+        </div>
       </div>
-      <nav className="flex-1 space-y-1 px-2">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-4">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/'}
             className={({ isActive }) =>
-              `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              `group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all ${
                 isActive
-                  ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
-                  : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+                  ? 'bg-primary-600/10 text-primary-700 ring-1 ring-primary-600/20 dark:bg-primary-500/15 dark:text-primary-300 dark:ring-primary-400/20'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-100'
               }`
             }
           >
-            <span aria-hidden="true">{item.icon}</span>
+            <span className="text-base transition-transform group-hover:scale-110" aria-hidden="true">{item.icon}</span>
             {item.label}
           </NavLink>
         ))}
@@ -175,6 +184,29 @@ function SideNav() {
 interface InstallPromptEvent extends Event {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: string }>
+}
+
+function TopBar() {
+  const { theme, toggle } = useTheme()
+  return (
+    <header className="glass sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b px-3 md:px-5">
+      <div className="flex items-center gap-2 md:hidden">
+        <img src="/icons/icon-192.png" alt="" className="h-7 w-7 rounded-lg ring-1 ring-black/5 dark:ring-white/10" />
+        <span className="text-sm font-semibold tracking-tight text-gray-900 dark:text-gray-100">{pl.nav.appName}</span>
+      </div>
+      <div className="hidden md:block text-xs font-medium uppercase tracking-[0.2em] text-gray-400">{pl.nav.appTagline}</div>
+      <div className="flex items-center gap-0.5">
+        <button
+          onClick={toggle}
+          aria-label={theme === 'dark' ? pl.theme.toLight : pl.theme.toDark}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-100"
+        >
+          <span className="text-lg leading-none">{theme === 'dark' ? '☀️' : '🌙'}</span>
+        </button>
+        <NotificationBell />
+      </div>
+    </header>
+  )
 }
 
 function AppShell() {
@@ -250,6 +282,7 @@ function AppShell() {
     <div className="flex h-dvh flex-col md:flex-row">
       <SideNav />
       <div className="flex flex-1 flex-col overflow-hidden">
+        <TopBar />
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           <Suspense fallback={<PageFallback />}>
             <Routes>

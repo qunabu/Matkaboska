@@ -1,8 +1,10 @@
 import { Hono } from 'hono'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, push_subscriptions, reminders } from '../db/index'
+import { getDb, push_subscriptions, reminders, notifications } from '../db/index'
 import type { AppEnv, Env } from '../types'
+
+type PushSub = { endpoint: string; p256dh: string; auth: string }
 
 const app = new Hono<AppEnv>()
 
@@ -49,12 +51,10 @@ app.post('/test', async (c) => {
   const subs = await db.select().from(push_subscriptions).where(eq(push_subscriptions.user_id, userId))
   if (subs.length === 0) return c.json({ error: 'No subscriptions' }, 400)
 
+  const payload = { title: 'Matka Boska 🌈', body: 'Powiadomienia działają! 🙏', url: '/' }
+  await db.insert(notifications).values({ user_id: userId, title: payload.title, body: payload.body, url: payload.url, read_at: null }).catch(() => {})
   const results = await Promise.allSettled(
-    subs.map(sub => sendPushNotification(c.env, sub.endpoint, sub.p256dh, sub.auth, {
-      title: 'Matka Boska 🌈',
-      body: 'Powiadomienia działają! 🙏',
-      url: '/',
-    }))
+    subs.map(sub => sendPushNotification(c.env, sub.endpoint, sub.p256dh, sub.auth, payload))
   )
   const sent = results.filter(r => r.status === 'fulfilled').length
   const errors = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected').map(r => String(r.reason))
@@ -153,6 +153,29 @@ export async function sendPushNotification(
     const text = await res.text().catch(() => '')
     throw new Error(`Push ${res.status} ${text}`.trim())
   }
+}
+
+// Deliver a notification to a user: record it in the notifications feed (so it
+// shows under the bell) and push it to every subscription. Delivery is
+// best-effort; a failed push never blocks the recorded notification.
+export async function notify(
+  env: Env,
+  userId: string,
+  subs: PushSub[],
+  payload: { title: string; body: string; url?: string; tag?: string },
+) {
+  try {
+    await getDb(env.DB).insert(notifications).values({
+      user_id: userId,
+      title: payload.title,
+      body: payload.body,
+      url: payload.url ?? null,
+      read_at: null,
+    })
+  } catch { /* feed insert is non-critical */ }
+  await Promise.allSettled(
+    subs.map((s) => sendPushNotification(env, s.endpoint, s.p256dh, s.auth, payload)),
+  )
 }
 
 async function buildVapidJwt(audience: string, subject: string, publicKey: string, privateKey: string): Promise<string> {

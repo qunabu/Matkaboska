@@ -2,6 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
+import { initTheme } from './lib/theme'
+
+// Apply the saved theme before the first paint to avoid a flash.
+initTheme()
 
 // Capture the install prompt as early as possible — it can fire before React
 // mounts, so we stash it on window and re-dispatch for the app to pick up.
