@@ -6,13 +6,31 @@ import pl from '../i18n/pl'
 
 const MIN_DISHES = 10
 
+// Tolerant JSON extraction from a pasted LLM reply: strips ```json code fences and
+// any prose around the JSON, then grabs the outermost array (or object).
+function extractJson(raw: string): unknown | null {
+  let t = raw.trim()
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (fence) t = fence[1].trim()
+  const tryParse = (s: string) => { try { return JSON.parse(s) } catch { return undefined } }
+  let v = tryParse(t)
+  if (v !== undefined) return v
+  const a = t.indexOf('['), b = t.lastIndexOf(']')
+  if (a >= 0 && b > a) { v = tryParse(t.slice(a, b + 1)); if (v !== undefined) return v }
+  const oa = t.indexOf('{'), ob = t.lastIndexOf('}')
+  if (oa >= 0 && ob > oa) { v = tryParse(t.slice(oa, ob + 1)); if (v !== undefined) return v }
+  return null
+}
+
 // The JSON schema we ask the external LLM to emit, embedded in the prompt.
 function buildPrompt(dishes: string[]): string {
   const list = dishes.map((d, i) => `${i + 1}. ${d}`).join('\n')
-  return `Jestem użytkownikiem aplikacji do planowania posiłków. Wygeneruj przepisy w formacie JSON dla poniższych dań.
-Zwróć WYŁĄCZNIE tablicę JSON (bez komentarzy, bez bloków kodu), gdzie każdy element ma pola:
+  return `Jesteś generatorem przepisów. Zwróć przepisy dla poniższych dań wyłącznie jako tablicę JSON w bloku kodu \`\`\`json ... \`\`\`.
+Nie pisz żadnego tekstu przed ani po bloku kodu. Odpowiedź musi być poprawnym JSON-em (parsowalnym przez JSON.parse).
+Każdy element tablicy ma pola:
 {"title": string (po polsku), "category": jedno z ["breakfast","lunch","dinner","snack","soup","salad","smoothie","dessert","other"], "servings": liczba, "prep_minutes": liczba lub null, "ingredients": [{"name": string, "amount": string, "unit": string}], "steps": [string], "tags": [string], "is_seafood": boolean, "macros": {"kcal": liczba, "protein_g": liczba, "carbs_g": liczba, "fat_g": liczba, "fiber_g": liczba, "iron_mg": liczba}}
 Makroskładniki podawaj na 1 porcję, realistycznie oszacowane. Składniki z realnymi ilościami (amount + unit, np. "200"/"g", "2"/"szt").
+Skopiuj CAŁĄ odpowiedź (razem z blokiem kodu) i wklej ją w aplikacji.
 
 Dania:
 ${list}`
@@ -56,13 +74,7 @@ export default function OnboardingPage({ onDone }: { onDone: () => void }) {
 
   function doImport() {
     setJsonErr(null)
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(json)
-    } catch {
-      setJsonErr(pl.onboarding.jsonInvalid)
-      return
-    }
+    const parsed = extractJson(json)
     // Accept a bare array or an object wrapping it under a "recipes" key.
     const arr = Array.isArray(parsed)
       ? parsed
