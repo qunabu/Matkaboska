@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi, pushApi, productsApi, authApi } from '../lib/api'
 import { MODULE_KEYS, getModuleSettings, setModuleSetting } from '../lib/moduleSettings'
@@ -161,6 +162,7 @@ export default function SettingsPage() {
   const [moduleSettings, setModuleSettings] = useState(getModuleSettings)
   const { theme, toggle: toggleTheme } = useTheme()
   const [sound, setSound] = useState(soundEnabled)
+  const { data: me } = useQuery({ queryKey: ['auth'], queryFn: authApi.me, retry: false })
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -457,6 +459,14 @@ export default function SettingsPage() {
               )
             })()}
           </div>
+          {me?.isAdmin && (
+            <Link
+              to="/admin"
+              className="mt-3 block w-full rounded-xl bg-primary-600 py-3 text-center text-sm font-semibold text-white hover:bg-primary-700"
+            >
+              🛠 {pl.admin.open}
+            </Link>
+          )}
           <button
             onClick={async () => { await authApi.logout().catch(() => {}); window.location.reload() }}
             className="mt-3 w-full rounded-xl bg-gray-100 py-3 text-sm font-medium text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"

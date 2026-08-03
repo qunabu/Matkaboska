@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { AppEnv } from '../types'
 import { handleGoogleStart, handleGoogleCallback, readCookie, deleteSession, clearSessionCookie, googleEnabled } from '../lib/google-auth'
+import { isAdmin } from './admin'
 
 const app = new Hono<AppEnv>()
 
@@ -13,7 +14,7 @@ app.get('/google/callback', (c) => handleGoogleCallback(c.req.raw, new URL(c.req
 // GET /api/auth/me — current identity (userId set by the auth middleware)
 app.get('/me', (c) => {
   const email = c.var.userId
-  return c.json({ authed: !!email, email, googleEnabled: googleEnabled(c.env) })
+  return c.json({ authed: !!email, email, googleEnabled: googleEnabled(c.env), isAdmin: isAdmin(c.env, email) })
 })
 
 // POST /api/auth/logout — drop the session

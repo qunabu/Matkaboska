@@ -296,8 +296,24 @@ export const pushApi = {
 // ── Auth (CF Access / Google) ────────────────────────────────────────────────
 
 export const authApi = {
-  me: () => req<{ authed: boolean; email: string }>('/auth/me'),
+  me: () => req<{ authed: boolean; email: string; isAdmin?: boolean }>('/auth/me'),
   logout: () => req<ApiOk>('/auth/logout', { method: 'POST' }),
+}
+
+export interface AdminUser {
+  email: string
+  recipes: number
+  products: number
+  planEntries: number
+  foodLogs: number
+  pushDevices: number
+  activeSessions: number
+  lastLogAt: number | null
+}
+
+export const adminApi = {
+  users: () => req<{ users: AdminUser[]; admins: string[] }>('/admin/users'),
+  deleteUser: (email: string) => req<ApiOk>(`/admin/users/${encodeURIComponent(email)}`, { method: 'DELETE' }),
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────

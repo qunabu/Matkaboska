@@ -4,6 +4,7 @@ import type { AppEnv } from './types'
 import { accessAuth } from './middleware/auth'
 import { authRouter } from './routes/auth'
 import { onboardingRouter } from './routes/onboarding'
+import { adminRouter } from './routes/admin'
 import { recipesRouter } from './routes/recipes'
 import { planRouter } from './routes/plan'
 import { settingsRouter } from './routes/settings'
@@ -37,6 +38,7 @@ api.route('/api/s', sharedListRouter)
 
 api.route('/api/auth', authRouter)
 api.route('/api/onboarding', onboardingRouter)
+api.route('/api/admin', adminRouter)
 api.route('/api/notifications', notificationsRouter)
 
 api.get('/api/health', (c) =>

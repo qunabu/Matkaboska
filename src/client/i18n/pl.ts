@@ -93,6 +93,26 @@ const pl = {
     sound: 'Dźwięk powiadomień',
   },
 
+  admin: {
+    title: 'Panel administratora',
+    subtitle: (n: number) => `${n} ${n === 1 ? 'użytkownik' : 'użytkowników'} • statystyki i zarządzanie kontami`,
+    open: 'Panel administratora',
+    user: 'Użytkownik',
+    recipes: 'Przepisy',
+    products: 'Produkty',
+    plan: 'Plan',
+    log: 'Dziennik',
+    devices: 'Urządzenia',
+    lastActive: 'Ostatnio',
+    delete: 'Usuń konto',
+    confirmDelete: (email: string) => `Usunąć KONTO ${email} i WSZYSTKIE jego dane? Tej operacji nie można cofnąć.`,
+    forbidden: 'Brak dostępu — tylko administrator.',
+    you: 'to Ty',
+    today: 'dziś',
+    yesterday: 'wczoraj',
+    daysAgo: (n: number) => `${n} dni temu`,
+  },
+
   update: {
     available: 'Dostępna nowa wersja aplikacji',
     refresh: 'Odśwież',

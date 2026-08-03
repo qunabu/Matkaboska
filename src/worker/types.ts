@@ -24,6 +24,8 @@ export type Env = {
   DEV_USER_EMAIL?: string
   // Account whose recipes new/empty users may import as a starter set.
   STARTER_RECIPES_USER?: string
+  // Comma-separated admin emails (see the admin panel + delete accounts).
+  ADMIN_EMAILS?: string
   // Frisco integration (all optional; set as Worker secrets, never committed).
   FRISCO_REFRESH_TOKEN?: string
   FRISCO_USERNAME?: string
