@@ -107,6 +107,8 @@ const pl = {
     delete: 'Usuń konto',
     confirmDelete: (email: string) => `Usunąć KONTO ${email} i WSZYSTKIE jego dane? Tej operacji nie można cofnąć.`,
     forbidden: 'Brak dostępu — tylko administrator.',
+    loggedInAs: 'Zalogowany jako',
+    adminHint: 'Zaloguj się kontem administratora (qunabu.com@gmail.com).',
     you: 'to Ty',
     today: 'dziś',
     yesterday: 'wczoraj',

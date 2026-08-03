@@ -22,7 +22,13 @@ export default function AdminPage() {
   })
 
   if (isError) {
-    return <div className="mx-auto max-w-2xl p-6 text-center text-sm text-red-500">{pl.admin.forbidden}</div>
+    return (
+      <div className="mx-auto max-w-2xl p-6 text-center">
+        <p className="text-sm text-red-500">{pl.admin.forbidden}</p>
+        {me?.email && <p className="mt-2 text-xs text-gray-400">{pl.admin.loggedInAs}: <span className="font-mono">{me.email}</span></p>}
+        <p className="mt-1 text-xs text-gray-400">{pl.admin.adminHint}</p>
+      </div>
+    )
   }
 
   const users = data?.users ?? []
