@@ -470,9 +470,12 @@ const pl = {
     noEntries: 'Brak wpisów',
     deleteEntry: 'Usuń wpis',
     entryFallback: 'Wpis #',
-    copyToToday: 'Skopiuj ten wpis na dziś',
+    copyToToday: 'Skopiuj ten wpis na wybrany dzień',
     copied: 'Skopiowano',
     toTodayBtn: 'Na dziś',
+    copyBtn: 'Kopiuj',
+    copyTitle: 'Skopiuj wpis na dzień',
+    copyDateLabel: 'Na jaki dzień?',
     goals: 'Cele',
     progress: 'Postęp',
     water: {

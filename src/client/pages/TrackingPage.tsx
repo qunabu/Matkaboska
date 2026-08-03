@@ -363,6 +363,8 @@ export default function TrackingPage() {
   const [date, setDate] = useState(todayDate())
   const [showAdd, setShowAdd] = useState(false)
   const [copiedId, setCopiedId] = useState<number | null>(null)
+  const [copyTarget, setCopyTarget] = useState<FoodLogEntry | null>(null)
+  const [copyDate, setCopyDate] = useState(todayDate())
 
   const { data: entries } = useQuery({
     queryKey: ['food-log', date],
@@ -387,19 +389,20 @@ export default function TrackingPage() {
     },
   })
 
-  // Copy a logged entry to today (re-log something you ate before).
+  // Copy a logged entry to a chosen day (default today) — re-log a past meal.
   const copyEntry = useMutation({
-    mutationFn: (entry: FoodLogEntry) => foodLogApi.add({
-      date: todayDate(),
+    mutationFn: ({ entry, date: to }: { entry: FoodLogEntry; date: string }) => foodLogApi.add({
+      date: to,
       description: entry.description,
       kcal: entry.kcal, protein_g: entry.protein_g, carbs_g: entry.carbs_g, fat_g: entry.fat_g,
       portion: entry.portion ?? 'custom',
     }),
-    onSuccess: (_r, entry) => {
+    onSuccess: (_r, { entry, date: to }) => {
       setCopiedId(entry.id)
       setTimeout(() => setCopiedId((c) => (c === entry.id ? null : c)), 2000)
-      qc.invalidateQueries({ queryKey: ['food-log', todayDate()] })
-      qc.invalidateQueries({ queryKey: ['food-log-summary', todayDate()] })
+      setCopyTarget(null)
+      qc.invalidateQueries({ queryKey: ['food-log', to] })
+      qc.invalidateQueries({ queryKey: ['food-log-summary', to] })
     },
   })
 
@@ -504,8 +507,7 @@ export default function TrackingPage() {
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
               <button
-                onClick={() => copyEntry.mutate(entry)}
-                disabled={copyEntry.isPending}
+                onClick={() => { setCopyTarget(entry); setCopyDate(todayDate()) }}
                 title={pl.tracking.copyToToday}
                 className={`rounded-lg px-2 py-1 text-xs font-medium transition-colors ${
                   copiedId === entry.id
@@ -513,7 +515,7 @@ export default function TrackingPage() {
                     : 'bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-700 dark:bg-gray-700 dark:text-gray-200'
                 }`}
               >
-                {copiedId === entry.id ? `✓ ${pl.tracking.copied}` : `📋 ${pl.tracking.toTodayBtn}`}
+                {copiedId === entry.id ? `✓ ${pl.tracking.copied}` : `📋 ${pl.tracking.copyBtn}`}
               </button>
               <button
                 onClick={() => deleteEntry.mutate(entry.id)}
@@ -532,6 +534,45 @@ export default function TrackingPage() {
           onClose={() => setShowAdd(false)}
           onSaved={invalidateAll}
         />
+      )}
+
+      {copyTarget && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:items-center" onClick={() => setCopyTarget(null)}>
+          <div className="w-full max-w-sm rounded-t-2xl bg-white p-4 md:rounded-2xl dark:bg-gray-900" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{pl.tracking.copyTitle}</h3>
+              <button onClick={() => setCopyTarget(null)} className="text-2xl leading-none text-gray-400">×</button>
+            </div>
+            <p className="mb-3 truncate text-sm text-gray-600 dark:text-gray-300">
+              {copyTarget.description ?? '—'}
+              {copyTarget.kcal ? <span className="ml-1 text-xs text-gray-400">({Math.round(copyTarget.kcal)} kcal)</span> : null}
+            </p>
+            <label className="mb-4 block text-xs font-medium text-gray-500">
+              {pl.tracking.copyDateLabel}
+              <input
+                type="date"
+                value={copyDate}
+                onChange={(e) => setCopyDate(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+            </label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCopyDate(todayDate())}
+                className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-200"
+              >
+                {pl.tracking.toTodayBtn}
+              </button>
+              <button
+                onClick={() => copyEntry.mutate({ entry: copyTarget, date: copyDate })}
+                disabled={copyEntry.isPending || !copyDate}
+                className="flex-1 rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+              >
+                📋 {pl.tracking.copyBtn}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
