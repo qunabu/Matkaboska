@@ -6,6 +6,7 @@ import type { FriscoOrderResult } from '../lib/api'
 import pl from '../i18n/pl'
 import type { ShoppingItem, ShopCategory } from '../../shared/types'
 import FriscoSearchModal from '../components/FriscoSearchModal'
+import RecipeModal from '../components/RecipeModal'
 
 const CAT_LABELS: Record<ShopCategory, string> = {
   produce: pl.shopping.categories.produce,
@@ -25,6 +26,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
   const [shareCopied, setShareCopied] = useState(false)
   const [orderResult, setOrderResult] = useState<FriscoOrderResult | null>(null)
   const [friscoSearch, setFriscoSearch] = useState<{ id: number; name: string } | null>(null)
+  const [recipeModal, setRecipeModal] = useState<{ id: number; title: string; slug: string }[] | null>(null)
   const orderMutation = useMutation({
     mutationFn: () => shoppingApi.friscoOrder(listId),
     onSuccess: (r) => { setOrderResult(r); qc.invalidateQueries({ queryKey: ['shopping-list', listId] }) },
@@ -44,6 +46,12 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
     queryKey: ['shopping-list', listId],
     queryFn: () => shoppingApi.getList(listId),
   })
+  const { data: sourcesData } = useQuery({
+    queryKey: ['recipe-sources', listId],
+    queryFn: () => shoppingApi.recipeSources(listId),
+    staleTime: 60_000,
+  })
+  const recipeSources = sourcesData?.sources ?? {}
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, checked }: { id: number; checked: boolean }) =>
@@ -277,6 +285,15 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                         {item.quantity} {item.unit}
                       </span>
                     ) : null}
+                    {recipeSources[item.id]?.length ? (
+                      <button
+                        onClick={() => setRecipeModal(recipeSources[item.id])}
+                        title={pl.shopping.showRecipe}
+                        className="ml-1.5 align-middle text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+                      >
+                        📖
+                      </button>
+                    ) : null}
                   </span>
                   <span
                     className={`flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium ${
@@ -341,6 +358,9 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
           onClose={() => setFriscoSearch(null)}
           onPicked={() => { setFriscoSearch(null); qc.invalidateQueries({ queryKey: ['shopping-list', listId] }) }}
         />
+      )}
+      {recipeModal && (
+        <RecipeModal recipes={recipeModal} onClose={() => setRecipeModal(null)} />
       )}
     </div>
   )

@@ -54,6 +54,45 @@ app.get('/:id', async (c) => {
   return c.json({ ...list, items })
 })
 
+// GET /api/shopping-lists/:id/recipe-sources — for each item, which recipes in the
+// list's date range use that ingredient. Keyed by item id → [{id,title,slug}].
+app.get('/:id/recipe-sources', async (c) => {
+  const listId = Number(c.req.param('id'))
+  const userId = c.var.userId
+  if (!Number.isFinite(listId)) return c.json({ error: 'invalid_id' }, 400)
+  const db = getDb(c.env.DB)
+  const [list] = await db.select().from(shopping_lists)
+    .where(and(eq(shopping_lists.id, listId), eq(shopping_lists.user_id, userId)))
+  if (!list) return c.json({ error: 'Not found' }, 404)
+
+  const sources: Record<number, { id: number; title: string; slug: string }[]> = {}
+  const from = list.date_range_start, to = list.date_range_end
+  if (from && to) {
+    const items = await db.select().from(shopping_items).where(eq(shopping_items.list_id, listId))
+    const planRows = await db.select({ recipe: recipes }).from(meal_plan_entries)
+      .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
+      .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, from, to)))
+    const byKey = new Map<string, Map<number, { id: number; title: string; slug: string }>>()
+    for (const { recipe } of planRows) {
+      if (!recipe) continue
+      let ings: Ingredient[] = []
+      try { ings = JSON.parse(recipe.ingredients) as Ingredient[] } catch { /* ignore */ }
+      for (const ing of ings) {
+        const key = normalizeName(ing.name || '').toLowerCase()
+        if (!key) continue
+        let m = byKey.get(key)
+        if (!m) { m = new Map(); byKey.set(key, m) }
+        m.set(recipe.id, { id: recipe.id, title: recipe.title, slug: recipe.slug })
+      }
+    }
+    for (const item of items) {
+      const m = byKey.get(normalizeName(item.name).toLowerCase())
+      if (m && m.size) sources[item.id] = [...m.values()]
+    }
+  }
+  return c.json({ sources })
+})
+
 // POST /api/shopping-lists
 app.post('/', async (c) => {
   const userId = c.var.userId
