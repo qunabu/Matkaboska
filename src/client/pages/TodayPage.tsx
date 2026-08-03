@@ -178,7 +178,8 @@ function ReadyProduct() {
   const { data: sug } = useQuery({
     queryKey: ['products', name],
     queryFn: () => productsApi.list(name),
-    enabled: showSug && name.trim().length >= 1,
+    // Show saved products as soon as the field is focused (empty name = list all).
+    enabled: showSug,
   })
 
   // Grams actually eaten: explicit input, else the portion, else 100 g.
