@@ -21,7 +21,7 @@ export default function AdminPage() {
     onError: (e) => alert((e as Error).message),
   })
 
-  if (isError) {
+  if (me && me.isAdmin === false) {
     return (
       <div className="mx-auto max-w-2xl p-6 text-center">
         <p className="text-sm text-red-500">{pl.admin.forbidden}</p>
@@ -29,6 +29,9 @@ export default function AdminPage() {
         <p className="mt-1 text-xs text-gray-400">{pl.admin.adminHint}</p>
       </div>
     )
+  }
+  if (isError) {
+    return <div className="mx-auto max-w-2xl p-6 text-center text-sm text-red-500">{pl.common.error}</div>
   }
 
   const users = data?.users ?? []

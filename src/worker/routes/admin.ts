@@ -35,7 +35,7 @@ app.get('/users', async (c) => {
   const [recipes, products, plan, foodLog, push, sessions] = await Promise.all(
     ['recipes', 'products', 'meal_plan_entries', 'food_log', 'push_subscriptions', 'sessions'].map((t) => groupCount(db, t)),
   )
-  const { results: lastRows } = await db.prepare('SELECT user_id, MAX(created_at) AS last FROM food_log GROUP BY user_id').all<{ user_id: string; last: number }>()
+  const { results: lastRows } = await db.prepare('SELECT user_id, MAX(logged_at) AS last FROM food_log GROUP BY user_id').all<{ user_id: string; last: number }>()
   const lastLog = new Map(lastRows.map((r) => [r.user_id, r.last]))
 
   const emails = new Set<string>()
