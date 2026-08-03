@@ -311,6 +311,37 @@ function ReadyProduct() {
   )
 }
 
+// Logged-today food entries, shown on the main page (not just in the add modal).
+function LoggedToday() {
+  const qc = useQueryClient()
+  const { data: log } = useQuery({ queryKey: ['food-log', today], queryFn: () => foodLogApi.list(today) })
+  const del = useMutation({
+    mutationFn: (id: number) => foodLogApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['food-log', today] })
+      qc.invalidateQueries({ queryKey: ['food-log-summary', today] })
+    },
+  })
+  const entries = log?.items ?? []
+  if (entries.length === 0) return null
+  return (
+    <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+      <h2 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">🍽 {pl.today.loggedToday}</h2>
+      <div className="space-y-1.5">
+        {entries.map((e) => (
+          <div key={e.id} className="flex items-center justify-between gap-2 text-sm">
+            <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{e.description ?? '—'}</span>
+            <span className="whitespace-nowrap text-xs text-gray-400">
+              {Math.round(e.kcal ?? 0)} kcal · {Math.round(e.protein_g ?? 0)}g B
+            </span>
+            <button onClick={() => del.mutate(e.id)} className="text-gray-300 hover:text-red-400" aria-label={pl.common.delete}>×</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function TodayPage() {
   const qc = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
@@ -374,6 +405,9 @@ export default function TodayPage() {
           </div>
         </div>
       )}
+
+      {/* What you've logged today */}
+      <LoggedToday />
 
       {/* Rarely-used: add own food / product via a bottom modal */}
       <button
