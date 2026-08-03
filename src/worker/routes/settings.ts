@@ -37,11 +37,12 @@ async function writeConfig(env: Env, userId: string, key: string, patch: Record<
   return merged
 }
 
-// Resolve the Anthropic API key for a user: their saved key wins, env is fallback.
+// Resolve the Anthropic API key for a user — PER-USER ONLY (settings key
+// 'user_config'), never shared: no env fallback, so nobody uses another user's key.
 export async function resolveAnthropicKey(env: Env, userId: string): Promise<string | undefined> {
   const cfg = await readConfig(env, userId, 'user_config')
   const key = typeof cfg.anthropic_api_key === 'string' ? cfg.anthropic_api_key.trim() : ''
-  return key || env.ANTHROPIC_API_KEY
+  return key || undefined
 }
 
 // GET /api/settings
