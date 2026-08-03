@@ -68,6 +68,12 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
     onError: (e) => alert((e as Error).message),
   })
 
+  // Mark every in-Frisco item as bought (checked) in one go.
+  const checkFriscoMutation = useMutation({
+    mutationFn: () => shoppingApi.checkFrisco(listId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
+  })
+
   const addMutation = useMutation({
     mutationFn: (name: string) => shoppingApi.addItem({ list_id: listId, name }),
     onSuccess: () => {
@@ -251,9 +257,20 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
       )}
 
       {items.length > 0 && (
-        <p className="mb-3 flex items-center gap-1 text-xs text-gray-400">
-          🛒 {pl.shopping.inFriscoLegend} — {items.filter((i) => i.in_frisco).length}/{items.length}
-        </p>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="flex items-center gap-1 text-xs text-gray-400">
+            🛒 {pl.shopping.inFriscoLegend} — {items.filter((i) => i.in_frisco).length}/{items.length}
+          </p>
+          {items.some((i) => i.in_frisco && !i.checked) && (
+            <button
+              onClick={() => checkFriscoMutation.mutate()}
+              disabled={checkFriscoMutation.isPending}
+              className="rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+            >
+              ✓ {pl.shopping.checkFriscoBought}
+            </button>
+          )}
+        </div>
       )}
 
       {CAT_ORDER.map(cat => {

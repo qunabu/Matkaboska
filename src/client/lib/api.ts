@@ -109,6 +109,7 @@ export const shoppingApi = {
   lists: () => req<ApiList<ShoppingList>>('/shopping-lists'),
   getList: (id: number) => req<ShoppingList & { items: ShoppingItem[] }>(`/shopping-lists/${id}`),
   recipeSources: (id: number) => req<{ sources: Record<number, { id: number; title: string; slug: string }[]> }>(`/shopping-lists/${id}/recipe-sources`),
+  checkFrisco: (id: number) => req<ApiOk>(`/shopping-lists/${id}/check-frisco`, { method: 'POST' }),
   createList: (name: string) => req<ShoppingList>('/shopping-lists', { method: 'POST', body: JSON.stringify({ name }) }),
   deleteList: (id: number) => req<ApiOk>(`/shopping-lists/${id}`, { method: 'DELETE' }),
   // Read-only aggregated shopping list for a date range (no DB write) — used by

@@ -93,6 +93,20 @@ app.get('/:id/recipe-sources', async (c) => {
   return c.json({ sources })
 })
 
+// POST /api/shopping-lists/:id/check-frisco — mark every in-Frisco item as bought.
+app.post('/:id/check-frisco', async (c) => {
+  const listId = Number(c.req.param('id'))
+  const userId = c.var.userId
+  if (!Number.isFinite(listId)) return c.json({ error: 'invalid_id' }, 400)
+  const db = getDb(c.env.DB)
+  const [list] = await db.select({ id: shopping_lists.id }).from(shopping_lists)
+    .where(and(eq(shopping_lists.id, listId), eq(shopping_lists.user_id, userId)))
+  if (!list) return c.json({ error: 'Not found' }, 404)
+  await db.update(shopping_items).set({ checked: true })
+    .where(and(eq(shopping_items.list_id, listId), eq(shopping_items.in_frisco, true)))
+  return c.json({ ok: true })
+})
+
 // POST /api/shopping-lists
 app.post('/', async (c) => {
   const userId = c.var.userId
