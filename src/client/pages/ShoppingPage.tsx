@@ -115,13 +115,6 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
   const items = data.items ?? []
   const allChecked = items.length > 0 && items.every(i => i.checked)
 
-  const byCategory: Record<ShopCategory, ShoppingItem[]> = {
-    produce: [], dairy: [], pantry: [], frozen: [], other: [],
-  }
-  for (const item of items) {
-    byCategory[item.category]?.push(item)
-  }
-
   return (
     <div className="mx-auto max-w-2xl p-4">
       <button onClick={onBack} className="mb-4 block text-sm text-gray-400 hover:text-gray-600">
@@ -273,14 +266,22 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
         </div>
       )}
 
-      {CAT_ORDER.map(cat => {
-        const catItems = byCategory[cat]
-        if (catItems.length === 0) return null
-        return (
-          <div key={cat} className="mb-4">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-              {CAT_LABELS[cat]}
-            </h2>
+      {([
+        { key: 'todo', label: pl.shopping.toBuyHeading, subset: items.filter((i) => !i.checked) },
+        { key: 'done', label: pl.shopping.boughtHeading, subset: items.filter((i) => i.checked) },
+      ] as const).map((section) => section.subset.length === 0 ? null : (
+        <div key={section.key} className={section.key === 'done' ? 'mt-6 opacity-70' : ''}>
+          <h2 className="mb-2 border-b border-gray-100 pb-1 text-sm font-bold text-gray-700 dark:border-gray-800 dark:text-gray-200">
+            {section.label} <span className="text-xs font-normal text-gray-400">({section.subset.length})</span>
+          </h2>
+          {CAT_ORDER.map(cat => {
+            const catItems = section.subset.filter((i) => i.category === cat)
+            if (catItems.length === 0) return null
+            return (
+              <div key={cat} className="mb-4">
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  {CAT_LABELS[cat]}
+                </h3>
             <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
               {catItems.map((item, idx) => (
                 <div
@@ -365,9 +366,11 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                 </div>
               ))}
             </div>
-          </div>
-        )
-      })}
+              </div>
+            )
+          })}
+        </div>
+      ))}
 
       {friscoSearch && (
         <FriscoSearchModal

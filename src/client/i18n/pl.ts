@@ -400,6 +400,8 @@ const pl = {
     openFullRecipe: 'Otwórz pełny przepis',
     showRecipe: 'Pokaż przepis',
     checkFriscoBought: 'Kupione z Frisco',
+    toBuyHeading: 'Do kupienia',
+    boughtHeading: 'Kupione',
     haveAtHome: 'Mam w domu',
     haveAtHomeTitle: 'Mam w domu — przenieś do spiżarni i usuń z listy oraz koszyka Frisco',
     share: 'Udostępnij',
