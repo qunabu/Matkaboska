@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { foodLogApi, waterApi, recipesApi, settingsApi, addDays } from '../lib/api'
+import type { FoodLogEntry } from '../../shared/types'
 import pl from '../i18n/pl'
 
 function todayDate() {
@@ -361,6 +362,7 @@ export default function TrackingPage() {
   const qc = useQueryClient()
   const [date, setDate] = useState(todayDate())
   const [showAdd, setShowAdd] = useState(false)
+  const [copiedId, setCopiedId] = useState<number | null>(null)
 
   const { data: entries } = useQuery({
     queryKey: ['food-log', date],
@@ -382,6 +384,22 @@ export default function TrackingPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['food-log', date] })
       qc.invalidateQueries({ queryKey: ['food-log-summary', date] })
+    },
+  })
+
+  // Copy a logged entry to today (re-log something you ate before).
+  const copyEntry = useMutation({
+    mutationFn: (entry: FoodLogEntry) => foodLogApi.add({
+      date: todayDate(),
+      description: entry.description,
+      kcal: entry.kcal, protein_g: entry.protein_g, carbs_g: entry.carbs_g, fat_g: entry.fat_g,
+      portion: entry.portion ?? 'custom',
+    }),
+    onSuccess: (_r, entry) => {
+      setCopiedId(entry.id)
+      setTimeout(() => setCopiedId((c) => (c === entry.id ? null : c)), 2000)
+      qc.invalidateQueries({ queryKey: ['food-log', todayDate()] })
+      qc.invalidateQueries({ queryKey: ['food-log-summary', todayDate()] })
     },
   })
 
@@ -484,12 +502,26 @@ export default function TrackingPage() {
                 </p>
               )}
             </div>
-            <button
-              onClick={() => deleteEntry.mutate(entry.id)}
-              className="text-gray-300 hover:text-red-400"
-            >
-              ×
-            </button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                onClick={() => copyEntry.mutate(entry)}
+                disabled={copyEntry.isPending}
+                title={pl.tracking.copyToToday}
+                className={`rounded-lg px-2 py-1 text-xs font-medium transition-colors ${
+                  copiedId === entry.id
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-700 dark:bg-gray-700 dark:text-gray-200'
+                }`}
+              >
+                {copiedId === entry.id ? `✓ ${pl.tracking.copied}` : `📋 ${pl.tracking.toTodayBtn}`}
+              </button>
+              <button
+                onClick={() => deleteEntry.mutate(entry.id)}
+                className="text-gray-300 hover:text-red-400"
+              >
+                ×
+              </button>
+            </div>
           </div>
         ))}
       </div>

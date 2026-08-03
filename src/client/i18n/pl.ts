@@ -470,6 +470,9 @@ const pl = {
     noEntries: 'Brak wpisów',
     deleteEntry: 'Usuń wpis',
     entryFallback: 'Wpis #',
+    copyToToday: 'Skopiuj ten wpis na dziś',
+    copied: 'Skopiowano',
+    toTodayBtn: 'Na dziś',
     goals: 'Cele',
     progress: 'Postęp',
     water: {
