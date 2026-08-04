@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { shoppingApi } from '../lib/api'
 import pl from '../i18n/pl'
-import type { ShopCategory } from '../../shared/types'
+import type { ShopCategory, ShoppingItem, ShoppingList } from '../../shared/types'
 
 const CAT_LABELS: Record<ShopCategory, string> = {
   produce: pl.shopping.categories.produce,
@@ -26,13 +26,39 @@ export default function SharedListPage() {
     enabled: !!token,
   })
 
+  type SharedListData = ShoppingList & { items: ShoppingItem[] }
+
   const addMutation = useMutation({
     mutationFn: (name: string) => shoppingApi.addSharedItem(token!, { name }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['shared-list', token] })
+    onMutate: async (name) => {
+      await qc.cancelQueries({ queryKey: ['shared-list', token] })
+      const previous = qc.getQueryData<SharedListData>(['shared-list', token])
+      const tempItem: ShoppingItem = {
+        id: -Date.now(),
+        list_id: previous?.id ?? 0,
+        name,
+        checked: false,
+        in_frisco: false,
+        frisco_product_id: null,
+        source: 'manual',
+        sort_order: 0,
+        quantity: null,
+        unit: null,
+        category: 'other',
+      }
+      qc.setQueryData<SharedListData>(['shared-list', token], (old) => {
+        if (!old) return old
+        return { ...old, items: [...old.items, tempItem] }
+      })
       setNewItem('')
       setShowAdd(false)
+      return { previous, name }
     },
+    onError: (_e, _name, context) => {
+      if (context?.previous) qc.setQueryData(['shared-list', token], context.previous)
+      if (context?.name) { setNewItem(context.name); setShowAdd(true) }
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['shared-list', token] }),
   })
 
   if (isLoading) return (

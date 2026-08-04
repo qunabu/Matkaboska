@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { shoppingApi, todayDate, addDays } from '../lib/api'
 import type { FriscoOrderResult } from '../lib/api'
 import pl from '../i18n/pl'
-import type { ShoppingItem, ShopCategory } from '../../shared/types'
+import type { ShoppingItem, ShoppingList, ShopCategory, ApiList } from '../../shared/types'
 import FriscoSearchModal from '../components/FriscoSearchModal'
 import RecipeModal from '../components/RecipeModal'
 
@@ -32,14 +32,28 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
     onSuccess: (r) => { setOrderResult(r); qc.invalidateQueries({ queryKey: ['shopping-list', listId] }) },
   })
 
+  type ListData = ShoppingList & { items: ShoppingItem[] }
+
   // "Mam w domu": move to pantry, drop from Frisco cart, remove from list.
   const haveAtHomeMutation = useMutation({
     mutationFn: (id: number) => shoppingApi.haveAtHome(id),
-    onSuccess: () => {
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ['shopping-list', listId] })
+      const previous = qc.getQueryData<ListData>(['shopping-list', listId])
+      qc.setQueryData<ListData>(['shopping-list', listId], (old) => {
+        if (!old) return old
+        return { ...old, items: old.items.filter((i) => i.id !== id) }
+      })
+      return { previous }
+    },
+    onError: (e, _id, context) => {
+      if (context?.previous) qc.setQueryData(['shopping-list', listId], context.previous)
+      alert((e as Error).message)
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ['shopping-list', listId] })
       qc.invalidateQueries({ queryKey: ['pantry'] })
     },
-    onError: (e) => alert((e as Error).message),
   })
 
   const { data, isLoading } = useQuery({
@@ -56,7 +70,19 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
   const toggleMutation = useMutation({
     mutationFn: ({ id, checked }: { id: number; checked: boolean }) =>
       shoppingApi.updateItem(id, { checked }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
+    onMutate: async ({ id, checked }) => {
+      await qc.cancelQueries({ queryKey: ['shopping-list', listId] })
+      const previous = qc.getQueryData<ListData>(['shopping-list', listId])
+      qc.setQueryData<ListData>(['shopping-list', listId], (old) => {
+        if (!old) return old
+        return { ...old, items: old.items.map((i) => i.id === id ? { ...i, checked } : i) }
+      })
+      return { previous }
+    },
+    onError: (_e, _vars, context) => {
+      if (context?.previous) qc.setQueryData(['shopping-list', listId], context.previous)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
   })
 
   // Toggling the 🛒 checkbox actually adds/removes the product in the Frisco
@@ -64,28 +90,88 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
   const friscoToggleMutation = useMutation({
     mutationFn: ({ id, in_frisco }: { id: number; in_frisco: boolean }) =>
       shoppingApi.friscoSetItem(id, in_frisco),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
-    onError: (e) => alert((e as Error).message),
+    onMutate: async ({ id, in_frisco }) => {
+      await qc.cancelQueries({ queryKey: ['shopping-list', listId] })
+      const previous = qc.getQueryData<ListData>(['shopping-list', listId])
+      qc.setQueryData<ListData>(['shopping-list', listId], (old) => {
+        if (!old) return old
+        return { ...old, items: old.items.map((i) => i.id === id ? { ...i, in_frisco } : i) }
+      })
+      return { previous }
+    },
+    onError: (e, _vars, context) => {
+      if (context?.previous) qc.setQueryData(['shopping-list', listId], context.previous)
+      alert((e as Error).message)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
   })
 
   // Mark every in-Frisco item as bought (checked) in one go.
   const checkFriscoMutation = useMutation({
     mutationFn: () => shoppingApi.checkFrisco(listId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: ['shopping-list', listId] })
+      const previous = qc.getQueryData<ListData>(['shopping-list', listId])
+      qc.setQueryData<ListData>(['shopping-list', listId], (old) => {
+        if (!old) return old
+        return { ...old, items: old.items.map((i) => i.in_frisco ? { ...i, checked: true } : i) }
+      })
+      return { previous }
+    },
+    onError: (_e, _vars, context) => {
+      if (context?.previous) qc.setQueryData(['shopping-list', listId], context.previous)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
   })
 
   const addMutation = useMutation({
     mutationFn: (name: string) => shoppingApi.addItem({ list_id: listId, name }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['shopping-list', listId] })
+    onMutate: async (name) => {
+      await qc.cancelQueries({ queryKey: ['shopping-list', listId] })
+      const previous = qc.getQueryData<ListData>(['shopping-list', listId])
+      const tempItem: ShoppingItem = {
+        id: -Date.now(),
+        list_id: listId,
+        name,
+        checked: false,
+        in_frisco: false,
+        frisco_product_id: null,
+        source: 'manual',
+        sort_order: 0,
+        quantity: null,
+        unit: null,
+        category: 'other',
+      }
+      qc.setQueryData<ListData>(['shopping-list', listId], (old) => {
+        if (!old) return old
+        return { ...old, items: [...old.items, tempItem] }
+      })
       setNewItem('')
       setShowAdd(false)
+      return { previous, name }
     },
+    onError: (_e, _name, context) => {
+      if (context?.previous) qc.setQueryData(['shopping-list', listId], context.previous)
+      if (context?.name) { setNewItem(context.name); setShowAdd(true) }
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => shoppingApi.deleteItem(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ['shopping-list', listId] })
+      const previous = qc.getQueryData<ListData>(['shopping-list', listId])
+      qc.setQueryData<ListData>(['shopping-list', listId], (old) => {
+        if (!old) return old
+        return { ...old, items: old.items.filter((i) => i.id !== id) }
+      })
+      return { previous }
+    },
+    onError: (_e, _id, context) => {
+      if (context?.previous) qc.setQueryData(['shopping-list', listId], context.previous)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
   })
 
   const shareMutation = useMutation({
@@ -484,7 +570,19 @@ function ShoppingOverview() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => shoppingApi.deleteList(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['shopping-lists'] }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ['shopping-lists'] })
+      const previous = qc.getQueryData<ApiList<ShoppingList>>(['shopping-lists'])
+      qc.setQueryData<ApiList<ShoppingList>>(['shopping-lists'], (old) => {
+        if (!old) return old
+        return { ...old, items: old.items.filter((l) => l.id !== id), total: old.total - 1 }
+      })
+      return { previous }
+    },
+    onError: (_e, _id, context) => {
+      if (context?.previous) qc.setQueryData(['shopping-lists'], context.previous)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['shopping-lists'] }),
   })
 
   const lists = data?.items ?? []
