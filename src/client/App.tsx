@@ -10,8 +10,7 @@ import NotificationBell from './components/NotificationBell'
 import WeekPrintView from './components/WeekPrintView'
 import { useTheme } from './lib/theme'
 import pl from './i18n/pl'
-
-declare const __APP_VERSION__: string
+import { BUILD_VERSION } from '../shared/build-info'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -264,15 +263,11 @@ function AppShell() {
       try {
         const res = await fetch('/api/version', { cache: 'no-store' })
         if (!res.ok) return
-        const { version, minSupported } = await res.json() as {
-          version: string
-          minSupported: string | null
-        }
+        const { minSupported } = await res.json() as { minSupported: string | null }
         if (
           minSupported &&
-          version !== 'dev' &&
-          __APP_VERSION__ !== 'dev' &&
-          __APP_VERSION__ < minSupported
+          !BUILD_VERSION.startsWith('dev-') &&
+          BUILD_VERSION < minSupported
         ) {
           setForceUpdate(true)
         }

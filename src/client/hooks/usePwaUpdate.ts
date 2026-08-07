@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
+import { BUILD_VERSION } from '../../shared/build-info'
 
 const VERSION_CHECK_INTERVAL = 45 * 60 * 1000 // 45 min
 
@@ -38,29 +39,21 @@ export function usePwaUpdate() {
     return () => navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
   }, [])
 
-  const lastVersionRef = useRef<string | null>(null)
-
   useEffect(() => {
     async function checkServerVersion() {
       try {
         const res = await fetch('/api/version', { cache: 'no-store' })
         if (!res.ok) return
-        const data = await res.json() as { version: string }
-        const serverVersion = data.version
+        const { version: serverVersion } = await res.json() as { version: string }
 
-        if (
-          lastVersionRef.current &&
-          serverVersion !== lastVersionRef.current &&
-          serverVersion !== 'dev'
-        ) {
-          // Server has a newer version — trigger SW update check
+        // Worker and client assets ship from one build, so a mismatch means the
+        // running page is stale — no need to first observe a change over time.
+        if (serverVersion && serverVersion !== BUILD_VERSION && !serverVersion.startsWith('dev-')) {
           navigator.serviceWorker?.ready
             .then((reg) => reg.update())
             .catch(() => {})
           setNeedRefresh(true)
         }
-
-        lastVersionRef.current = serverVersion
       } catch {
         // Network unavailable — ignore
       }

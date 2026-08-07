@@ -24,7 +24,8 @@ id = "05153056f66c4668ac86a2b354b3b31f"
 binding = "AI"
 
 [vars]
-APP_VERSION = "dev"
+# No APP_VERSION here — the release id lives in the generated src/shared/build-info.ts
+# (see scripts/gen-build-info.mjs), so it is correct no matter how the deploy runs.
 DEV_USER_EMAIL = "qunabu.com@gmail.com"
 STARTER_RECIPES_USER = "qunabu.com@gmail.com"
 ADMIN_EMAILS = "qunabu.com@gmail.com"

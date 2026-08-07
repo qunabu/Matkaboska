@@ -5,16 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run build:watch\" \"wrangler dev\"",
-    "build:watch": "vite build --watch",
-    "build": "APP_VERSION=$(git rev-parse --short HEAD 2>/dev/null || echo dev)-$(date +%s) vite build",
-    "deploy": "npm run build && wrangler d1 migrations apply meal-planner-db --remote && wrangler deploy --var APP_VERSION:$(git rev-parse --short HEAD 2>/dev/null || echo dev)-$(date +%s)",
+    "build:watch": "npm run gen:build-info && vite build --watch",
+    "gen:build-info": "node scripts/gen-build-info.mjs",
+    "prebuild": "npm run gen:build-info",
+    "build": "vite build",
+    "deploy": "npm run build && wrangler d1 migrations apply meal-planner-db --remote && wrangler deploy",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply meal-planner-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply meal-planner-db --remote",
     "db:seed": "node scripts/seed.mjs",
     "frisco": "node scripts/frisco-cart.mjs",
     "type-check": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
-    "postinstall": "node scripts/gen-icons.mjs"
+    "postinstall": "node scripts/gen-icons.mjs && node scripts/gen-build-info.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.7",

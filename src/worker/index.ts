@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { AppEnv } from './types'
+import { BUILD_SHA, BUILD_VERSION, BUILT_AT } from '../shared/build-info'
 import { accessAuth } from './middleware/auth'
 import { authRouter } from './routes/auth'
 import { onboardingRouter } from './routes/onboarding'
@@ -47,8 +48,9 @@ api.get('/api/health', (c) =>
 
 api.get('/api/version', (c) =>
   c.json({
-    version: c.env.APP_VERSION || 'dev',
-    builtAt: null,
+    version: BUILD_VERSION,
+    sha: BUILD_SHA,
+    builtAt: BUILT_AT,
     minSupported: null,
     vapidPublicKey: c.env.VAPID_PUBLIC_KEY || null,
   })

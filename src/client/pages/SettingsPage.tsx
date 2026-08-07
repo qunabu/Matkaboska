@@ -5,6 +5,7 @@ import { settingsApi, pushApi, productsApi, authApi } from '../lib/api'
 import { MODULE_KEYS, getModuleSettings, setModuleSetting } from '../lib/moduleSettings'
 import { soundEnabled, setSoundEnabled } from '../lib/sound'
 import { useTheme } from '../lib/theme'
+import { BUILD_SHA, BUILT_AT } from '../../shared/build-info'
 import pl from '../i18n/pl'
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
@@ -140,18 +141,10 @@ function IntegrationsSection() {
   )
 }
 
-declare const __APP_VERSION__: string
-
-// Version is "<git-sha>-<unix-seconds>"; split off the build time as a date.
-function parseVersion(v: string): { sha: string; when: string | null } {
-  const i = v.lastIndexOf('-')
-  const ts = i >= 0 ? Number(v.slice(i + 1)) : NaN
-  if (!Number.isFinite(ts) || ts < 1_000_000_000) return { sha: v, when: null }
-  const when = new Date(ts * 1000).toLocaleString('pl-PL', {
+const formatBuiltAt = (iso: string) =>
+  new Date(iso).toLocaleString('pl-PL', {
     day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
-  return { sha: v.slice(0, i), when }
-}
 
 export default function SettingsPage() {
   const qc = useQueryClient()
@@ -445,19 +438,12 @@ export default function SettingsPage() {
             {pl.settings.about}
           </h2>
           <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
-            {(() => {
-              const v = parseVersion(__APP_VERSION__)
-              return (
-                <>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {pl.common.appVersion}: <span className="font-mono">{v.sha}</span>
-                  </p>
-                  {v.when && (
-                    <p className="mt-1 text-xs text-gray-400">{pl.settings.built}: {v.when}</p>
-                  )}
-                </>
-              )
-            })()}
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {pl.common.appVersion}: <span className="font-mono">{BUILD_SHA}</span>
+            </p>
+            <p className="mt-1 text-xs text-gray-400">
+              {pl.settings.built}: {formatBuiltAt(BUILT_AT)}
+            </p>
           </div>
           {me?.isAdmin && (
             <Link

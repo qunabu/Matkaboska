@@ -6,7 +6,6 @@ export type Env = {
   ASSETS: Fetcher
   AI?: Ai
   ELEVENLABS_API_KEY?: string
-  APP_VERSION: string
   ANTHROPIC_API_KEY: string
   ANTHROPIC_MODEL: string
   VAPID_PUBLIC_KEY: string

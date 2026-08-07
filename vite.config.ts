@@ -63,9 +63,6 @@ export default defineConfig({
       },
     }),
   ],
-  define: {
-    __APP_VERSION__: JSON.stringify(process.env.APP_VERSION ?? 'dev'),
-  },
   build: {
     outDir: 'dist',
     sourcemap: false,
