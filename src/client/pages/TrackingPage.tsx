@@ -91,7 +91,11 @@ function WeekSummary({ date, kcalTarget, proteinTarget, waterTarget }: {
   const fat = summaries.map((s) => s.data?.fat_g ?? 0)
   const glasses = waters.map((w) => w.data?.glasses ?? 0)
 
-  const avg = (arr: number[]) => Math.round(arr.reduce((a, b) => a + b, 0) / (arr.length || 1))
+  // Average over days that have anything logged — empty days would drag it down.
+  const avg = (arr: number[]) => {
+    const active = arr.filter((v) => v > 0)
+    return active.length ? Math.round(active.reduce((a, b) => a + b, 0) / active.length) : 0
+  }
 
   const charts = [
     { label: pl.tracking.kcal, values: kcal, target: kcalTarget, color: 'bg-orange-400', unit: '' },

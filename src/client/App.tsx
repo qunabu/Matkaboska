@@ -70,6 +70,9 @@ const ALL_NAV_ITEMS = [
   { to: '/settings',    label: pl.nav.settings,    icon: '⚙️',  moduleKey: null },
 ]
 
+// Which items get a slot in the mobile bottom bar (in this order); the rest go under "więcej".
+const MOBILE_PRIMARY = ['/', '/tracking', '/plan', '/shopping']
+
 function BottomNav() {
   const location = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
@@ -77,8 +80,16 @@ function BottomNav() {
 
   const navItems = ALL_NAV_ITEMS.filter(i => !i.moduleKey || modules[i.moduleKey as keyof typeof modules])
 
-  const primary = navItems.slice(0, 4)
-  const overflow = navItems.slice(4) // tracking, supplements, reminders, settings
+  // Pull the mobile-primary items to the front (keeping their order); anything hidden
+  // by module settings just leaves its slot to the next item in nav order.
+  const rank = (to: string) => { const i = MOBILE_PRIMARY.indexOf(to); return i === -1 ? MOBILE_PRIMARY.length : i }
+  const ordered = navItems
+    .map((item, idx) => ({ item, idx }))
+    .sort((a, b) => rank(a.item.to) - rank(b.item.to) || a.idx - b.idx)
+    .map((x) => x.item)
+
+  const primary = ordered.slice(0, 4)
+  const overflow = ordered.slice(4) // recipes, pantry, supplements, chores, … settings
   const overflowActive = overflow.some((i) => location.pathname.startsWith(i.to))
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
