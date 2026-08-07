@@ -6,6 +6,7 @@ import { MODULE_KEYS, getModuleSettings, setModuleSetting } from '../lib/moduleS
 import { soundEnabled, setSoundEnabled } from '../lib/sound'
 import { useTheme } from '../lib/theme'
 import { BUILD_SHA, BUILT_AT } from '../../shared/build-info'
+import { forceAppUpdate } from '../hooks/usePwaUpdate'
 import pl from '../i18n/pl'
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
@@ -156,14 +157,21 @@ export default function SettingsPage() {
   const { theme, toggle: toggleTheme } = useTheme()
   const [sound, setSound] = useState(soundEnabled)
   const { data: me } = useQuery({ queryKey: ['auth'], queryFn: authApi.me, retry: false })
+  // Release the server is actually running — differs from BUILD_SHA when this
+  // (installed) copy is stale, which is exactly when the force button matters.
+  const [serverSha, setServerSha] = useState<string | null>(null)
 
   useEffect(() => {
     if ('Notification' in window) {
       setNotifState(Notification.permission as typeof notifState)
     }
-    fetch('/api/version').then(r => r.json()).then((d: { vapidPublicKey?: string }) => {
-      if (d.vapidPublicKey) setVapidKey(d.vapidPublicKey)
-    }).catch(() => {})
+    fetch('/api/version', { cache: 'no-store' })
+      .then(r => r.json())
+      .then((d: { vapidPublicKey?: string; sha?: string }) => {
+        if (d.vapidPublicKey) setVapidKey(d.vapidPublicKey)
+        if (d.sha) setServerSha(d.sha)
+      })
+      .catch(() => {})
   }, [])
 
   const { data: settings, isLoading } = useQuery({
@@ -444,6 +452,18 @@ export default function SettingsPage() {
             <p className="mt-1 text-xs text-gray-400">
               {pl.settings.built}: {formatBuiltAt(BUILT_AT)}
             </p>
+            {serverSha && serverSha !== BUILD_SHA && (
+              <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+                {pl.update.serverHas}: <span className="font-mono">{serverSha}</span>
+              </p>
+            )}
+            <button
+              onClick={forceAppUpdate}
+              className="mt-3 w-full rounded-lg bg-gray-100 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"
+            >
+              🔄 {pl.update.force}
+            </button>
+            <p className="mt-2 text-xs text-gray-400">{pl.update.forceHint}</p>
           </div>
           {me?.isAdmin && (
             <Link

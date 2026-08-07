@@ -122,6 +122,9 @@ const pl = {
     required: 'Wymagana aktualizacja',
     requiredBody: 'Ta wersja aplikacji jest nieaktualna. Zaktualizuj, aby kontynuować.',
     updating: 'Aktualizowanie…',
+    force: 'Wymuś aktualizację',
+    forceHint: 'Czyści pamięć podręczną aplikacji i pobiera najnowszą wersję. Dane pozostają na serwerze.',
+    serverHas: 'Na serwerze jest',
   },
 
   common: {

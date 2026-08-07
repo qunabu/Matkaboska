@@ -2,12 +2,48 @@ import { useEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { BUILD_VERSION } from '../../shared/build-info'
 
-const VERSION_CHECK_INTERVAL = 45 * 60 * 1000 // 45 min
+const VERSION_CHECK_INTERVAL = 15 * 60 * 1000 // 15 min
+
+/**
+ * Drop the service worker and everything it cached, then reload from the
+ * network.
+ *
+ * This exists because vite-plugin-pwa's `updateServiceWorker()` is a no-op
+ * under `registerType: 'autoUpdate'` — its implementation only sends the
+ * skip-waiting message when auto mode is OFF:
+ *
+ *   const updateServiceWorker = async () => { await registerPromise
+ *     if (!auto) sendSkipWaitingMessage?.() }
+ *
+ * So the update banner's button and the force-update screen did nothing at
+ * all, and an installed PWA whose SW got stuck on an old build had no way out
+ * short of reinstalling. Unregister + wipe caches + reload always lands on the
+ * newest build: with no SW in control, index.html is fetched from the network
+ * (it is served `no-store`) and a fresh SW registers on the next load.
+ */
+export async function forceAppUpdate(): Promise<void> {
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(regs.map((r) => r.unregister().catch(() => false)))
+    }
+  } catch {
+    // keep going — clearing caches alone still helps
+  }
+  try {
+    if ('caches' in window) {
+      const keys = await caches.keys()
+      await Promise.all(keys.map((k) => caches.delete(k).catch(() => false)))
+    }
+  } catch {
+    // ignore
+  }
+  window.location.reload()
+}
 
 export function usePwaUpdate() {
   const {
     needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
   } = useRegisterSW({
     immediate: true,
     onNeedRefresh() {
@@ -75,5 +111,5 @@ export function usePwaUpdate() {
     return () => document.removeEventListener('visibilitychange', onVisibilityChange)
   }, [setNeedRefresh])
 
-  return { needRefresh, updateServiceWorker }
+  return { needRefresh, updateServiceWorker: forceAppUpdate }
 }

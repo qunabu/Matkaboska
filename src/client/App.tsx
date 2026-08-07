@@ -279,7 +279,7 @@ function AppShell() {
   }, [])
 
   async function handleUpdate() {
-    await updateServiceWorker(true)
+    await updateServiceWorker()
   }
 
   if (forceUpdate) {
