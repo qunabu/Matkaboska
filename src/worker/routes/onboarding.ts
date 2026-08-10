@@ -3,6 +3,7 @@ import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, recipes, settings } from '../db/index'
 import type { AppEnv, Env } from '../types'
+import { WRITABLE_CATEGORIES } from '../../shared/types'
 import { getSettings } from './settings'
 
 const app = new Hono<AppEnv>()
@@ -78,7 +79,7 @@ app.post('/import-starter', async (c) => {
   return c.json({ imported })
 })
 
-const CATEGORIES = ['breakfast', 'lunch', 'dinner', 'snack', 'soup', 'salad', 'smoothie', 'dessert', 'other'] as const
+const CATEGORIES = WRITABLE_CATEGORIES
 
 // One recipe from the pasted JSON. Lenient: bad/missing fields fall back to
 // sensible defaults so a slightly-off LLM answer still imports.

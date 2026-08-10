@@ -5,6 +5,7 @@ import { getDb, recipes, recipe_notes } from '../db/index'
 import type { AppEnv } from '../types'
 import type { Env } from '../types'
 import type { Recipe, RecipeWithNotes, Ingredient, Macros } from '../../shared/types'
+import { WRITABLE_CATEGORIES } from '../../shared/types'
 import { resolveAnthropicKey } from './settings'
 
 const app = new Hono<AppEnv>()
@@ -65,10 +66,9 @@ app.get('/:id', async (c) => {
 })
 
 const IngredientSchema = z.object({ name: z.string(), amount: z.string(), unit: z.string() })
-const CATEGORIES = ['breakfast', 'lunch', 'dinner', 'snack', 'soup', 'salad', 'smoothie', 'dessert', 'other'] as const
 const RecipeBodySchema = z.object({
   title: z.string().min(1),
-  category: z.enum(CATEGORIES),
+  category: z.enum(WRITABLE_CATEGORIES),
   servings: z.number().int().positive().default(1),
   prep_minutes: z.number().int().nonnegative().nullable().optional(),
   ingredients: z.array(IngredientSchema),

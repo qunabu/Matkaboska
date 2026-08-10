@@ -1,4 +1,14 @@
-export type Category = 'breakfast' | 'main' | 'snack' | 'classic'
+/** Categories the UI offers today. */
+export const CATEGORIES = ['breakfast', 'main', 'snack', 'classic'] as const
+export type Category = typeof CATEGORIES[number]
+/**
+ * Category names from before the vocabulary was narrowed. Still present in
+ * stored rows, so writes must accept them — otherwise editing an older recipe
+ * fails validation. Never offered in the UI for new recipes.
+ */
+export const LEGACY_CATEGORIES = ['lunch', 'dinner', 'soup', 'salad', 'smoothie', 'dessert', 'other'] as const
+/** Everything accepted on write: current vocabulary plus legacy names. */
+export const WRITABLE_CATEGORIES = [...CATEGORIES, ...LEGACY_CATEGORIES] as const
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 export type PlanStatus = 'planned' | 'eaten' | 'skipped'
 export type SupKind = 'supplement' | 'medication'
