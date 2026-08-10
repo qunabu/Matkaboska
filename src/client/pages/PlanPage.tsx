@@ -175,7 +175,7 @@ export default function PlanPage() {
   const generateWeekMutation = useMutation({
     mutationFn: () => planApi.generateWeek(weekStart),
     onSuccess: (d) => {
-      setBatchInfo(pl.plan.generatedSummary(d.cookingSessions, d.inserted))
+      setBatchInfo(pl.plan.generatedSummary(d.cookingSessions, d.inserted, d.avgKcal, d.avgProtein))
       qc.invalidateQueries({ queryKey: ['plan'] })
     },
     onError: (e: Error) => window.alert(e.message.includes('no_recipes') ? pl.plan.generateNoRecipes : pl.plan.generateError),

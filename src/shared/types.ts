@@ -89,6 +89,7 @@ export interface PlanProduct {
   protein_g: number | null
   carbs_g: number | null
   fat_g: number | null
+  iron_mg: number | null
   serving_g: number | null
 }
 

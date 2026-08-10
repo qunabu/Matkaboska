@@ -281,6 +281,7 @@ export const products = sqliteTable('products', {
   protein_g: real('protein_g'),
   carbs_g: real('carbs_g'),
   fat_g: real('fat_g'),
+  iron_mg: real('iron_mg'),
   portion: text('portion'),
   serving_g: real('serving_g'),
   package_g: real('package_g'),

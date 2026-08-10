@@ -342,7 +342,8 @@ const pl = {
     leftover: 'resztki',
     leftoverHint: 'Z porcji ugotowanej dzień wcześniej — nie musisz gotować',
     cookToday: 'gotujesz',
-    generatedSummary: (cooking: number, meals: number) => `Gotowanie ${cooking}× na ${meals} posiłków`,
+    generatedSummary: (cooking: number, meals: number, kcal: number, protein: number) =>
+      `Gotowanie ${cooking}× na ${meals} pozycji · średnio ${kcal} kcal i ${protein} g białka dziennie`,
     generateConfirm: 'Wygenerować nowy tydzień z Twoich dań? Obecny plan tego tygodnia zostanie zastąpiony.',
     generateNoRecipes: 'Nie masz jeszcze przepisów. Dodaj kilka dań, zanim wygenerujesz tydzień.',
     generateError: 'Nie udało się wygenerować tygodnia. Spróbuj ponownie.',

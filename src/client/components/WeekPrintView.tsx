@@ -34,7 +34,7 @@ function entryMacros(e: MealPlanEntryFull) {
   }
   if (e.product) {
     const g = (e.grams ?? e.product.serving_g ?? 100) / 100
-    return { kcal: (e.product.kcal ?? 0) * g, protein_g: (e.product.protein_g ?? 0) * g, carbs_g: (e.product.carbs_g ?? 0) * g, fat_g: (e.product.fat_g ?? 0) * g, iron_mg: 0 }
+    return { kcal: (e.product.kcal ?? 0) * g, protein_g: (e.product.protein_g ?? 0) * g, carbs_g: (e.product.carbs_g ?? 0) * g, fat_g: (e.product.fat_g ?? 0) * g, iron_mg: (e.product.iron_mg ?? 0) * g }
   }
   return { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, iron_mg: 0 }
 }
