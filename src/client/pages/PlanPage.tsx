@@ -173,6 +173,16 @@ export default function PlanPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['plan'] }),
   })
 
+  const swapEntryMutation = useMutation({
+    mutationFn: (id: number) => planApi.swapEntry(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['plan'] }),
+    onError: (e: Error) => window.alert(
+      e.message.includes('no_alternative') ? pl.plan.swapNoAlternative
+        : e.message.includes('not_a_recipe') ? pl.plan.swapNotRecipe
+        : pl.common.error,
+    ),
+  })
+
   const [batchInfo, setBatchInfo] = useState<string | null>(null)
   const generateWeekMutation = useMutation({
     mutationFn: () => planApi.generateWeek(weekStart),
@@ -306,7 +316,7 @@ export default function PlanPage() {
                           {cellEntries.map(entry => (
                             <div
                               key={entry.id}
-                              className={`relative rounded-lg p-2 pr-5 text-xs ${
+                              className={`relative rounded-lg p-2 pr-10 text-xs ${
                                 entry.status === 'eaten'
                                   ? 'bg-green-50 ring-1 ring-green-200 dark:bg-green-900/20 dark:ring-green-800/30'
                                   : entry.status === 'skipped'
@@ -348,13 +358,26 @@ export default function PlanPage() {
                                   {entry.product.kcal != null ? ` · ${Math.round(entry.product.kcal * ((entry.grams ?? entry.product.serving_g ?? 100) / 100))} kcal` : ''}
                                 </p>
                               )}
-                              <button
-                                onClick={() => deleteEntryMutation.mutate(entry.id)}
-                                className="absolute right-1 top-1 text-gray-300 hover:text-red-400"
-                                aria-label={pl.common.delete}
-                              >
-                                ×
-                              </button>
+                              <div className="absolute right-1 top-1 flex items-center gap-1">
+                                {entry.recipe_id && (
+                                  <button
+                                    onClick={() => swapEntryMutation.mutate(entry.id)}
+                                    disabled={swapEntryMutation.isPending}
+                                    className="text-gray-300 hover:text-primary-500 disabled:opacity-40"
+                                    title={entry.batch_group ? pl.plan.swapBatch : pl.plan.swap}
+                                    aria-label={pl.plan.swap}
+                                  >
+                                    ⟳
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => deleteEntryMutation.mutate(entry.id)}
+                                  className="text-gray-300 hover:text-red-400"
+                                  aria-label={pl.common.delete}
+                                >
+                                  ×
+                                </button>
+                              </div>
                             </div>
                           ))}
                           <button

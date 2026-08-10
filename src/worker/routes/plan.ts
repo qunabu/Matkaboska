@@ -297,6 +297,85 @@ app.post('/import', async (c) => {
   return c.json({ inserted: inserted.length })
 })
 
+function pickOne<T>(arr: T[]): T | undefined {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+// Monday-based week containing a date, matching the client's getWeekStart.
+function weekBoundsOf(date: string): [string, string] {
+  const d = new Date(date + 'T00:00:00Z')
+  const day = d.getUTCDay()
+  const start = addDaysStr(date, day === 0 ? -6 : 1 - day)
+  return [start, addDaysStr(start, 6)]
+}
+
+// POST /api/plan/entry/:id/swap — re-roll one planned dish without touching the
+// rest of the week. A batch is cooked once for all of its days, so swapping any
+// day of it swaps the whole batch.
+app.post('/entry/:id/swap', async (c) => {
+  const userId = c.var.userId
+  const id = Number(c.req.param('id'))
+  const db = getDb(c.env.DB)
+
+  const [entry] = await db.select().from(meal_plan_entries)
+    .where(and(eq(meal_plan_entries.id, id), eq(meal_plan_entries.user_id, userId)))
+  if (!entry) return c.json({ error: 'Not found' }, 404)
+  if (!entry.recipe_id) {
+    return c.json({ error: 'not_a_recipe', message: 'Tę pozycję można tylko usunąć — to produkt, nie przepis.' }, 422)
+  }
+
+  const all = await db.select({ id: recipes.id, category: recipes.category })
+    .from(recipes).where(eq(recipes.user_id, userId))
+  const cats = SLOT_CATEGORIES[entry.meal_type] ?? []
+  const matched = all.filter((r) => cats.includes(r.category))
+  const slotPool = matched.length > 0 ? matched : all
+
+  const [from, to] = weekBoundsOf(entry.date)
+  const weekRows = await db.select().from(meal_plan_entries)
+    .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, from, to)))
+
+  // Days the swapped dish will occupy: the whole batch, or just this entry.
+  const affected = entry.batch_group
+    ? weekRows.filter((r) => r.batch_group === entry.batch_group)
+    : [entry]
+  const affectedIds = new Set(affected.map((r) => r.id))
+  const affectedDates = new Set(affected.map((r) => r.date))
+
+  // Weekly usage and same-day collisions, ignoring the rows being replaced.
+  const usage = new Map<number, number>()
+  const onDay = new Map<string, Set<number>>()
+  for (const r of weekRows) {
+    if (affectedIds.has(r.id) || !r.recipe_id) continue
+    usage.set(r.recipe_id, (usage.get(r.recipe_id) ?? 0) + 1)
+    const set = onDay.get(r.date) ?? new Set<number>()
+    set.add(r.recipe_id)
+    onDay.set(r.date, set)
+  }
+
+  const need = affected.length
+  const free = slotPool.filter((r) =>
+    r.id !== entry.recipe_id &&
+    [...affectedDates].every((d) => !(onDay.get(d)?.has(r.id))),
+  )
+  const underCap = free.filter((r) => (usage.get(r.id) ?? 0) + need <= MAX_WEEKLY_REPEATS)
+  // Prefer dishes that stay under the weekly cap; if the pool is too small for
+  // that, fall back to the least-used ones rather than refusing to swap.
+  const candidates = underCap.length > 0 ? underCap : leastUsed(free, (r) => usage.get(r.id) ?? 0)
+  const choice = pickOne(candidates)
+  if (!choice) {
+    return c.json({ error: 'no_alternative', message: 'Brak innego dania w tej kategorii.' }, 422)
+  }
+
+  for (const row of affected) {
+    await db.update(meal_plan_entries)
+      .set({ recipe_id: choice.id })
+      .where(and(eq(meal_plan_entries.id, row.id), eq(meal_plan_entries.user_id, userId)))
+  }
+
+  const [recipe] = await db.select().from(recipes).where(eq(recipes.id, choice.id))
+  return c.json({ swapped: affected.length, recipe: recipe ? { id: recipe.id, title: recipe.title } : null })
+})
+
 // Which recipe categories are eligible for each meal slot.
 // The app writes only the four categories in `Category` (breakfast | main |
 // snack | classic), but rows created before that vocabulary was narrowed still
@@ -341,7 +420,10 @@ function leastUsed<T>(items: T[], count: (item: T) => number): T[] {
 const PROTEIN_BOOSTERS_PER_DAY = 1
 const IRON_BOOSTERS_PER_DAY = 1
 // How many iron-rich items the daily iron slot rotates through over the week.
-const IRON_ROTATION_POOL = 6
+// Kept narrow on purpose: rotating over six carriers reached down to 2.5 mg
+// items and left whole days near 10 mg, so only the genuinely iron-rich end
+// takes part.
+const IRON_ROTATION_POOL = 3
 // A booster is a small add-on, not a second dinner. Without this bound the
 // iron ranking happily picked 500 kcal main dishes, which ate the whole
 // calorie budget and duplicated meal-type food.
@@ -412,7 +494,6 @@ app.post('/generate-week', async (c) => {
     const matched = all.filter((r) => cats.includes(r.category))
     return matched.length > 0 ? matched : all
   }
-  const pick = <T>(arr: T[]): T | undefined => arr[Math.floor(Math.random() * arr.length)]
 
   const appSettings = await getSettings(c.env, userId)
   const kcalAim = appSettings.kcal_target
@@ -465,7 +546,7 @@ app.post('/generate-week', async (c) => {
       const capped = underCap.length > 0 ? underCap : leastUsed(p, (r) => usesOf(r.id))
       // Avoid colliding with what another slot already placed on these days.
       const free = capped.filter((r) => block.every((d) => !usedOnDay[d].has(r.id)))
-      const choice = pick(free.length > 0 ? free : capped)
+      const choice = pickOne(free.length > 0 ? free : capped)
       if (!choice) continue
 
       const batchGroup = block.length > 1 ? `${weekStart}-${slot}-${blockIndex}` : null
