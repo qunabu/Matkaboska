@@ -5,6 +5,7 @@ import { getDb, shopping_lists, shopping_items, meal_plan_entries, recipes, pant
 import type { AppEnv } from '../types'
 import type { ShoppingList, ShoppingItem, Ingredient, ShopCategory } from '../../shared/types'
 import { removeProductFromCart } from './frisco'
+import { canonicalIngredientName } from '../lib/ingredient-names'
 
 const app = new Hono<AppEnv>()
 
@@ -78,7 +79,7 @@ app.get('/:id/recipe-sources', async (c) => {
       let ings: Ingredient[] = []
       try { ings = JSON.parse(recipe.ingredients) as Ingredient[] } catch { /* ignore */ }
       for (const ing of ings) {
-        const key = normalizeName(ing.name || '').toLowerCase()
+        const key = normalizeName(ing.name || '')?.toLowerCase()
         if (!key) continue
         let m = byKey.get(key)
         if (!m) { m = new Map(); byKey.set(key, m) }
@@ -86,7 +87,7 @@ app.get('/:id/recipe-sources', async (c) => {
       }
     }
     for (const item of items) {
-      const m = byKey.get(normalizeName(item.name).toLowerCase())
+      const m = byKey.get(normalizeName(item.name)?.toLowerCase() ?? '')
       if (m && m.size) sources[item.id] = [...m.values()]
     }
   }
@@ -188,27 +189,15 @@ function guessCategory(name: string): ShopCategory {
   return 'other'
 }
 
-const LEMMAS: Record<string, string> = {
-  marchewka: 'marchew', marchewki: 'marchew',
-  cebule: 'cebula',
-  ziemniaki: 'ziemniak',
-  pomidory: 'pomidor', pomidorki: 'pomidorki koktajlowe',
-  jajka: 'jajko',
-  banany: 'banan',
-  ogórki: 'ogórek',
-  papryki: 'papryka', 'papryka czerwona': 'papryka',
-  cukinie: 'cukinia',
-  bakłażany: 'bakłażan',
-  cytryny: 'cytryna',
-}
-
-function normalizeName(name: string): string {
+// Strip the noise a recipe line carries, then map what is left onto a canonical
+// grocery name. Returns null when the line is not a purchase at all.
+function normalizeName(name: string): string | null {
   const clean = name
     .replace(/\s*\([^)]*\)/g, '')
-    .replace(/\s+do\s+(smażenia|podania|maczania|dekoracji|smaku|posypania)\b.*/i, '')
+    .replace(/\s+do\s+(smażenia|podania|maczania|dekoracji|smaku|posypania|obtoczenia|ozdoby)\b.*/i, '')
     .replace(/\s+/g, ' ')
     .trim()
-  return LEMMAS[clean.toLowerCase()] ?? clean
+  return canonicalIngredientName(clean)
 }
 
 type AggregatedItem = { name: string; quantity: number | null; unit: string | null; category: ShopCategory; sort_order: number; frisco_product_id?: string | null }
@@ -242,7 +231,7 @@ async function aggregateShoppingItems(
   }
 
   const pantry = await db.select().from(pantry_items).where(eq(pantry_items.user_id, userId))
-  const pantryKeys = new Set(pantry.map((p) => normalizeName(p.name).toLowerCase()))
+  const pantryKeys = new Set(pantry.map((p) => normalizeName(p.name)?.toLowerCase() ?? ''))
   for (const key of [...aggregated.keys()]) {
     if (pantryKeys.has(key)) aggregated.delete(key)
   }
@@ -275,7 +264,7 @@ async function aggregateShoppingItems(
     g.count += 1
   }
   for (const g of prodAgg.values()) {
-    if (pantryKeys.has(normalizeName(g.name).toLowerCase())) continue
+    if (pantryKeys.has(normalizeName(g.name)?.toLowerCase() ?? '')) continue
     items.push({
       name: g.name,
       quantity: g.count,
