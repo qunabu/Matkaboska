@@ -340,10 +340,9 @@ function leastUsed<T>(items: T[], count: (item: T) => number): T[] {
 // same *meal* recurring, while a daily protein/iron top-up is the whole point.
 const PROTEIN_BOOSTERS_PER_DAY = 2
 const IRON_BOOSTERS_PER_DAY = 2
-// The top-up pass aims at the user's own kcal target, with a band around it so
-// a day is neither starved nor stuffed by one oversized portion.
-const KCAL_UNDERSHOOT = 300
-const KCAL_OVERSHOOT = 200
+// Calories are the only hard ceiling: a day may land up to 10% above the user's
+// target, and protein and iron are free to overshoot within that budget.
+const KCAL_CEILING_RATIO = 1.10
 
 /** Nutrient delivered by one portion of a product (its columns are per 100 g). */
 function perServing(p: { kcal: number | null; protein_g: number | null; iron_mg: number | null; serving_g: number | null }) {
@@ -384,12 +383,12 @@ app.post('/generate-week', async (c) => {
     return c.json({ error: 'no_recipes', message: 'Brak przepisów — dodaj je najpierw.' }, 422)
   }
   const all = rows.map((r) => {
-    let kcal = 0, protein_g = 0
+    let kcal = 0, protein_g = 0, iron_mg = 0
     try {
       const m = r.macros ? JSON.parse(r.macros) as Macros : null
-      if (m) { kcal = m.kcal ?? 0; protein_g = m.protein_g ?? 0 }
+      if (m) { kcal = m.kcal ?? 0; protein_g = m.protein_g ?? 0; iron_mg = m.iron_mg ?? 0 }
     } catch { /* a recipe with unreadable macros just counts as 0 */ }
-    return { id: r.id, category: r.category, kcal, protein_g }
+    return { id: r.id, category: r.category, kcal, protein_g, iron_mg }
   })
 
   const pool = (slot: MealType) => {
@@ -398,6 +397,12 @@ app.post('/generate-week', async (c) => {
     return matched.length > 0 ? matched : all
   }
   const pick = <T>(arr: T[]): T | undefined => arr[Math.floor(Math.random() * arr.length)]
+
+  const appSettings = await getSettings(c.env, userId)
+  const kcalAim = appSettings.kcal_target
+  const kcalCeiling = Math.round(kcalAim * KCAL_CEILING_RATIO)
+  const proteinAim = appSettings.protein_g_target
+  const ironAim = appSettings.iron_mg_target
 
   // Replace the whole week.
   await db.delete(meal_plan_entries)
@@ -418,6 +423,7 @@ app.post('/generate-week', async (c) => {
   let cookingSessions = 0
   const dayKcal = dates.map(() => 0)
   const dayProtein = dates.map(() => 0)
+  const dayIron = dates.map(() => 0)
   for (const slot of GEN_SLOTS) {
     const p = pool(slot)
     for (const [blockIndex, block] of blocks.entries()) {
@@ -437,6 +443,7 @@ app.post('/generate-week', async (c) => {
         bump(choice.id)
         dayKcal[day] += choice.kcal
         dayProtein[day] += choice.protein_g
+        dayIron[day] += choice.iron_mg
         await db.insert(meal_plan_entries).values({
           user_id: userId,
           date: dates[day],
@@ -473,6 +480,10 @@ app.post('/generate-week', async (c) => {
   for (const [day, date] of dates.entries()) {
     for (const p of [...proteinBoosters, ...ironBoosters]) {
       const per = perServing(p)
+      // Calorie-dense meals can fill a day on their own; pinning a booster on
+      // top would push it past the ceiling, and no later step can take calories
+      // back out. Such a day simply goes without that booster.
+      if (dayKcal[day] + per.kcal > kcalCeiling) continue
       await db.insert(meal_plan_entries).values({
         user_id: userId,
         date,
@@ -487,45 +498,34 @@ app.post('/generate-week', async (c) => {
       })
       dayKcal[day] += per.kcal
       dayProtein[day] += per.protein_g
+      dayIron[day] += per.iron_mg
       inserted++
       boosterEntries++
     }
   }
 
-  // --- Calorie floor --------------------------------------------------------
-  // Top up each day with extra snack portions until it reaches the target band.
-  // Highest protein per kcal first, so closing the calorie gap also closes the
-  // protein gap instead of padding the day with empty calories.
-  const appSettings = await getSettings(c.env, userId)
-  const kcalAim = appSettings.kcal_target
-  const kcalMin = kcalAim - KCAL_UNDERSHOOT
-  const kcalMax = kcalAim + KCAL_OVERSHOOT
-  const proteinAim = appSettings.protein_g_target
-
+  // --- Calorie top-up ------------------------------------------------------
+  // Extra snack portions bring each day up towards its calorie target, spending
+  // the available room on protein and iron.
   const topUpPool = pool('snack').filter((r) => r.kcal > 0)
   let topUps = 0
   if (topUpPool.length > 0) {
     for (const [day, date] of dates.entries()) {
       for (let guard = 0; guard < 12 && dayKcal[day] < kcalAim; guard++) {
-        // Top-ups obey the same weekly cap as meals, otherwise one snack would
-        // be padded onto all seven days. Within what the cap allows, prefer the
-        // most protein per kcal so closing the calorie gap also closes the
-        // protein gap instead of adding empty calories.
-        const allowed = topUpPool.filter((r) => !usedOnDay[day].has(r.id) && usesOf(r.id) < MAX_WEEKLY_REPEATS)
-        const candidates = allowed.length > 0
-          ? allowed
-          : leastUsed(topUpPool.filter((r) => !usedOnDay[day].has(r.id)), (r) => usesOf(r.id))
-        if (candidates.length === 0) break
-        // While protein is still short, take the densest protein per kcal. Once
-        // the protein target is met, switch to whatever best fits the remaining
-        // calorie gap — otherwise the day keeps stacking protein and sails far
-        // past the target (a 150 g goal ended up near 240 g in testing).
-        const gap = kcalAim - dayKcal[day]
-        const r = dayProtein[day] < proteinAim
-          ? candidates.reduce((best, x) => (x.protein_g / x.kcal > best.protein_g / best.kcal ? x : best))
-          : candidates.reduce((best, x) => (Math.abs(x.kcal - gap) < Math.abs(best.kcal - gap) ? x : best))
-        // Stop once the day is decent and the next portion would overshoot.
-        if (dayKcal[day] >= kcalMin && dayKcal[day] + r.kcal > kcalMax) break
+        // A top-up is optional, unlike a meal slot, so it never falls back to
+        // breaking the weekly cap: if nothing is left under the cap, the day
+        // lands short of the aim rather than serving one snack a third time.
+        const candidates = topUpPool.filter((r) => !usedOnDay[day].has(r.id) && usesOf(r.id) < MAX_WEEKLY_REPEATS)
+        // Only portions that keep the day within the calorie ceiling qualify.
+        const fits = candidates.filter((r) => dayKcal[day] + r.kcal <= kcalCeiling)
+        if (fits.length === 0) break
+        // Among those, spend each calorie on as much protein and iron as
+        // possible. Both nutrients are scored as a fraction of their own daily
+        // target, so they are comparable, and both may exceed it — the calorie
+        // ceiling above is what actually bounds the day.
+        const density = (x: { protein_g: number; iron_mg: number; kcal: number }) =>
+          (x.protein_g / proteinAim + x.iron_mg / ironAim) / x.kcal
+        const r = fits.reduce((best, x) => (density(x) > density(best) ? x : best))
         usedOnDay[day].add(r.id)
         bump(r.id)
         await db.insert(meal_plan_entries).values({
@@ -542,6 +542,7 @@ app.post('/generate-week', async (c) => {
         })
         dayKcal[day] += r.kcal
         dayProtein[day] += r.protein_g
+        dayIron[day] += r.iron_mg
         inserted++
         topUps++
       }
@@ -555,6 +556,7 @@ app.post('/generate-week', async (c) => {
     topUps,
     avgKcal: Math.round(dayKcal.reduce((s, k) => s + k, 0) / dates.length),
     avgProtein: Math.round(dayProtein.reduce((s, p) => s + p, 0) / dates.length),
+    avgIron: Math.round(dayIron.reduce((s, f) => s + f, 0) / dates.length * 10) / 10,
   })
 })
 
