@@ -297,10 +297,16 @@ app.post('/import', async (c) => {
 })
 
 // Which recipe categories are eligible for each meal slot.
+// The app writes only the four categories in `Category` (breakfast | main |
+// snack | classic), but rows created before that vocabulary was narrowed still
+// carry the old names (lunch/dinner/dessert/smoothie/soup/salad/other), so both
+// are matched. Leaving 'main' and 'classic' out — as this map originally did —
+// hid every current recipe from the draw and left the obiad/kolacja slots
+// picking from a handful of legacy rows.
 const SLOT_CATEGORIES: Record<string, string[]> = {
   breakfast: ['breakfast', 'smoothie'],
-  lunch: ['lunch', 'soup', 'salad', 'other'],
-  dinner: ['dinner', 'soup', 'salad', 'other'],
+  lunch: ['main', 'classic', 'lunch', 'soup', 'salad', 'other'],
+  dinner: ['main', 'classic', 'dinner', 'soup', 'salad', 'other'],
   snack: ['snack', 'dessert', 'smoothie'],
 }
 const GEN_SLOTS: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack']
