@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Link, useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { planApi, recipesApi, productsApi, settingsApi, todayDate, getWeekStart, weekDates, addDays } from '../lib/api'
 import pl from '../i18n/pl'
 import type { MealType } from '../../shared/types'
 import WeekPrintView from '../components/WeekPrintView'
+import RecipeModal from '../components/RecipeModal'
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack']
 const mealLabel = (m: MealType) => pl.plan.meals[m]
@@ -146,6 +147,7 @@ export default function PlanPage() {
 
   const [picking, setPicking] = useState<{ date: string; mealType: MealType } | null>(null)
   const [showPrint, setShowPrint] = useState(false)
+  const [recipeModal, setRecipeModal] = useState<{ id: number; title: string; slug: string }[] | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['plan', weekStart, weekEnd],
@@ -175,7 +177,7 @@ export default function PlanPage() {
   const generateWeekMutation = useMutation({
     mutationFn: () => planApi.generateWeek(weekStart),
     onSuccess: (d) => {
-      setBatchInfo(pl.plan.generatedSummary(d.cookingSessions, d.inserted, d.avgKcal, d.avgProtein))
+      setBatchInfo(pl.plan.generatedSummary(d.cookingSessions, d.avgKcal, d.avgProtein, d.avgIron, d.avgPortion))
       qc.invalidateQueries({ queryKey: ['plan'] })
     },
     onError: (e: Error) => window.alert(e.message.includes('no_recipes') ? pl.plan.generateNoRecipes : pl.plan.generateError),
@@ -313,15 +315,20 @@ export default function PlanPage() {
                               }`}
                             >
                               {entry.recipe_id ? (
-                                <Link
-                                  to={`/recipes/${entry.recipe_id}`}
-                                  className="font-medium text-primary-700 line-clamp-2 hover:underline dark:text-primary-300"
+                                <button
+                                  type="button"
+                                  onClick={() => setRecipeModal([{
+                                    id: entry.recipe_id as number,
+                                    title: entry.recipe?.title ?? `#${entry.recipe_id}`,
+                                    slug: entry.recipe?.slug ?? '',
+                                  }])}
+                                  className="block w-full text-left font-medium text-primary-700 line-clamp-2 hover:underline dark:text-primary-300"
                                 >
                                   {entry.is_leftover && (
                                     <span title={pl.plan.leftoverHint} className="mr-1">♻︎</span>
                                   )}
                                   {entry.recipe?.title ?? `#${entry.recipe_id}`}
-                                </Link>
+                                </button>
                               ) : entry.product ? (
                                 <span className="font-medium text-gray-800 line-clamp-2 dark:text-gray-200">
                                   🛒 {entry.product.name}
@@ -417,6 +424,14 @@ export default function PlanPage() {
           weekStart={weekStart}
           weekEnd={weekEnd}
           onClose={() => setShowPrint(false)}
+        />
+      )}
+
+      {recipeModal && (
+        <RecipeModal
+          recipes={recipeModal}
+          heading={pl.plan.recipePreview}
+          onClose={() => setRecipeModal(null)}
         />
       )}
     </div>

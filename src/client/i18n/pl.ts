@@ -339,11 +339,12 @@ const pl = {
     generateShopping: 'Generuj listę zakupów',
     printWeek: 'Drukuj tydzień',
     generateWeek: 'Generuj tydzień',
+    recipePreview: 'Przepis',
     leftover: 'resztki',
     leftoverHint: 'Z porcji ugotowanej dzień wcześniej — nie musisz gotować',
     cookToday: 'gotujesz',
-    generatedSummary: (cooking: number, meals: number, kcal: number, protein: number) =>
-      `Gotowanie ${cooking}× na ${meals} pozycji · średnio ${kcal} kcal i ${protein} g białka dziennie`,
+    generatedSummary: (cooking: number, kcal: number, protein: number, iron: number, portion: number) =>
+      `Gotowanie ${cooking}× w tygodniu · dziennie ${kcal} kcal, ${protein} g białka, ${iron} mg żelaza · porcje ×${portion}`,
     generateConfirm: 'Wygenerować nowy tydzień z Twoich dań? Obecny plan tego tygodnia zostanie zastąpiony.',
     generateNoRecipes: 'Nie masz jeszcze przepisów. Dodaj kilka dań, zanim wygenerujesz tydzień.',
     generateError: 'Nie udało się wygenerować tygodnia. Spróbuj ponownie.',

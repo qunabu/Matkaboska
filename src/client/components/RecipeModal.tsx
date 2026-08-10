@@ -6,7 +6,7 @@ import pl from '../i18n/pl'
 
 type Ref = { id: number; title: string; slug: string }
 
-export default function RecipeModal({ recipes, onClose }: { recipes: Ref[]; onClose: () => void }) {
+export default function RecipeModal({ recipes, onClose, heading }: { recipes: Ref[]; onClose: () => void; heading?: string }) {
   const [id, setId] = useState<number>(recipes[0]?.id)
   const { data: recipe, isLoading } = useQuery({
     queryKey: ['recipe', id],
@@ -18,7 +18,7 @@ export default function RecipeModal({ recipes, onClose }: { recipes: Ref[]; onCl
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm md:items-center" onClick={onClose}>
       <div className="flex max-h-[88vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white md:max-w-lg md:rounded-2xl dark:bg-gray-900" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-          <h3 className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{pl.shopping.fromRecipe}</h3>
+          <h3 className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{heading ?? pl.shopping.fromRecipe}</h3>
           <button onClick={onClose} className="ml-2 shrink-0 text-2xl leading-none text-gray-400">×</button>
         </div>
 

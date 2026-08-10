@@ -338,8 +338,24 @@ function leastUsed<T>(items: T[], count: (item: T) => number): T[] {
 // Boosters are products pinned to every day rather than dishes drawn from the
 // pool, so they sit outside the weekly-repeat cap — that cap exists to stop the
 // same *meal* recurring, while a daily protein/iron top-up is the whole point.
-const PROTEIN_BOOSTERS_PER_DAY = 2
-const IRON_BOOSTERS_PER_DAY = 2
+const PROTEIN_BOOSTERS_PER_DAY = 1
+const IRON_BOOSTERS_PER_DAY = 1
+// How many iron-rich items the daily iron slot rotates through over the week.
+const IRON_ROTATION_POOL = 6
+// A booster is a small add-on, not a second dinner. Without this bound the
+// iron ranking happily picked 500 kcal main dishes, which ate the whole
+// calorie budget and duplicated meal-type food.
+const MAX_BOOSTER_KCAL = 350
+// A day never shows more than this many entries in total — meals and boosters
+// together. Four meal slots plus the two boosters is exactly the budget, which
+// is why calories are closed by portion size rather than by extra snacks.
+const MAX_ENTRIES_PER_DAY = 6
+// Bounds on meal-portion scaling. Scaling down matters as much as up: a day of
+// naturally heavy dishes has to shrink to stay under the calorie ceiling.
+const MIN_PORTION_SCALE = 0.5
+const MAX_PORTION_SCALE = 2.5
+// D1 binds at most 100 parameters per query and a plan row binds 10 columns.
+const INSERT_CHUNK = 10
 // Calories are the only hard ceiling: a day may land up to 10% above the user's
 // target, and protein and iron are free to overshoot within that budget.
 const KCAL_CEILING_RATIO = 1.10
@@ -419,11 +435,26 @@ app.post('/generate-week', async (c) => {
   const usedOnDay = dates.map(() => new Set<number>())
   const blocks = batchBlocks(dates.length, BATCH_DAYS)
 
-  let inserted = 0
+  // Rows are buffered and written in a few chunked statements at the end rather
+  // than one query per entry.
+  const pending: (typeof meal_plan_entries.$inferInsert)[] = []
+  const addEntry = (row: Omit<typeof meal_plan_entries.$inferInsert, 'user_id'>) => {
+    const full = { user_id: userId, ...row }
+    pending.push(full)
+    return full
+  }
+
+  // Meal rows get their portions scaled later; boosters are fixed doses.
+  const mealRows: { row: typeof pending[number]; day: number }[] = []
+  const dayEntries = dates.map(() => 0)
+  const dayMealKcal = dates.map(() => 0)
+  const dayMealProtein = dates.map(() => 0)
+  const dayMealIron = dates.map(() => 0)
+  const dayBoosterKcal = dates.map(() => 0)
+  const dayBoosterProtein = dates.map(() => 0)
+  const dayBoosterIron = dates.map(() => 0)
+
   let cookingSessions = 0
-  const dayKcal = dates.map(() => 0)
-  const dayProtein = dates.map(() => 0)
-  const dayIron = dates.map(() => 0)
   for (const slot of GEN_SLOTS) {
     const p = pool(slot)
     for (const [blockIndex, block] of blocks.entries()) {
@@ -441,11 +472,7 @@ app.post('/generate-week', async (c) => {
       for (const [offset, day] of block.entries()) {
         usedOnDay[day].add(choice.id)
         bump(choice.id)
-        dayKcal[day] += choice.kcal
-        dayProtein[day] += choice.protein_g
-        dayIron[day] += choice.iron_mg
-        await db.insert(meal_plan_entries).values({
-          user_id: userId,
+        const row = addEntry({
           date: dates[day],
           meal_type: slot,
           recipe_id: choice.id,
@@ -456,104 +483,138 @@ app.post('/generate-week', async (c) => {
           is_leftover: offset > 0,
           status: 'planned',
         })
-        inserted++
+        mealRows.push({ row, day })
+        dayEntries[day]++
+        dayMealKcal[day] += choice.kcal
+        dayMealProtein[day] += choice.protein_g
+        dayMealIron[day] += choice.iron_mg
       }
       cookingSessions++
     }
   }
 
   // --- Daily boosters -------------------------------------------------------
-  // Pinned product portions that carry the protein and iron the cooked meals
-  // alone do not reach. Ranked by what one portion actually delivers, not by the
-  // per-100 g column — a 30 g granola beats nothing on protein per portion.
+  // A day carries at most MAX_ENTRIES_PER_DAY items in total, so with four meals
+  // there is room for one protein scoop and one iron carrier. Iron can come from
+  // a product (pumpkin seeds, tahini) or a recipe (kulki mocy, a shake), so both
+  // are ranked together by iron per portion. Boosters are exempt from the weekly
+  // cap — a fixed daily dose is not a repeated meal — but they rotate, so the
+  // week is not the identical pair seven times over.
   const userProducts = await db.select().from(products).where(eq(products.user_id, userId))
-  const proteinBoosters = userProducts
+
+  type Booster = {
+    kind: 'product' | 'recipe'
+    id: number
+    kcal: number
+    protein_g: number
+    iron_mg: number
+    grams: number | null
+  }
+
+  // "A portion of protein" means the supplement scoop when the user has one;
+  // otherwise fall back to whichever product carries the most protein per portion.
+  const scoops = userProducts.filter((p) => /od[żz]ywk/i.test(p.name))
+  const proteinBoosters: Booster[] = (scoops.length > 0 ? scoops : userProducts)
     .filter((p) => perServing(p).protein_g > 0)
     .sort((a, b) => perServing(b).protein_g - perServing(a).protein_g)
     .slice(0, PROTEIN_BOOSTERS_PER_DAY)
-  const ironBoosters = userProducts
-    .filter((p) => perServing(p).iron_mg > 0 && !proteinBoosters.some((x) => x.id === p.id))
-    .sort((a, b) => perServing(b).iron_mg - perServing(a).iron_mg)
-    .slice(0, IRON_BOOSTERS_PER_DAY)
+    .map((p) => ({ kind: 'product' as const, id: p.id, ...perServing(p), grams: p.serving_g ?? 100 }))
+
+  const ironPool: Booster[] = [
+    ...userProducts
+      .filter((p) => perServing(p).iron_mg > 0 && perServing(p).kcal <= MAX_BOOSTER_KCAL && !proteinBoosters.some((b) => b.id === p.id))
+      .map((p) => ({ kind: 'product' as const, id: p.id, ...perServing(p), grams: p.serving_g ?? 100 })),
+    // Only snack-shaped recipes qualify — a main course is a meal, not a booster.
+    ...all
+      .filter((r) => r.iron_mg > 0 && r.kcal <= MAX_BOOSTER_KCAL && SLOT_CATEGORIES.snack.includes(r.category))
+      .map((r) => ({ kind: 'recipe' as const, id: r.id, kcal: r.kcal, protein_g: r.protein_g, iron_mg: r.iron_mg, grams: null })),
+  ]
+    .sort((a, b) => b.iron_mg - a.iron_mg)
+    .slice(0, IRON_ROTATION_POOL)
 
   let boosterEntries = 0
   for (const [day, date] of dates.entries()) {
-    for (const p of [...proteinBoosters, ...ironBoosters]) {
-      const per = perServing(p)
-      // Calorie-dense meals can fill a day on their own; pinning a booster on
-      // top would push it past the ceiling, and no later step can take calories
-      // back out. Such a day simply goes without that booster.
-      if (dayKcal[day] + per.kcal > kcalCeiling) continue
-      await db.insert(meal_plan_entries).values({
-        user_id: userId,
+    const todaysIron = ironPool.length === 0 ? [] : Array.from(
+      { length: IRON_BOOSTERS_PER_DAY },
+      (_, k) => ironPool[(day * IRON_BOOSTERS_PER_DAY + k) % ironPool.length],
+    )
+    for (const b of [...proteinBoosters, ...todaysIron]) {
+      if (dayEntries[day] >= MAX_ENTRIES_PER_DAY) break
+      // A recipe already on today's plate is not worth serving twice.
+      if (b.kind === 'recipe' && usedOnDay[day].has(b.id)) continue
+      addEntry({
         date,
         meal_type: 'snack',
-        recipe_id: null,
-        product_id: p.id,
-        grams: p.serving_g ?? 100,
+        recipe_id: b.kind === 'recipe' ? b.id : null,
+        product_id: b.kind === 'product' ? b.id : null,
+        grams: b.grams,
         servings: 1,
         batch_group: null,
         is_leftover: false,
         status: 'planned',
       })
-      dayKcal[day] += per.kcal
-      dayProtein[day] += per.protein_g
-      dayIron[day] += per.iron_mg
-      inserted++
+      dayEntries[day]++
+      if (b.kind === 'recipe') usedOnDay[day].add(b.id)
+      dayBoosterKcal[day] += b.kcal
+      dayBoosterProtein[day] += b.protein_g
+      dayBoosterIron[day] += b.iron_mg
       boosterEntries++
     }
   }
 
-  // --- Calorie top-up ------------------------------------------------------
-  // Extra snack portions bring each day up towards its calorie target, spending
-  // the available room on protein and iron.
-  const topUpPool = pool('snack').filter((r) => r.kcal > 0)
-  let topUps = 0
-  if (topUpPool.length > 0) {
-    for (const [day, date] of dates.entries()) {
-      for (let guard = 0; guard < 12 && dayKcal[day] < kcalAim; guard++) {
-        // A top-up is optional, unlike a meal slot, so it never falls back to
-        // breaking the weekly cap: if nothing is left under the cap, the day
-        // lands short of the aim rather than serving one snack a third time.
-        const candidates = topUpPool.filter((r) => !usedOnDay[day].has(r.id) && usesOf(r.id) < MAX_WEEKLY_REPEATS)
-        // Only portions that keep the day within the calorie ceiling qualify.
-        const fits = candidates.filter((r) => dayKcal[day] + r.kcal <= kcalCeiling)
-        if (fits.length === 0) break
-        // Among those, spend each calorie on as much protein and iron as
-        // possible. Both nutrients are scored as a fraction of their own daily
-        // target, so they are comparable, and both may exceed it — the calorie
-        // ceiling above is what actually bounds the day.
-        const density = (x: { protein_g: number; iron_mg: number; kcal: number }) =>
-          (x.protein_g / proteinAim + x.iron_mg / ironAim) / x.kcal
-        const r = fits.reduce((best, x) => (density(x) > density(best) ? x : best))
-        usedOnDay[day].add(r.id)
-        bump(r.id)
-        await db.insert(meal_plan_entries).values({
-          user_id: userId,
-          date,
-          meal_type: 'snack',
-          recipe_id: r.id,
-          product_id: null,
-          grams: null,
-          servings: 1,
-          batch_group: null,
-          is_leftover: false,
-          status: 'planned',
-        })
-        dayKcal[day] += r.kcal
-        dayProtein[day] += r.protein_g
-        dayIron[day] += r.iron_mg
-        inserted++
-        topUps++
-      }
-    }
+  // --- Portion sizing -------------------------------------------------------
+  // With the day capped at six items there is no room to pad calories with extra
+  // snacks, so the gap is closed by eating more of each meal. Boosters keep their
+  // fixed dose; only the cooked meals scale.
+  const dayFactor = dates.map((_, day) => {
+    const meals = dayMealKcal[day]
+    if (meals <= 0) return 1
+    const raw = Math.round(((kcalAim - dayBoosterKcal[day]) / meals) * 4) / 4
+    let f = Math.min(Math.max(raw, MIN_PORTION_SCALE), MAX_PORTION_SCALE)
+    while (f > MIN_PORTION_SCALE && meals * f + dayBoosterKcal[day] > kcalCeiling) f -= 0.25
+    return f
+  })
+  // A batch is cooked once for all of its days, so every day in it uses the same
+  // portion — the smallest any of those days allows. Taking the largest instead
+  // pushed the lighter day past its calorie ceiling, and the ceiling is the one
+  // hard limit here; landing a little under the target is not.
+  const batchFactor = new Map<string, number>()
+  for (const { row, day } of mealRows) {
+    if (!row.batch_group) continue
+    const current = batchFactor.get(row.batch_group)
+    batchFactor.set(row.batch_group, current === undefined ? dayFactor[day] : Math.min(current, dayFactor[day]))
+  }
+  for (const { row, day } of mealRows) {
+    row.servings = row.batch_group ? (batchFactor.get(row.batch_group) ?? dayFactor[day]) : dayFactor[day]
+  }
+  // Recompute the day totals from the portions actually written.
+  const dayKcal = dates.map((_, day) => 0)
+  const dayProtein = dates.map((_, day) => 0)
+  const dayIron = dates.map((_, day) => 0)
+  for (const { row, day } of mealRows) {
+    const r = all.find((x) => x.id === row.recipe_id)
+    if (!r) continue
+    dayKcal[day] += r.kcal * (row.servings ?? 1)
+    dayProtein[day] += r.protein_g * (row.servings ?? 1)
+    dayIron[day] += r.iron_mg * (row.servings ?? 1)
+  }
+  for (const [day] of dates.entries()) {
+    dayKcal[day] += dayBoosterKcal[day]
+    dayProtein[day] += dayBoosterProtein[day]
+    dayIron[day] += dayBoosterIron[day]
+  }
+
+  // Write the week in a handful of statements instead of one query per row.
+  for (let i = 0; i < pending.length; i += INSERT_CHUNK) {
+    await db.insert(meal_plan_entries).values(pending.slice(i, i + INSERT_CHUNK))
   }
 
   return c.json({
-    inserted,
+    inserted: pending.length,
     cookingSessions,
     boosterEntries,
-    topUps,
+    maxPerDay: Math.max(...dayEntries),
+    avgPortion: Math.round(dayFactor.reduce((s, f) => s + f, 0) / dates.length * 100) / 100,
     avgKcal: Math.round(dayKcal.reduce((s, k) => s + k, 0) / dates.length),
     avgProtein: Math.round(dayProtein.reduce((s, p) => s + p, 0) / dates.length),
     avgIron: Math.round(dayIron.reduce((s, f) => s + f, 0) / dates.length * 10) / 10,
