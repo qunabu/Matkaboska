@@ -224,6 +224,10 @@ async function aggregateShoppingItems(
   const aggregated = new Map<string, { name: string; category: ShopCategory; units: Map<string, number> }>()
   for (const { entry, recipe } of planRows) {
     if (!recipe) continue
+    // A leftover eats from a batch already cooked on an earlier day — its
+    // ingredients were counted with that day's entry, so counting them again
+    // would double the groceries for every batch-cooked dish.
+    if (entry.is_leftover) continue
     const ingredients = JSON.parse(recipe.ingredients) as Ingredient[]
     for (const ing of ingredients) {
       const clean = normalizeName(ing.name || '')

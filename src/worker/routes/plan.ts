@@ -311,16 +311,15 @@ const SLOT_CATEGORIES: Record<string, string[]> = {
 }
 const GEN_SLOTS: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack']
 
-// Lunch and dinner draw from the same kind of dishes, so they share one weekly
-// counter — a recipe used as obiad twice can't come back as kolacja.
-const USAGE_BUCKET: Record<MealType, string> = {
-  breakfast: 'breakfast',
-  lunch: 'main',
-  dinner: 'main',
-  snack: 'snack',
-}
-// How many times one recipe may appear in a week within its bucket.
+// How many times one recipe may appear in a week, counted across every slot.
+// One shared counter rather than per-slot ones: a dish eligible for two slots
+// (a smoothie fits both breakfast and snack) would otherwise reach its limit
+// twice over and show up four times.
 const MAX_WEEKLY_REPEATS = 2
+// Cook once, eat for this many consecutive days in the same slot. The second
+// day is stored as a leftover entry sharing the first one's batch_group, which
+// is what keeps the shopping list from buying the ingredients twice.
+const BATCH_DAYS = 2
 
 function addDaysStr(date: string, n: number): string {
   const d = new Date(date + 'T00:00:00Z')
@@ -333,6 +332,16 @@ function leastUsed<T>(items: T[], count: (item: T) => number): T[] {
   if (items.length === 0) return items
   const min = Math.min(...items.map(count))
   return items.filter((item) => count(item) === min)
+}
+
+// Split day indexes into consecutive cooking blocks: [0,1], [2,3], [4,5], [6].
+// A 7-day week leaves one odd day, which simply becomes a 1-day block.
+function batchBlocks(dayCount: number, size: number): number[][] {
+  const blocks: number[][] = []
+  for (let i = 0; i < dayCount; i += size) {
+    blocks.push(Array.from({ length: Math.min(size, dayCount - i) }, (_, k) => i + k))
+  }
+  return blocks
 }
 
 // POST /api/plan/generate-week — fill a whole week from the user's own recipes,
@@ -365,53 +374,55 @@ app.post('/generate-week', async (c) => {
   await db.delete(meal_plan_entries)
     .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, dates[0], dates[6])))
 
-  // usage[bucket][recipeId] — how many times a recipe is already in this week.
-  const usage = new Map<string, Map<number, number>>()
-  const usesOf = (bucket: string, id: number) => usage.get(bucket)?.get(id) ?? 0
-  const bump = (bucket: string, id: number) => {
-    const b = usage.get(bucket) ?? new Map<number, number>()
-    b.set(id, (b.get(id) ?? 0) + 1)
-    usage.set(bucket, b)
-  }
+  // How many times each recipe is already placed this week, across all slots.
+  const usage = new Map<number, number>()
+  const usesOf = (id: number) => usage.get(id) ?? 0
+  const bump = (id: number) => usage.set(id, usesOf(id) + 1)
+
+  // One dish per cooking block instead of per day: the block's first day is the
+  // cooking day, the rest are leftovers. Dishes deliberately repeat within a
+  // block — that is the point — so there is no "avoid yesterday" rule here.
+  const usedOnDay = dates.map(() => new Set<number>())
+  const blocks = batchBlocks(dates.length, BATCH_DAYS)
 
   let inserted = 0
-  let usedYesterday = new Set<number>()
-  for (const date of dates) {
-    const usedToday = new Set<number>()
-    for (const slot of GEN_SLOTS) {
-      const bucket = USAGE_BUCKET[slot]
-      const p = pool(slot)
-      // The weekly cap is the hard constraint, so it filters first. Only when the
-      // pool is too small to honour it do we fall back to the least-used recipes,
-      // which spreads the unavoidable repeats evenly.
-      const underCap = p.filter((r) => usesOf(bucket, r.id) < MAX_WEEKLY_REPEATS)
-      const capped = underCap.length > 0 ? underCap : leastUsed(p, (r) => usesOf(bucket, r.id))
-      // Then soft preferences: nothing twice in one day, and not yesterday's dish.
-      const fresh = capped.filter((r) => !usedToday.has(r.id))
-      const eligible = fresh.length > 0 ? fresh : capped
-      const notYesterday = eligible.filter((r) => !usedYesterday.has(r.id))
-      const choice = pick(notYesterday.length > 0 ? notYesterday : eligible)
+  let cookingSessions = 0
+  for (const slot of GEN_SLOTS) {
+    const p = pool(slot)
+    for (const [blockIndex, block] of blocks.entries()) {
+      // A block consumes one weekly slot per day it covers, so only dishes with
+      // enough headroom left under the cap can take it. When the pool is too
+      // small for that, fall back to the least-used ones so repeats spread out.
+      const underCap = p.filter((r) => usesOf(r.id) + block.length <= MAX_WEEKLY_REPEATS)
+      const capped = underCap.length > 0 ? underCap : leastUsed(p, (r) => usesOf(r.id))
+      // Avoid colliding with what another slot already placed on these days.
+      const free = capped.filter((r) => block.every((d) => !usedOnDay[d].has(r.id)))
+      const choice = pick(free.length > 0 ? free : capped)
       if (!choice) continue
-      usedToday.add(choice.id)
-      bump(bucket, choice.id)
-      await db.insert(meal_plan_entries).values({
-        user_id: userId,
-        date,
-        meal_type: slot,
-        recipe_id: choice.id,
-        product_id: null,
-        grams: null,
-        servings: 1,
-        batch_group: null,
-        is_leftover: false,
-        status: 'planned',
-      })
-      inserted++
+
+      const batchGroup = block.length > 1 ? `${weekStart}-${slot}-${blockIndex}` : null
+      for (const [offset, day] of block.entries()) {
+        usedOnDay[day].add(choice.id)
+        bump(choice.id)
+        await db.insert(meal_plan_entries).values({
+          user_id: userId,
+          date: dates[day],
+          meal_type: slot,
+          recipe_id: choice.id,
+          product_id: null,
+          grams: null,
+          servings: 1,
+          batch_group: batchGroup,
+          is_leftover: offset > 0,
+          status: 'planned',
+        })
+        inserted++
+      }
+      cookingSessions++
     }
-    usedYesterday = usedToday
   }
 
-  return c.json({ inserted })
+  return c.json({ inserted, cookingSessions })
 })
 
 export { app as planRouter }

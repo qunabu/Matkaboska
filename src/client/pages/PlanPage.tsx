@@ -171,9 +171,13 @@ export default function PlanPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['plan'] }),
   })
 
+  const [batchInfo, setBatchInfo] = useState<string | null>(null)
   const generateWeekMutation = useMutation({
     mutationFn: () => planApi.generateWeek(weekStart),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['plan'] }),
+    onSuccess: (d) => {
+      setBatchInfo(pl.plan.generatedSummary(d.cookingSessions, d.inserted))
+      qc.invalidateQueries({ queryKey: ['plan'] })
+    },
     onError: (e: Error) => window.alert(e.message.includes('no_recipes') ? pl.plan.generateNoRecipes : pl.plan.generateError),
   })
 
@@ -216,7 +220,10 @@ export default function PlanPage() {
   return (
     <div className="mx-auto max-w-4xl p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.plan.title}</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.plan.title}</h1>
+          {batchInfo && <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">♻︎ {batchInfo}</p>}
+        </div>
         <div className="flex gap-2">
           <button
             onClick={generateWeek}
@@ -310,6 +317,9 @@ export default function PlanPage() {
                                   to={`/recipes/${entry.recipe_id}`}
                                   className="font-medium text-primary-700 line-clamp-2 hover:underline dark:text-primary-300"
                                 >
+                                  {entry.is_leftover && (
+                                    <span title={pl.plan.leftoverHint} className="mr-1">♻︎</span>
+                                  )}
                                   {entry.recipe?.title ?? `#${entry.recipe_id}`}
                                 </Link>
                               ) : entry.product ? (
@@ -322,6 +332,7 @@ export default function PlanPage() {
                               {entry.recipe?.macros && (
                                 <p className="mt-0.5 text-[10px] text-gray-400">
                                   {Math.round(entry.recipe.macros.kcal * (entry.servings ?? 1))} kcal
+                                  {entry.batch_group ? ` · ${entry.is_leftover ? pl.plan.leftover : pl.plan.cookToday}` : ''}
                                 </p>
                               )}
                               {entry.product && (
