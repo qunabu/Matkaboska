@@ -305,14 +305,33 @@ const SLOT_CATEGORIES: Record<string, string[]> = {
 }
 const GEN_SLOTS: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack']
 
+// Lunch and dinner draw from the same kind of dishes, so they share one weekly
+// counter — a recipe used as obiad twice can't come back as kolacja.
+const USAGE_BUCKET: Record<MealType, string> = {
+  breakfast: 'breakfast',
+  lunch: 'main',
+  dinner: 'main',
+  snack: 'snack',
+}
+// How many times one recipe may appear in a week within its bucket.
+const MAX_WEEKLY_REPEATS = 2
+
 function addDaysStr(date: string, n: number): string {
   const d = new Date(date + 'T00:00:00Z')
   d.setUTCDate(d.getUTCDate() + n)
   return d.toISOString().slice(0, 10)
 }
 
+// The subset of items with the lowest usage count.
+function leastUsed<T>(items: T[], count: (item: T) => number): T[] {
+  if (items.length === 0) return items
+  const min = Math.min(...items.map(count))
+  return items.filter((item) => count(item) === min)
+}
+
 // POST /api/plan/generate-week — fill a whole week from the user's own recipes,
-// matching each meal slot to sensible categories and avoiding same-day repeats.
+// matching each meal slot to sensible categories and keeping any one dish to at
+// most MAX_WEEKLY_REPEATS appearances per week.
 app.post('/generate-week', async (c) => {
   const userId = c.var.userId
   const parsed = z.object({
@@ -340,16 +359,35 @@ app.post('/generate-week', async (c) => {
   await db.delete(meal_plan_entries)
     .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, dates[0], dates[6])))
 
+  // usage[bucket][recipeId] — how many times a recipe is already in this week.
+  const usage = new Map<string, Map<number, number>>()
+  const usesOf = (bucket: string, id: number) => usage.get(bucket)?.get(id) ?? 0
+  const bump = (bucket: string, id: number) => {
+    const b = usage.get(bucket) ?? new Map<number, number>()
+    b.set(id, (b.get(id) ?? 0) + 1)
+    usage.set(bucket, b)
+  }
+
   let inserted = 0
+  let usedYesterday = new Set<number>()
   for (const date of dates) {
     const usedToday = new Set<number>()
     for (const slot of GEN_SLOTS) {
+      const bucket = USAGE_BUCKET[slot]
       const p = pool(slot)
-      // Prefer a recipe not yet used today; fall back to any if the pool is small.
-      const fresh = p.filter((r) => !usedToday.has(r.id))
-      const choice = pick(fresh.length > 0 ? fresh : p)
+      // The weekly cap is the hard constraint, so it filters first. Only when the
+      // pool is too small to honour it do we fall back to the least-used recipes,
+      // which spreads the unavoidable repeats evenly.
+      const underCap = p.filter((r) => usesOf(bucket, r.id) < MAX_WEEKLY_REPEATS)
+      const capped = underCap.length > 0 ? underCap : leastUsed(p, (r) => usesOf(bucket, r.id))
+      // Then soft preferences: nothing twice in one day, and not yesterday's dish.
+      const fresh = capped.filter((r) => !usedToday.has(r.id))
+      const eligible = fresh.length > 0 ? fresh : capped
+      const notYesterday = eligible.filter((r) => !usedYesterday.has(r.id))
+      const choice = pick(notYesterday.length > 0 ? notYesterday : eligible)
       if (!choice) continue
       usedToday.add(choice.id)
+      bump(bucket, choice.id)
       await db.insert(meal_plan_entries).values({
         user_id: userId,
         date,
@@ -364,6 +402,7 @@ app.post('/generate-week', async (c) => {
       })
       inserted++
     }
+    usedYesterday = usedToday
   }
 
   return c.json({ inserted })
