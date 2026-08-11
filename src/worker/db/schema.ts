@@ -63,6 +63,7 @@ export const food_log = sqliteTable('food_log', {
   protein_g: real('protein_g'),
   carbs_g: real('carbs_g'),
   fat_g: real('fat_g'),
+  iron_mg: real('iron_mg'),
   portion: text('portion'),
 }, (t) => ({
   food_log_date_idx: index('food_log_date_idx').on(t.date),

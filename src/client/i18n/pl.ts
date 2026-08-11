@@ -237,6 +237,7 @@ const pl = {
     mProtein: 'B (g)',
     mCarbs: 'W (g)',
     mFat: 'T (g)',
+    mIron: 'Fe (mg)',
   },
 
   import: {
@@ -471,6 +472,7 @@ const pl = {
     protein: 'Białko',
     carbs: 'Węglowodany',
     fat: 'Tłuszcze',
+    iron: 'Żelazo',
     portion: 'Porcja',
     manual: 'Ręcznie',
     fromRecipe: 'Z przepisu',
@@ -480,6 +482,7 @@ const pl = {
     today: 'Dziś',
     weekSummary: 'Podsumowanie tygodnia',
     weekAvg: 'średnio',
+    weekTodayExcluded: 'Dzisiejszy dzień nie wchodzi do średnich — jest jeszcze niedokończony.',
     glassesShort: 'szkl.',
     noEntries: 'Brak wpisów',
     deleteEntry: 'Usuń wpis',

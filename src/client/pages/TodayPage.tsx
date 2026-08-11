@@ -169,6 +169,7 @@ function ReadyProduct() {
   const [protein, setProtein] = useState('')
   const [carbs, setCarbs] = useState('')
   const [fat, setFat] = useState('')
+  const [iron, setIron] = useState('')       // mg per 100 g
   const [serving, setServing] = useState('') // grams of one portion
   const [pkg, setPkg] = useState('')         // grams of whole product
   const [grams, setGrams] = useState('')     // grams eaten now
@@ -190,6 +191,7 @@ function ReadyProduct() {
     protein_g: num(protein) != null ? Math.round((num(protein) as number) * factor * 10) / 10 : null,
     carbs_g: num(carbs) != null ? Math.round((num(carbs) as number) * factor * 10) / 10 : null,
     fat_g: num(fat) != null ? Math.round((num(fat) as number) * factor * 10) / 10 : null,
+    iron_mg: num(iron) != null ? Math.round((num(iron) as number) * factor * 10) / 10 : null,
   }
 
   const addMutation = useMutation({
@@ -197,12 +199,14 @@ function ReadyProduct() {
       await productsApi.create({
         name: name.trim(),
         kcal: num(kcal), protein_g: num(protein), carbs_g: num(carbs), fat_g: num(fat),
+        iron_mg: num(iron),
         serving_g: num(serving), package_g: num(pkg),
         frisco_product_id: friscoPid.trim() || null,
       })
       await foodLogApi.add({
         description: `${name.trim()} (${eatenG} g)`,
         kcal: scaled.kcal, protein_g: scaled.protein_g, carbs_g: scaled.carbs_g, fat_g: scaled.fat_g,
+        iron_mg: scaled.iron_mg,
         portion: 'product',
       })
     },
@@ -217,6 +221,7 @@ function ReadyProduct() {
   function pick(p: Product) {
     setName(p.name)
     setKcal(p.kcal?.toString() ?? '')
+    setIron(p.iron_mg?.toString() ?? '')
     setProtein(p.protein_g?.toString() ?? '')
     setCarbs(p.carbs_g?.toString() ?? '')
     setFat(p.fat_g?.toString() ?? '')
@@ -265,11 +270,12 @@ function ReadyProduct() {
       </div>
 
       <p className="mt-3 text-xs font-medium text-gray-400">{pl.today.readyPer100}</p>
-      <div className="mt-1 grid grid-cols-4 gap-2">
+      <div className="mt-1 grid grid-cols-5 gap-2">
         <input inputMode="decimal" value={kcal} onChange={(e) => setKcal(e.target.value)} placeholder={pl.today.mKcal} className={macroInput} />
         <input inputMode="decimal" value={protein} onChange={(e) => setProtein(e.target.value)} placeholder={pl.today.mProtein} className={macroInput} />
         <input inputMode="decimal" value={carbs} onChange={(e) => setCarbs(e.target.value)} placeholder={pl.today.mCarbs} className={macroInput} />
         <input inputMode="decimal" value={fat} onChange={(e) => setFat(e.target.value)} placeholder={pl.today.mFat} className={macroInput} />
+        <input inputMode="decimal" value={iron} onChange={(e) => setIron(e.target.value)} placeholder={pl.today.mIron} className={macroInput} />
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2">
@@ -295,6 +301,7 @@ function ReadyProduct() {
       {num(kcal) != null && (
         <p className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-300">
           {eatenG} g = <strong>{scaled.kcal} kcal</strong> · B {scaled.protein_g}g · W {scaled.carbs_g}g · T {scaled.fat_g}g
+          {scaled.iron_mg != null ? ` · Fe ${scaled.iron_mg}mg` : ''}
           {serving && grams && num(grams) !== num(serving) ? '' : serving ? ` (${pl.today.readyOnePortion})` : ''}
         </p>
       )}
@@ -402,6 +409,7 @@ export default function TodayPage() {
             <MacroBar label={`${pl.macros.protein} (g)`} value={summary.protein_g} max={settings?.protein_g_target ?? 150} color="bg-blue-400" />
             <MacroBar label={`${pl.macros.carbs} (g)`} value={summary.carbs_g} max={250} color="bg-yellow-400" />
             <MacroBar label={`${pl.macros.fat} (g)`} value={summary.fat_g} max={80} color="bg-red-400" />
+            <MacroBar label={`${pl.macros.iron} (mg)`} value={summary.iron_mg} max={settings?.iron_mg_target ?? 27} color="bg-emerald-500" />
           </div>
         </div>
       )}

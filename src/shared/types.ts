@@ -62,6 +62,7 @@ export interface Product {
   protein_g: number | null
   carbs_g: number | null
   fat_g: number | null
+  iron_mg: number | null
   portion: string | null
   serving_g: number | null   // grams of one default portion
   package_g: number | null   // grams of the whole product
@@ -133,6 +134,7 @@ export interface FoodLogEntry {
   protein_g: number | null
   carbs_g: number | null
   fat_g: number | null
+  iron_mg: number | null
   portion: string | null
 }
 
@@ -142,6 +144,7 @@ export interface DailySummary {
   protein_g: number
   carbs_g: number
   fat_g: number
+  iron_mg: number
   entries: number
 }
 

@@ -37,13 +37,15 @@ function WeekBars({ days, values, target, color }: {
           {values.map((v, i) => {
             const h = Math.max(Math.round((v / max) * 100), v > 0 ? 4 : 0)
             const hitTarget = target ? v >= target : false
+            // Today is dimmed: the day is unfinished and left out of the average.
+            const isToday = days[i] === today
             return (
-              <div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-0.5">
-                <span className="text-[9px] leading-none text-gray-400">{v > 0 ? Math.round(v) : ''}</span>
+              <div key={i} className={`flex h-full flex-1 flex-col items-center justify-end gap-0.5 ${isToday ? 'opacity-40' : ''}`}>
+                <span className="text-[9px] leading-none text-gray-400">{v > 0 ? Math.round(v * 10) / 10 : ''}</span>
                 <div
                   className={`w-full rounded-t ${v > 0 ? (hitTarget ? 'bg-green-500' : color) : 'bg-gray-100 dark:bg-gray-700'}`}
                   style={{ height: `${Math.max(h, 2)}%` }}
-                  title={hitTarget ? 'Cel osiągnięty' : undefined}
+                  title={isToday ? pl.tracking.weekTodayExcluded : hitTarget ? 'Cel osiągnięty' : undefined}
                 />
               </div>
             )
@@ -64,12 +66,13 @@ function WeekBars({ days, values, target, color }: {
   )
 }
 
-function WeekSummary({ date, kcalTarget, proteinTarget, waterTarget }: {
-  date: string; kcalTarget: number; proteinTarget: number; waterTarget: number
+function WeekSummary({ date, kcalTarget, proteinTarget, ironTarget, waterTarget }: {
+  date: string; kcalTarget: number; proteinTarget: number; ironTarget: number; waterTarget: number
 }) {
   const [weekEnd, setWeekEnd] = useState(date) // last day of the shown week
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekEnd, i - 6)) // 7 days ending on weekEnd
-  const canForward = weekEnd < todayDate()
+  const today = todayDate()
+  const canForward = weekEnd < today
   const fmt = (d: string) => { const x = new Date(d); return `${x.getDate()}.${x.getMonth() + 1}` }
 
   const summaries = useQueries({
@@ -89,12 +92,18 @@ function WeekSummary({ date, kcalTarget, proteinTarget, waterTarget }: {
   const protein = summaries.map((s) => s.data?.protein_g ?? 0)
   const carbs = summaries.map((s) => s.data?.carbs_g ?? 0)
   const fat = summaries.map((s) => s.data?.fat_g ?? 0)
+  const iron = summaries.map((s) => s.data?.iron_mg ?? 0)
   const glasses = waters.map((w) => w.data?.glasses ?? 0)
 
   // Average over days that have anything logged — empty days would drag it down.
+  // Today is skipped too: it is still in progress, so counting a half-eaten day
+  // would make every weekly number look worse than it is.
+  const hasToday = days.includes(today)
   const avg = (arr: number[]) => {
-    const active = arr.filter((v) => v > 0)
-    return active.length ? Math.round(active.reduce((a, b) => a + b, 0) / active.length) : 0
+    const active = arr.filter((v, i) => v > 0 && days[i] !== today)
+    if (!active.length) return 0
+    const mean = active.reduce((a, b) => a + b, 0) / active.length
+    return Math.round(mean * 10) / 10
   }
 
   const charts = [
@@ -102,6 +111,7 @@ function WeekSummary({ date, kcalTarget, proteinTarget, waterTarget }: {
     { label: pl.tracking.protein, values: protein, target: proteinTarget, color: 'bg-blue-400', unit: 'g' },
     { label: pl.tracking.carbs, values: carbs, target: 250, color: 'bg-yellow-400', unit: 'g' },
     { label: pl.tracking.fat, values: fat, target: 80, color: 'bg-red-400', unit: 'g' },
+    { label: pl.tracking.iron, values: iron, target: ironTarget, color: 'bg-emerald-500', unit: ' mg' },
     { label: `💧 ${pl.tracking.water.title}`, values: glasses, target: waterTarget, color: 'bg-cyan-400', unit: ` ${pl.tracking.glassesShort}` },
   ]
 
@@ -130,6 +140,9 @@ function WeekSummary({ date, kcalTarget, proteinTarget, waterTarget }: {
           </button>
         </div>
       </div>
+      {hasToday && (
+        <p className="mb-3 text-[11px] text-gray-400">{pl.tracking.weekTodayExcluded}</p>
+      )}
       <div className="space-y-4">
         {charts.map((c) => (
           <div key={c.label}>
@@ -229,6 +242,7 @@ function AddEntryForm({ date, onClose, onSaved }: AddEntryFormProps) {
   const [protein, setProtein] = useState('')
   const [carbs, setCarbs] = useState('')
   const [fat, setFat] = useState('')
+  const [iron, setIron] = useState('')
   const [portion, setPortion] = useState('')
   const [selectedRecipeId, setSelectedRecipeId] = useState<number | null>(null)
   const [servings, setServings] = useState('1')
@@ -253,6 +267,7 @@ function AddEntryForm({ date, onClose, onSaved }: AddEntryFormProps) {
         protein_g: protein ? Number(protein) : null,
         carbs_g: carbs ? Number(carbs) : null,
         fat_g: fat ? Number(fat) : null,
+        iron_mg: iron ? Number(iron) : null,
         portion: portion || null,
       })
     },
@@ -309,6 +324,10 @@ function AddEntryForm({ date, onClose, onSaved }: AddEntryFormProps) {
               <div>
                 <label className="mb-0.5 block text-xs text-gray-500">{pl.tracking.fat} (g)</label>
                 <input type="number" value={fat} onChange={(e) => setFat(e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
+              </div>
+              <div>
+                <label className="mb-0.5 block text-xs text-gray-500">{pl.tracking.iron} (mg)</label>
+                <input type="number" step="0.1" value={iron} onChange={(e) => setIron(e.target.value)} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
               </div>
             </div>
             <input
@@ -399,6 +418,7 @@ export default function TrackingPage() {
       date: to,
       description: entry.description,
       kcal: entry.kcal, protein_g: entry.protein_g, carbs_g: entry.carbs_g, fat_g: entry.fat_g,
+      iron_mg: entry.iron_mg,
       portion: entry.portion ?? 'custom',
     }),
     onSuccess: (_r, { entry, date: to }) => {
@@ -474,6 +494,7 @@ export default function TrackingPage() {
             <MacroProgressBar label={`${pl.macros.protein} g`} value={summary.protein_g} max={settings?.protein_g_target ?? 150} color="bg-blue-400" />
             <MacroProgressBar label={`${pl.macros.carbs} g`} value={summary.carbs_g} max={250} color="bg-yellow-400" />
             <MacroProgressBar label={`${pl.macros.fat} g`} value={summary.fat_g} max={80} color="bg-red-400" />
+            <MacroProgressBar label={`${pl.macros.iron} mg`} value={summary.iron_mg} max={settings?.iron_mg_target ?? 27} color="bg-emerald-500" />
           </div>
         </div>
       )}
@@ -483,6 +504,7 @@ export default function TrackingPage() {
         date={date}
         kcalTarget={settings?.kcal_target ?? 2300}
         proteinTarget={settings?.protein_g_target ?? 150}
+        ironTarget={settings?.iron_mg_target ?? 27}
         waterTarget={settings?.water_glasses_target ?? 8}
       />
 
@@ -506,6 +528,7 @@ export default function TrackingPage() {
                   {entry.protein_g && <span> · {entry.protein_g}g B</span>}
                   {entry.carbs_g && <span> · {entry.carbs_g}g W</span>}
                   {entry.fat_g && <span> · {entry.fat_g}g T</span>}
+                  {entry.iron_mg ? <span> · {Math.round(entry.iron_mg * 10) / 10}mg Fe</span> : null}
                 </p>
               )}
             </div>

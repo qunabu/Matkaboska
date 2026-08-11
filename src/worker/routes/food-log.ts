@@ -32,6 +32,7 @@ app.get('/summary', async (c) => {
     protein_g: sum(rows, 'protein_g'),
     carbs_g: sum(rows, 'carbs_g'),
     fat_g: sum(rows, 'fat_g'),
+    iron_mg: Math.round(sum(rows, 'iron_mg') * 10) / 10,
     entries: rows.length,
   }
   return c.json(summary)
@@ -68,6 +69,7 @@ app.post('/estimate', async (c) => {
     protein_g: Math.round(macros.protein_g * 10) / 10,
     carbs_g: Math.round(macros.carbs_g * 10) / 10,
     fat_g: Math.round(macros.fat_g * 10) / 10,
+    iron_mg: Math.round(macros.iron_mg * 10) / 10,
     portion: portion ?? 'custom',
   }).returning()
 
@@ -89,7 +91,7 @@ async function estimateFoodMacros(env: Env, apiKey: string, description: string)
         system: 'You are a nutrition estimator. Estimate macros for the TOTAL portion the user describes (in Polish or English). Return ONLY valid JSON, no prose, no code fences.',
         messages: [{
           role: 'user',
-          content: `Oszacuj makroskładniki dla zjedzonej porcji: "${description}".\nZwróć dokładnie ten JSON:\n{"kcal":0,"protein_g":0,"carbs_g":0,"fat_g":0}`,
+          content: `Oszacuj makroskładniki dla zjedzonej porcji: "${description}".\nZwróć dokładnie ten JSON (iron_mg = żelazo w mg):\n{"kcal":0,"protein_g":0,"carbs_g":0,"fat_g":0,"iron_mg":0}`,
         }],
       }),
     })
@@ -99,6 +101,7 @@ async function estimateFoodMacros(env: Env, apiKey: string, description: string)
     const parsed = JSON.parse(text)
     const R = z.object({
       kcal: z.number(), protein_g: z.number(), carbs_g: z.number(), fat_g: z.number(),
+      iron_mg: z.number().catch(0), // older prompts / stubborn models omit it
     })
     const result = R.safeParse(parsed)
     return result.success ? result.data : null
@@ -119,6 +122,7 @@ app.post('/', async (c) => {
     protein_g: z.number().nullable().optional(),
     carbs_g: z.number().nullable().optional(),
     fat_g: z.number().nullable().optional(),
+    iron_mg: z.number().nullable().optional(),
     portion: z.string().nullable().optional(),
     servings: z.number().positive().optional(),
   }).safeParse(body)
@@ -130,6 +134,7 @@ app.post('/', async (c) => {
   let protein_g = d.protein_g ?? null
   let carbs_g = d.carbs_g ?? null
   let fat_g = d.fat_g ?? null
+  let iron_mg = d.iron_mg ?? null
   let description = d.description ?? null
 
   if (d.recipe_id && !d.kcal) {
@@ -142,6 +147,7 @@ app.post('/', async (c) => {
       protein_g = Math.round(m.protein_g * mult * 10) / 10
       carbs_g = Math.round(m.carbs_g * mult * 10) / 10
       fat_g = Math.round(m.fat_g * mult * 10) / 10
+      iron_mg = Math.round((m.iron_mg ?? 0) * mult * 10) / 10
       description = description ?? recipe.title
     }
   }
@@ -155,6 +161,7 @@ app.post('/', async (c) => {
     protein_g,
     carbs_g,
     fat_g,
+    iron_mg,
     portion: d.portion ?? null,
   }).returning()
 

@@ -199,6 +199,7 @@ app.patch('/:id/status', async (c) => {
         protein_g: Math.round(m.protein_g * mult * 10) / 10,
         carbs_g: Math.round(m.carbs_g * mult * 10) / 10,
         fat_g: Math.round(m.fat_g * mult * 10) / 10,
+        iron_mg: Math.round((m.iron_mg ?? 0) * mult * 10) / 10,
         portion: tag,
       })
     }
@@ -215,6 +216,7 @@ app.patch('/:id/status', async (c) => {
         protein_g: product.protein_g != null ? Math.round(product.protein_g * f * 10) / 10 : null,
         carbs_g: product.carbs_g != null ? Math.round(product.carbs_g * f * 10) / 10 : null,
         fat_g: product.fat_g != null ? Math.round(product.fat_g * f * 10) / 10 : null,
+        iron_mg: product.iron_mg != null ? Math.round(product.iron_mg * f * 10) / 10 : null,
         portion: tag,
       })
     }
