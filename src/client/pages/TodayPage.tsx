@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { planApi, waterApi, foodLogApi, settingsApi, productsApi, todayDate } from '../lib/api'
+import HabitsCard from '../components/HabitsCard'
 import pl from '../i18n/pl'
-import type { MealType, PlanStatus, Product } from '../../shared/types'
+import type { MealType, PlanStatus, Product, FoodSuggestion } from '../../shared/types'
 
 const today = todayDate()
 
@@ -85,20 +86,58 @@ function WaterTracker() {
 function CustomFood() {
   const qc = useQueryClient()
   const [desc, setDesc] = useState('')
+  const [debounced, setDebounced] = useState('')
+  const [showSug, setShowSug] = useState(false)
+  const [activeIdx, setActiveIdx] = useState(-1)
+
+  // Keep the suggestion request off the critical path of every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(desc.trim()), 200)
+    return () => clearTimeout(t)
+  }, [desc])
 
   const { data: log } = useQuery({
     queryKey: ['food-log', today],
     queryFn: () => foodLogApi.list(today),
   })
 
+  const { data: sug } = useQuery({
+    queryKey: ['food-suggestions', debounced],
+    queryFn: () => foodLogApi.suggestions(debounced),
+    // Empty query = recent entries + whole recipe book, shown as soon as the field is focused.
+    enabled: showSug,
+  })
+
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['food-log', today] })
     qc.invalidateQueries({ queryKey: ['food-log-summary', today] })
+    qc.invalidateQueries({ queryKey: ['food-suggestions'] })
   }
+
+  const reset = () => { setDesc(''); setDebounced(''); setShowSug(false); setActiveIdx(-1) }
 
   const estimateMutation = useMutation({
     mutationFn: (description: string) => foodLogApi.estimate({ description, date: today }),
-    onSuccess: () => { setDesc(''); refresh() },
+    onSuccess: () => { reset(); refresh() },
+  })
+
+  // Picking a suggestion reuses the macros we already know — no AI call needed.
+  const pickMutation = useMutation({
+    mutationFn: (s: FoodSuggestion) => {
+      if (s.recipe_id != null && s.kcal != null) {
+        return foodLogApi.add({ date: today, recipe_id: s.recipe_id, servings: 1, portion: s.portion })
+      }
+      if (s.kcal != null) {
+        return foodLogApi.add({
+          date: today, description: s.label,
+          kcal: s.kcal, protein_g: s.protein_g, carbs_g: s.carbs_g, fat_g: s.fat_g, iron_mg: s.iron_mg,
+          portion: s.portion ?? 'custom',
+        })
+      }
+      // Recipe without macros / older entry — fall back to the estimator.
+      return foodLogApi.estimate({ description: s.label, date: today })
+    },
+    onSuccess: () => { reset(); refresh() },
   })
 
   const deleteMutation = useMutation({
@@ -107,29 +146,87 @@ function CustomFood() {
   })
 
   const entries = log?.items ?? []
+  const suggestions = sug?.items ?? []
+  const busy = estimateMutation.isPending || pickMutation.isPending
   const submit = () => { if (desc.trim()) estimateMutation.mutate(desc.trim()) }
+  const pick = (s: FoodSuggestion) => { setShowSug(false); pickMutation.mutate(s) }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'ArrowDown' && suggestions.length) {
+      e.preventDefault(); setShowSug(true)
+      setActiveIdx((i) => (i + 1) % suggestions.length)
+    } else if (e.key === 'ArrowUp' && suggestions.length) {
+      e.preventDefault()
+      setActiveIdx((i) => (i <= 0 ? suggestions.length - 1 : i - 1))
+    } else if (e.key === 'Enter') {
+      const active = showSug && activeIdx >= 0 ? suggestions[activeIdx] : undefined
+      if (active) pick(active)
+      else submit()
+    } else if (e.key === 'Escape') {
+      setShowSug(false); setActiveIdx(-1)
+    }
+  }
 
   return (
     <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
-      <h2 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">🍽 {pl.today.addOwnFood}</h2>
+      <h2 className="mb-1 font-semibold text-gray-900 dark:text-gray-100">🍽 {pl.today.addOwnFood}</h2>
+      <p className="mb-3 text-xs text-gray-400">{pl.today.ownFoodHint}</p>
       <div className="flex gap-2">
-        <input
-          value={desc}
-          onChange={(e) => setDesc(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-          placeholder={pl.today.ownFoodPlaceholder}
-          disabled={estimateMutation.isPending}
-          className="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-primary-400 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-        />
+        <div className="relative flex-1">
+          <input
+            value={desc}
+            onChange={(e) => { setDesc(e.target.value); setShowSug(true); setActiveIdx(-1) }}
+            onFocus={() => setShowSug(true)}
+            onKeyDown={onKeyDown}
+            placeholder={pl.today.ownFoodPlaceholder}
+            disabled={busy}
+            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-primary-400 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+          />
+          {showSug && (suggestions.length > 0 || desc.trim().length > 0) && (
+            // Keep focus in the input so blur doesn't race the click.
+            <div onMouseDown={(e) => e.preventDefault()}>
+              {suggestions.length === 0 ? (
+                <p className="absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs text-gray-400 shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                  {pl.today.sugEmpty}
+                </p>
+              ) : (
+                <ul className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                  {suggestions.map((s, i) => (
+                    <li key={`${s.source}-${s.recipe_id ?? s.label}`}>
+                      <button
+                        type="button"
+                        onClick={() => pick(s)}
+                        onMouseEnter={() => setActiveIdx(i)}
+                        className={`flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm ${
+                          i === activeIdx ? 'bg-gray-50 dark:bg-gray-800' : ''
+                        }`}
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span aria-hidden>{s.source === 'recipe' ? '🍲' : '🕘'}</span>
+                          <span className="truncate text-gray-900 dark:text-gray-100">{s.label}</span>
+                        </span>
+                        <span className="whitespace-nowrap text-xs text-gray-400">
+                          {s.kcal != null ? `${Math.round(s.kcal)} kcal` : pl.today.sugNoMacros}
+                          {' · '}
+                          {s.source === 'recipe' ? pl.today.sugFromRecipe : pl.today.sugFromLog}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
         <button
           onClick={submit}
-          disabled={estimateMutation.isPending || !desc.trim()}
+          disabled={busy || !desc.trim()}
           className="whitespace-nowrap rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
         >
-          {estimateMutation.isPending ? pl.today.estimating : pl.today.estimateAdd}
+          {estimateMutation.isPending ? pl.today.estimating : pickMutation.isPending ? pl.today.sugAdding : pl.today.estimateAdd}
         </button>
       </div>
-      {estimateMutation.isError && (
+      {(estimateMutation.isError || pickMutation.isError) && (
         <p className="mt-2 text-xs text-red-500">{pl.today.estimateFailed}</p>
       )}
 
@@ -427,6 +524,9 @@ export default function TodayPage() {
 
       {/* Water */}
       <WaterTracker />
+
+      {/* Habits — quick daily check-off */}
+      <HabitsCard />
 
       {/* Meals */}
       {isLoading ? (

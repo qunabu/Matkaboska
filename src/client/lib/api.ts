@@ -2,6 +2,7 @@ import type {
   Recipe, RecipeWithNotes, MealPlanEntry, MealPlanEntryFull, FoodLogEntry, DailySummary,
   WaterLog, SupplementWithStatus, SupplementLog, ShoppingList, ShoppingItem,
   Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote, PantryItem, Habit, Chore,
+  FoodSuggestion,
 } from '../../shared/types'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -71,6 +72,8 @@ export const foodLogApi = {
     req<FoodLogEntry>('/food-log', { method: 'POST', body: JSON.stringify(data) }),
   estimate: (data: { description: string; date?: string; portion?: string }) =>
     req<FoodLogEntry>('/food-log/estimate', { method: 'POST', body: JSON.stringify(data) }),
+  suggestions: (q?: string) =>
+    req<ApiList<FoodSuggestion>>(`/food-log/suggestions${q ? '?q=' + encodeURIComponent(q) : ''}`),
   delete: (id: number) => req<ApiOk>(`/food-log/${id}`, { method: 'DELETE' }),
 }
 
@@ -223,10 +226,11 @@ export const ideasApi = {
 
 export const habitsApi = {
   list: () => req<ApiList<Habit>>('/habits'),
-  create: (name: string) => req<Habit>('/habits', { method: 'POST', body: JSON.stringify({ name }) }),
+  create: (name: string, remind_at?: string | null) =>
+    req<Habit>('/habits', { method: 'POST', body: JSON.stringify({ name, remind_at: remind_at ?? null }) }),
   checkin: (id: number, success: boolean) =>
     req<{ ok: boolean; streak: number; today: 'yes' | 'no' | null }>(`/habits/${id}/checkin`, { method: 'POST', body: JSON.stringify({ success }) }),
-  update: (id: number, data: { name?: string; active?: boolean }) =>
+  update: (id: number, data: { name?: string; active?: boolean; remind_at?: string | null }) =>
     req<{ id: number }>(`/habits/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (id: number) => req<ApiOk>(`/habits/${id}`, { method: 'DELETE' }),
 }

@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, habits, habit_checkins, settings } from '../db/index'
 import type { AppEnv } from '../types'
@@ -54,58 +54,58 @@ app.get('/', async (c) => {
   const tz = await appTimezone(db, userId)
   const todayKey = localDateKey(tz)
   const rows = await db.select().from(habits).where(eq(habits.user_id, userId)).orderBy(habits.created_at)
-  const checkins = await db.select().from(habit_checkins)
-    .where(eq(habit_checkins.habit_id, rows.length ? rows[0].id : -1))
 
-  // Fetch all checkins for this user's habits
   const habitIds = rows.map((h) => h.id)
   const allCheckins = habitIds.length
-    ? await db.select().from(habit_checkins)
-        .where(
-          habitIds.length === 1
-            ? eq(habit_checkins.habit_id, habitIds[0])
-            : eq(habit_checkins.habit_id, habitIds[0])
-        )
-    : []
-
-  // Re-fetch properly using IN equivalent
-  const allCheckinsResult = habitIds.length
-    ? await Promise.all(habitIds.map((hid) =>
-        db.select().from(habit_checkins).where(eq(habit_checkins.habit_id, hid))
-      )).then((r) => r.flat())
+    ? await db.select().from(habit_checkins).where(inArray(habit_checkins.habit_id, habitIds))
     : []
 
   const byHabit = new Map<number, { date: string; success: boolean }[]>()
-  for (const ci of allCheckinsResult) {
+  for (const ci of allCheckins) {
     const arr = byHabit.get(ci.habit_id) ?? []
     arr.push({ date: ci.date, success: ci.success })
     byHabit.set(ci.habit_id, arr)
   }
   const items = rows.map((h) => {
     const st = habitState(byHabit.get(h.id) ?? [], todayKey)
-    return { id: h.id, name: h.name, active: h.active, created_at: h.created_at, ...st }
+    return { id: h.id, name: h.name, active: h.active, remind_at: h.remind_at, created_at: h.created_at, ...st }
   })
   return c.json({ items, total: items.length })
 })
 
-// POST /api/habits  { name }
+const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable()
+
+// POST /api/habits  { name, remind_at? }
 app.post('/', async (c) => {
   const userId = c.var.userId
-  const parsed = z.object({ name: z.string().min(1) }).safeParse(await c.req.json())
+  const parsed = z.object({
+    name: z.string().min(1),
+    remind_at: timeSchema.optional(),
+  }).safeParse(await c.req.json())
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
   const db = getDb(c.env.DB)
-  const [row] = await db.insert(habits).values({ user_id: userId, name: parsed.data.name.trim() }).returning()
+  const [row] = await db.insert(habits)
+    .values({ user_id: userId, name: parsed.data.name.trim(), remind_at: parsed.data.remind_at ?? null })
+    .returning()
   return c.json(row, 201)
 })
 
-// PATCH /api/habits/:id  { name?, active? }
+// PATCH /api/habits/:id  { name?, active?, remind_at? }
 app.patch('/:id', async (c) => {
   const id = Number(c.req.param('id'))
   const userId = c.var.userId
-  const parsed = z.object({ name: z.string().min(1).optional(), active: z.boolean().optional() }).safeParse(await c.req.json())
+  const parsed = z.object({
+    name: z.string().min(1).optional(),
+    active: z.boolean().optional(),
+    remind_at: timeSchema.optional(),
+  }).safeParse(await c.req.json())
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
   const db = getDb(c.env.DB)
-  const [row] = await db.update(habits).set(parsed.data)
+  // Changing the reminder time clears today's schedule so the new time applies today.
+  const patch = parsed.data.remind_at !== undefined
+    ? { ...parsed.data, prompt_date: null, prompted: false }
+    : parsed.data
+  const [row] = await db.update(habits).set(patch)
     .where(and(eq(habits.id, id), eq(habits.user_id, userId)))
     .returning()
   if (!row) return c.json({ error: 'Not found' }, 404)

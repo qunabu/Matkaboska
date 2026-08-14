@@ -211,9 +211,16 @@ export default {
       for (const h of allHabits) {
         if (!h.active) continue
         if (h.prompt_date !== todayKey) {
-          const lo = h.window_start ?? 540
-          const hi = Math.max(lo + 1, h.window_end ?? 1260)
-          const minute = lo + Math.floor(Math.random() * (hi - lo))
+          // Fixed time if the habit has one, otherwise a random minute in the window.
+          let minute: number
+          if (h.remind_at) {
+            const [fh, fm] = h.remind_at.split(':').map(Number)
+            minute = fh * 60 + fm
+          } else {
+            const lo = h.window_start ?? 540
+            const hi = Math.max(lo + 1, h.window_end ?? 1260)
+            minute = lo + Math.floor(Math.random() * (hi - lo))
+          }
           await db.update(habits).set({ prompt_date: todayKey, prompt_minute: minute, prompted: false }).where(eq(habits.id, h.id))
           h.prompt_minute = minute
           h.prompted = false

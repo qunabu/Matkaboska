@@ -201,6 +201,8 @@ export const habits = sqliteTable('habits', {
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
   window_start: integer('window_start').notNull().default(540),
   window_end: integer('window_end').notNull().default(1260),
+  // "HH:MM" — fixed daily prompt time; NULL = random minute inside the window
+  remind_at: text('remind_at'),
   prompt_date: text('prompt_date'),
   prompt_minute: integer('prompt_minute'),
   prompted: integer('prompted', { mode: 'boolean' }).notNull().default(false),

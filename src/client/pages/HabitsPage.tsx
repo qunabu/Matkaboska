@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { habitsApi } from '../lib/api'
+import { SuggestedHabits, streakLabel } from '../components/HabitsCard'
 import pl from '../i18n/pl'
 import type { Habit } from '../../shared/types'
 
@@ -33,11 +34,6 @@ function AddHabitForm() {
   )
 }
 
-function streakLabel(n: number) {
-  if (n <= 0) return pl.habits.noStreak
-  return `🔥 ${n} ${n === 1 ? 'dzień' : 'dni'}`
-}
-
 function HabitCard({ habit }: { habit: Habit }) {
   const qc = useQueryClient()
   const invalidate = () => qc.invalidateQueries({ queryKey: ['habits'] })
@@ -46,6 +42,10 @@ function HabitCard({ habit }: { habit: Habit }) {
     onSuccess: invalidate,
   })
   const remove = useMutation({ mutationFn: () => habitsApi.delete(habit.id), onSuccess: invalidate })
+  const setTime = useMutation({
+    mutationFn: (remind_at: string | null) => habitsApi.update(habit.id, { remind_at }),
+    onSuccess: invalidate,
+  })
 
   return (
     <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
@@ -77,6 +77,22 @@ function HabitCard({ habit }: { habit: Habit }) {
           ❌ {pl.common.no}
         </button>
       </div>
+      <div className="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3 dark:border-gray-700">
+        <span className="text-xs text-gray-400">⏰ {pl.habits.reminderLabel}</span>
+        <input
+          type="time"
+          value={habit.remind_at ?? ''}
+          onChange={(e) => setTime.mutate(e.target.value || null)}
+          className="rounded-lg border border-gray-200 px-2 py-1 text-xs outline-none focus:border-primary-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+        />
+        {habit.remind_at ? (
+          <button onClick={() => setTime.mutate(null)} className="text-xs text-gray-400 underline">
+            {pl.habits.reminderClear}
+          </button>
+        ) : (
+          <span className="text-xs text-gray-400">({pl.habits.reminderRandom})</span>
+        )}
+      </div>
     </div>
   )
 }
@@ -91,6 +107,8 @@ export default function HabitsPage() {
       <p className="text-xs text-gray-400">{pl.habits.hint}</p>
 
       <AddHabitForm />
+
+      <SuggestedHabits card />
 
       {isLoading ? (
         <p className="text-gray-500">{pl.common.loading}</p>

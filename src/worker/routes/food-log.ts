@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, desc, isNotNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, food_log, recipes } from '../db/index'
 import type { AppEnv, Env } from '../types'
-import type { Macros } from '../../shared/types'
+import type { Macros, FoodSuggestion } from '../../shared/types'
 import { resolveAnthropicKey } from './settings'
 
 const app = new Hono<AppEnv>()
@@ -37,6 +37,79 @@ app.get('/summary', async (c) => {
   }
   return c.json(summary)
 })
+
+// GET /api/food-log/suggestions?q=kanapka
+// Autocomplete for the "what did you eat" field: previously logged entries first
+// (they already carry macros, so picking one skips the AI estimate), then dishes
+// from the recipe book.
+app.get('/suggestions', async (c) => {
+  const userId = c.var.userId
+  const q = fold(c.req.query('q') ?? '')
+  const db = getDb(c.env.DB)
+
+  // Matching happens in JS: SQLite's LIKE/lower() only fold ASCII, so "zurek"
+  // would never find "Żurek".
+  const logRows = await db.select().from(food_log)
+    .where(and(eq(food_log.user_id, userId), isNotNull(food_log.description)))
+    .orderBy(desc(food_log.logged_at))
+    .limit(500)
+
+  const seen = new Set<string>()
+  const past: FoodSuggestion[] = []
+  for (const r of logRows) {
+    const label = (r.description ?? '').trim()
+    if (!label) continue
+    const key = fold(label)
+    if (seen.has(key)) continue
+    seen.add(key)
+    if (q && !key.includes(q)) continue
+    past.push({
+      source: 'log',
+      label,
+      recipe_id: null,
+      kcal: r.kcal, protein_g: r.protein_g, carbs_g: r.carbs_g, fat_g: r.fat_g, iron_mg: r.iron_mg,
+      portion: r.portion,
+      category: null,
+    })
+    if (past.length >= 8) break
+  }
+
+  const recipeRows = await db.select({
+    id: recipes.id, title: recipes.title, macros: recipes.macros, category: recipes.category,
+  }).from(recipes)
+    .where(eq(recipes.user_id, userId))
+    .orderBy(recipes.title)
+
+  const fromRecipes: FoodSuggestion[] = []
+  for (const r of recipeRows) {
+    const key = fold(r.title)
+    if (seen.has(key)) continue
+    if (q && !key.includes(q)) continue
+    const m = r.macros ? JSON.parse(r.macros) as Macros : null
+    fromRecipes.push({
+      source: 'recipe',
+      label: r.title,
+      recipe_id: r.id,
+      // Recipe macros are stored per serving.
+      kcal: m?.kcal ?? null,
+      protein_g: m?.protein_g ?? null,
+      carbs_g: m?.carbs_g ?? null,
+      fat_g: m?.fat_g ?? null,
+      iron_mg: m?.iron_mg ?? null,
+      portion: 'recipe',
+      category: r.category,
+    })
+    if (fromRecipes.length >= 12) break
+  }
+
+  const items = [...past, ...fromRecipes]
+  return c.json({ items, total: items.length })
+})
+
+// Lowercase + strip Polish diacritics so "zurek" matches "Żurek".
+function fold(s: string) {
+  return s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\u0142/g, 'l')
+}
 
 // POST /api/food-log/estimate
 app.post('/estimate', async (c) => {

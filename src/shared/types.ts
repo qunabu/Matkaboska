@@ -138,6 +138,21 @@ export interface FoodLogEntry {
   portion: string | null
 }
 
+// Autocomplete entry for the "what did you eat" field: either something already
+// logged before, or a dish from the recipe book (jadłospis).
+export interface FoodSuggestion {
+  source: 'log' | 'recipe'
+  label: string
+  recipe_id: number | null
+  kcal: number | null
+  protein_g: number | null
+  carbs_g: number | null
+  fat_g: number | null
+  iron_mg: number | null
+  portion: string | null
+  category: string | null
+}
+
 export interface DailySummary {
   date: string
   kcal: number
@@ -251,6 +266,7 @@ export interface Habit {
   id: number
   name: string
   active: boolean
+  remind_at: string | null     // "HH:MM" fixed prompt time, null = random in window
   streak: number
   today: 'yes' | 'no' | null   // today's check-in status
   created_at: number
