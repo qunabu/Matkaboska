@@ -79,6 +79,9 @@ function WaterTracker() {
           +
         </button>
       </div>
+
+      {/* Habits share this box — both are quick daily check-offs. */}
+      <HabitsCard bare />
     </div>
   )
 }
@@ -522,11 +525,8 @@ export default function TodayPage() {
         ➕ {pl.today.addFoodButton}
       </button>
 
-      {/* Water */}
+      {/* Water + habits — one box of daily check-offs */}
       <WaterTracker />
-
-      {/* Habits — quick daily check-off */}
-      <HabitsCard />
 
       {/* Meals */}
       {isLoading ? (

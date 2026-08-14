@@ -92,8 +92,9 @@ export function SuggestedHabits({ card = false }: { card?: boolean }) {
   )
 }
 
-// Compact habit tracker for the home screen.
-export default function HabitsCard() {
+// Compact habit tracker for the home screen. `bare` drops the card chrome and
+// adds a divider instead, so this can sit inside another panel (e.g. the water box).
+export default function HabitsCard({ bare = false }: { bare?: boolean }) {
   const { data, isLoading } = useQuery({ queryKey: ['habits'], queryFn: () => habitsApi.list() })
   const items = (data?.items ?? []).filter((h) => h.active)
   const pending = items.filter((h) => h.today === null).length
@@ -101,7 +102,9 @@ export default function HabitsCard() {
   if (isLoading) return null
 
   return (
-    <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+    <div className={bare
+      ? 'mt-4 border-t border-gray-100 pt-4 dark:border-gray-700'
+      : 'rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700'}>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-semibold text-gray-900 dark:text-gray-100">🔁 {pl.habits.todayCard}</h2>
         <Link to="/habits" className="text-xs text-primary-600 dark:text-primary-400">{pl.habits.manage}</Link>
