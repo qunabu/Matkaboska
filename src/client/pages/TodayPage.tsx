@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { planApi, waterApi, foodLogApi, settingsApi, productsApi, todayDate } from '../lib/api'
+import { planApi, waterApi, foodLogApi, settingsApi, productsApi, todayDate, addDays } from '../lib/api'
 import HabitsCard from '../components/HabitsCard'
 import pl from '../i18n/pl'
 import type { MealType, PlanStatus, Product, FoodSuggestion } from '../../shared/types'
 
 const today = todayDate()
+const yesterday = addDays(today, -1)
 
 const mealOrder: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack']
 const mealLabels: Record<MealType, string> = {
@@ -86,7 +87,41 @@ function WaterTracker() {
   )
 }
 
-function CustomFood() {
+// Day picker for the add-to-log sheet: entries normally land on today, but a
+// forgotten meal can be logged onto yesterday (or any earlier day).
+function DayPicker({ date, onChange }: { date: string; onChange: (d: string) => void }) {
+  const btn = (active: boolean) =>
+    `rounded-lg px-3 py-1.5 text-sm font-medium ${
+      active ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200'
+    }`
+  return (
+    <div className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-gray-500 dark:text-gray-400">{pl.today.dayLabel}</span>
+        <button type="button" onClick={() => onChange(today)} className={btn(date === today)}>
+          {pl.today.dayToday}
+        </button>
+        <button type="button" onClick={() => onChange(yesterday)} className={btn(date === yesterday)}>
+          {pl.today.dayYesterday}
+        </button>
+        <input
+          type="date"
+          value={date}
+          max={today}
+          onChange={(e) => e.target.value && onChange(e.target.value)}
+          className="ml-auto rounded-lg border border-gray-200 px-2 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+        />
+      </div>
+      {date !== today && (
+        <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+          ⏪ {date === yesterday ? pl.today.yesterdayNotice : `${pl.today.dayLabel} ${date}`}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function CustomFood({ date }: { date: string }) {
   const qc = useQueryClient()
   const [desc, setDesc] = useState('')
   const [debounced, setDebounced] = useState('')
@@ -100,8 +135,8 @@ function CustomFood() {
   }, [desc])
 
   const { data: log } = useQuery({
-    queryKey: ['food-log', today],
-    queryFn: () => foodLogApi.list(today),
+    queryKey: ['food-log', date],
+    queryFn: () => foodLogApi.list(date),
   })
 
   const { data: sug } = useQuery({
@@ -112,15 +147,15 @@ function CustomFood() {
   })
 
   const refresh = () => {
-    qc.invalidateQueries({ queryKey: ['food-log', today] })
-    qc.invalidateQueries({ queryKey: ['food-log-summary', today] })
+    qc.invalidateQueries({ queryKey: ['food-log', date] })
+    qc.invalidateQueries({ queryKey: ['food-log-summary', date] })
     qc.invalidateQueries({ queryKey: ['food-suggestions'] })
   }
 
   const reset = () => { setDesc(''); setDebounced(''); setShowSug(false); setActiveIdx(-1) }
 
   const estimateMutation = useMutation({
-    mutationFn: (description: string) => foodLogApi.estimate({ description, date: today }),
+    mutationFn: (description: string) => foodLogApi.estimate({ description, date }),
     onSuccess: () => { reset(); refresh() },
   })
 
@@ -128,17 +163,17 @@ function CustomFood() {
   const pickMutation = useMutation({
     mutationFn: (s: FoodSuggestion) => {
       if (s.recipe_id != null && s.kcal != null) {
-        return foodLogApi.add({ date: today, recipe_id: s.recipe_id, servings: 1, portion: s.portion })
+        return foodLogApi.add({ date, recipe_id: s.recipe_id, servings: 1, portion: s.portion })
       }
       if (s.kcal != null) {
         return foodLogApi.add({
-          date: today, description: s.label,
+          date, description: s.label,
           kcal: s.kcal, protein_g: s.protein_g, carbs_g: s.carbs_g, fat_g: s.fat_g, iron_mg: s.iron_mg,
           portion: s.portion ?? 'custom',
         })
       }
       // Recipe without macros / older entry — fall back to the estimator.
-      return foodLogApi.estimate({ description: s.label, date: today })
+      return foodLogApi.estimate({ description: s.label, date })
     },
     onSuccess: () => { reset(); refresh() },
   })
@@ -235,7 +270,9 @@ function CustomFood() {
 
       {entries.length > 0 && (
         <div className="mt-3 space-y-1.5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{pl.today.loggedToday}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+            {date === today ? pl.today.loggedToday : date === yesterday ? pl.today.loggedYesterday : date}
+          </p>
           {entries.map((e) => (
             <div key={e.id} className="flex items-center justify-between gap-2 text-sm">
               <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{e.description ?? '—'}</span>
@@ -262,7 +299,7 @@ function num(s: string): number | null {
   return isNaN(n) ? null : n
 }
 
-function ReadyProduct() {
+function ReadyProduct({ date }: { date: string }) {
   const qc = useQueryClient()
   const [name, setName] = useState('')
   const [kcal, setKcal] = useState('')       // per 100 g
@@ -304,6 +341,7 @@ function ReadyProduct() {
         frisco_product_id: friscoPid.trim() || null,
       })
       await foodLogApi.add({
+        date,
         description: `${name.trim()} (${eatenG} g)`,
         kcal: scaled.kcal, protein_g: scaled.protein_g, carbs_g: scaled.carbs_g, fat_g: scaled.fat_g,
         iron_mg: scaled.iron_mg,
@@ -312,8 +350,8 @@ function ReadyProduct() {
     },
     onSuccess: () => {
       setName(''); setKcal(''); setProtein(''); setCarbs(''); setFat(''); setServing(''); setPkg(''); setGrams(''); setFriscoPid(''); setShowSug(false)
-      qc.invalidateQueries({ queryKey: ['food-log', today] })
-      qc.invalidateQueries({ queryKey: ['food-log-summary', today] })
+      qc.invalidateQueries({ queryKey: ['food-log', date] })
+      qc.invalidateQueries({ queryKey: ['food-log-summary', date] })
       qc.invalidateQueries({ queryKey: ['products'] })
     },
   })
@@ -452,6 +490,9 @@ function LoggedToday() {
 export default function TodayPage() {
   const qc = useQueryClient()
   const [showAdd, setShowAdd] = useState(false)
+  // Which day the add-sheet writes to; always reopens on today so a past-day
+  // choice never leaks into the next entry.
+  const [logDate, setLogDate] = useState(today)
 
   const { data: planData, isLoading } = useQuery({
     queryKey: ['plan', today, today],
@@ -519,7 +560,7 @@ export default function TodayPage() {
 
       {/* Rarely-used: add own food / product via a bottom modal */}
       <button
-        onClick={() => setShowAdd(true)}
+        onClick={() => { setLogDate(today); setShowAdd(true) }}
         className="w-full rounded-xl border border-dashed border-gray-300 py-3 text-sm font-medium text-primary-600 transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-gray-600 dark:text-primary-400 dark:hover:bg-primary-900/20"
       >
         ➕ {pl.today.addFoodButton}
@@ -620,8 +661,9 @@ export default function TodayPage() {
               <h2 className="font-semibold text-gray-900 dark:text-gray-100">{pl.today.addFoodTitle}</h2>
               <button onClick={() => setShowAdd(false)} className="text-2xl leading-none text-gray-400 hover:text-gray-600">×</button>
             </div>
-            <CustomFood />
-            <ReadyProduct />
+            <DayPicker date={logDate} onChange={setLogDate} />
+            <CustomFood date={logDate} />
+            <ReadyProduct date={logDate} />
           </div>
         </div>
       )}
