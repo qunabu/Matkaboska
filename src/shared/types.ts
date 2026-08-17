@@ -163,6 +163,27 @@ export interface DailySummary {
   entries: number
 }
 
+// Averages over a window of logged days. `days` counts days that have at least
+// one food entry (today excluded — it is still in progress), `water_days` the
+// days with any water logged, so a missing water day never drags kcal down.
+export interface AverageWindow {
+  days: number
+  water_days: number
+  kcal: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
+  iron_mg: number
+  glasses: number
+  entries: number
+  first_date: string | null
+}
+
+export interface FoodLogAverages {
+  month: AverageWindow
+  all: AverageWindow
+}
+
 export interface WaterLog {
   id: number
   date: string

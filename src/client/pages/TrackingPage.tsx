@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { foodLogApi, waterApi, recipesApi, settingsApi, addDays } from '../lib/api'
-import type { FoodLogEntry } from '../../shared/types'
+import type { FoodLogEntry, AverageWindow } from '../../shared/types'
 import pl from '../i18n/pl'
 
 function todayDate() {
@@ -156,6 +156,104 @@ function WeekSummary({ date, kcalTarget, proteinTarget, ironTarget, waterTarget 
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// Daily averages over two longer windows (30 days / everything ever logged),
+// next to each goal so you can see the long-run trend the weekly bars can't show.
+function AveragesSummary({ kcalTarget, proteinTarget, ironTarget, waterTarget }: {
+  kcalTarget: number; proteinTarget: number; ironTarget: number; waterTarget: number
+}) {
+  const { data } = useQuery({
+    queryKey: ['food-log-averages'],
+    queryFn: () => foodLogApi.averages(),
+    staleTime: 60_000,
+  })
+
+  const rows: Array<{ label: string; key: keyof AverageWindow; unit: string; target: number }> = [
+    { label: pl.tracking.kcal, key: 'kcal', unit: '', target: kcalTarget },
+    { label: pl.tracking.protein, key: 'protein_g', unit: ' g', target: proteinTarget },
+    { label: pl.tracking.carbs, key: 'carbs_g', unit: ' g', target: 250 },
+    { label: pl.tracking.fat, key: 'fat_g', unit: ' g', target: 80 },
+    { label: pl.tracking.iron, key: 'iron_mg', unit: ' mg', target: ironTarget },
+    { label: `💧 ${pl.tracking.water.title}`, key: 'glasses', unit: ` ${pl.tracking.glassesShort}`, target: waterTarget },
+  ]
+
+  const windows: Array<{ title: string; w: AverageWindow | undefined; sub: string }> = [
+    { title: pl.tracking.avgMonth, w: data?.month, sub: '' },
+    {
+      title: pl.tracking.avgAll,
+      w: data?.all,
+      sub: data?.all.first_date ? `${pl.tracking.avgSince} ${data.all.first_date}` : '',
+    },
+  ]
+
+  const fmt = (w: AverageWindow | undefined, key: keyof AverageWindow, unit: string) => {
+    const n = w ? Number(w[key]) : 0
+    return `${Math.round(n * 10) / 10}${unit}`
+  }
+  // A green number means the average hit the goal; kcal is a ceiling, not a floor,
+  // so it counts as met when it stays at or below the target.
+  const hit = (key: keyof AverageWindow, value: number, target: number) =>
+    key === 'kcal' ? value > 0 && value <= target : value >= target
+
+  return (
+    <div className="mb-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
+      <h2 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">📈 {pl.tracking.avgTitle}</h2>
+      {data && data.all.days === 0 ? (
+        <p className="text-sm text-gray-400">{pl.tracking.avgNoData}</p>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-gray-400">
+                  <th className="pb-2 text-left font-medium"></th>
+                  {windows.map((c) => (
+                    <th key={c.title} className="pb-2 text-right font-medium">
+                      <span className="block text-gray-600 dark:text-gray-300">{c.title}</span>
+                      <span className="block font-normal">
+                        {c.w ? `${c.w.days} ${pl.tracking.avgDays}` : '…'}
+                        {c.sub ? ` · ${c.sub}` : ''}
+                      </span>
+                    </th>
+                  ))}
+                  <th className="pb-2 pl-3 text-right font-medium">{pl.tracking.avgTarget}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.label} className="border-t border-gray-100 dark:border-gray-700">
+                    <td className="py-1.5 pr-2 text-gray-600 dark:text-gray-300">{r.label}</td>
+                    {windows.map((c) => {
+                      const value = c.w ? Number(c.w[r.key]) : 0
+                      return (
+                        <td
+                          key={c.title}
+                          className={`py-1.5 text-right font-medium tabular-nums ${
+                            c.w && hit(r.key, value, r.target)
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-gray-900 dark:text-gray-100'
+                          }`}
+                        >
+                          {c.w ? fmt(c.w, r.key, r.unit) : '…'}
+                        </td>
+                      )
+                    })}
+                    <td className="py-1.5 pl-3 text-right text-gray-400 tabular-nums">{r.target}{r.unit}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {data && (
+            <p className="mt-2 text-[11px] text-gray-400">
+              {data.all.entries} {pl.tracking.avgEntries} · {pl.tracking.avgNote}
+            </p>
+          )}
+        </>
+      )}
     </div>
   )
 }
@@ -409,6 +507,7 @@ export default function TrackingPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['food-log', date] })
       qc.invalidateQueries({ queryKey: ['food-log-summary', date] })
+      qc.invalidateQueries({ queryKey: ['food-log-averages'] })
     },
   })
 
@@ -427,12 +526,14 @@ export default function TrackingPage() {
       setCopyTarget(null)
       qc.invalidateQueries({ queryKey: ['food-log', to] })
       qc.invalidateQueries({ queryKey: ['food-log-summary', to] })
+      qc.invalidateQueries({ queryKey: ['food-log-averages'] })
     },
   })
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ['food-log', date] })
     qc.invalidateQueries({ queryKey: ['food-log-summary', date] })
+    qc.invalidateQueries({ queryKey: ['food-log-averages'] })
   }
 
   return (
@@ -502,6 +603,14 @@ export default function TrackingPage() {
       {/* Weekly charts */}
       <WeekSummary
         date={date}
+        kcalTarget={settings?.kcal_target ?? 2300}
+        proteinTarget={settings?.protein_g_target ?? 150}
+        ironTarget={settings?.iron_mg_target ?? 27}
+        waterTarget={settings?.water_glasses_target ?? 8}
+      />
+
+      {/* Monthly + all-time averages */}
+      <AveragesSummary
         kcalTarget={settings?.kcal_target ?? 2300}
         proteinTarget={settings?.protein_g_target ?? 150}
         ironTarget={settings?.iron_mg_target ?? 27}

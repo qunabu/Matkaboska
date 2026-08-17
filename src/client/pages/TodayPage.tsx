@@ -150,6 +150,7 @@ function CustomFood({ date }: { date: string }) {
     qc.invalidateQueries({ queryKey: ['food-log', date] })
     qc.invalidateQueries({ queryKey: ['food-log-summary', date] })
     qc.invalidateQueries({ queryKey: ['food-suggestions'] })
+    qc.invalidateQueries({ queryKey: ['food-log-averages'] })
   }
 
   const reset = () => { setDesc(''); setDebounced(''); setShowSug(false); setActiveIdx(-1) }

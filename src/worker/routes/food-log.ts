@@ -1,9 +1,9 @@
 import { Hono } from 'hono'
-import { eq, and, desc, isNotNull } from 'drizzle-orm'
+import { eq, and, desc, isNotNull, lt, sql } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, food_log, recipes } from '../db/index'
+import { getDb, food_log, recipes, water_log } from '../db/index'
 import type { AppEnv, Env } from '../types'
-import type { Macros, FoodSuggestion } from '../../shared/types'
+import type { Macros, FoodSuggestion, AverageWindow, FoodLogAverages } from '../../shared/types'
 import { resolveAnthropicKey } from './settings'
 
 const app = new Hono<AppEnv>()
@@ -37,6 +37,61 @@ app.get('/summary', async (c) => {
   }
   return c.json(summary)
 })
+
+// GET /api/food-log/averages?today=YYYY-MM-DD
+// Daily averages over two windows: last 30 days and everything ever logged.
+// Days without a single entry are skipped (they would fake a "bad" average) and
+// so is today, because a half-eaten day makes every number look worse.
+app.get('/averages', async (c) => {
+  const userId = c.var.userId
+  const today = c.req.query('today') ?? todayDate()
+  const monthStart = addDays(today, -30) // 30 full days: today-30 … today-1
+  const db = getDb(c.env.DB)
+
+  const foodDays = await db.select({
+    date: food_log.date,
+    kcal: sql<number>`sum(coalesce(${food_log.kcal}, 0))`,
+    protein_g: sql<number>`sum(coalesce(${food_log.protein_g}, 0))`,
+    carbs_g: sql<number>`sum(coalesce(${food_log.carbs_g}, 0))`,
+    fat_g: sql<number>`sum(coalesce(${food_log.fat_g}, 0))`,
+    iron_mg: sql<number>`sum(coalesce(${food_log.iron_mg}, 0))`,
+    entries: sql<number>`count(*)`,
+  }).from(food_log)
+    .where(and(eq(food_log.user_id, userId), lt(food_log.date, today)))
+    .groupBy(food_log.date)
+
+  const waterDays = await db.select({ date: water_log.date, glasses: water_log.glasses })
+    .from(water_log)
+    .where(and(eq(water_log.user_id, userId), lt(water_log.date, today)))
+
+  const window = (from?: string): AverageWindow => {
+    const fd = from ? foodDays.filter((d) => d.date >= from) : foodDays
+    const wd = (from ? waterDays.filter((d) => d.date >= from) : waterDays).filter((d) => d.glasses > 0)
+    const mean = (total: number, n: number, dp = 1) =>
+      n > 0 ? Math.round((total / n) * 10 ** dp) / 10 ** dp : 0
+    const total = (key: keyof typeof fd[number]) => fd.reduce((a, d) => a + (Number(d[key]) || 0), 0)
+    return {
+      days: fd.length,
+      water_days: wd.length,
+      kcal: Math.round(mean(total('kcal'), fd.length, 0)),
+      protein_g: mean(total('protein_g'), fd.length),
+      carbs_g: mean(total('carbs_g'), fd.length),
+      fat_g: mean(total('fat_g'), fd.length),
+      iron_mg: mean(total('iron_mg'), fd.length),
+      glasses: mean(wd.reduce((a, d) => a + d.glasses, 0), wd.length),
+      entries: total('entries'),
+      first_date: fd.reduce<string | null>((min, d) => (min == null || d.date < min ? d.date : min), null),
+    }
+  }
+
+  return c.json({ month: window(monthStart), all: window() } satisfies FoodLogAverages)
+})
+
+function addDays(date: string, n: number) {
+  const d = new Date(`${date}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + n)
+  return d.toISOString().slice(0, 10)
+}
 
 // GET /api/food-log/suggestions?q=kanapka
 // Autocomplete for the "what did you eat" field: previously logged entries first

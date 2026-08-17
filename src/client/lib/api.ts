@@ -2,7 +2,7 @@ import type {
   Recipe, RecipeWithNotes, MealPlanEntry, MealPlanEntryFull, FoodLogEntry, DailySummary,
   WaterLog, SupplementWithStatus, SupplementLog, ShoppingList, ShoppingItem,
   Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote, PantryItem, Habit, Chore,
-  FoodSuggestion,
+  FoodSuggestion, FoodLogAverages,
 } from '../../shared/types'
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
@@ -68,6 +68,7 @@ export const planApi = {
 export const foodLogApi = {
   list: (date: string) => req<ApiList<FoodLogEntry>>(`/food-log?date=${date}`),
   summary: (date: string) => req<DailySummary>(`/food-log/summary?date=${date}`),
+  averages: () => req<FoodLogAverages>(`/food-log/averages?today=${todayDate()}`),
   add: (data: Partial<FoodLogEntry> & { servings?: number }) =>
     req<FoodLogEntry>('/food-log', { method: 'POST', body: JSON.stringify(data) }),
   estimate: (data: { description: string; date?: string; portion?: string }) =>
