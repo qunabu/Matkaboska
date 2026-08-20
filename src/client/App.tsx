@@ -36,6 +36,7 @@ const NotesPage = lazy(() => import('./pages/NotesPage'))
 const PantryPage = lazy(() => import('./pages/PantryPage'))
 const HabitsPage = lazy(() => import('./pages/HabitsPage'))
 const ChoresPage = lazy(() => import('./pages/ChoresPage'))
+const BudzetPage = lazy(() => import('./pages/BudzetPage'))
 const HelpPage = lazy(() => import('./pages/HelpPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const AdminPage = lazy(() => import('./pages/AdminPage'))
@@ -58,6 +59,7 @@ const ALL_NAV_ITEMS = [
   { to: '/shopping',    label: pl.nav.shopping,    icon: '🛒',  moduleKey: 'shopping' },
   { to: '/pantry',      label: pl.nav.pantry,      icon: '🥫',  moduleKey: 'shopping' },
   { to: '/tracking',    label: pl.nav.tracking,    icon: '📊',  moduleKey: 'tracking' },
+  { to: '/budzet',      label: pl.nav.budzet,      icon: '💰',  moduleKey: 'budzet' },
   { to: '/supplements', label: pl.nav.supplements, icon: '💊',  moduleKey: 'supplements' },
   { to: '/reminders',   label: pl.nav.reminders,   icon: '🔔',  moduleKey: 'supplements' },
   { to: '/chores',      label: pl.nav.chores,      icon: '🧹',  moduleKey: null },
@@ -70,7 +72,8 @@ const ALL_NAV_ITEMS = [
 ]
 
 // Which items get a slot in the mobile bottom bar (in this order); the rest go under "więcej".
-const MOBILE_PRIMARY = ['/', '/tracking', '/plan', '/shopping']
+// Menu główne: cztery najważniejsze sekcje; cała reszta trafia pod „Więcej”.
+const MOBILE_PRIMARY = ['/', '/plan', '/tracking', '/budzet']
 
 function BottomNav() {
   const location = useLocation()
@@ -303,6 +306,7 @@ function AppShell() {
               <Route path="/plan/:weekStart" element={<PlanPage />} />
               <Route path="/shopping/*" element={<ShoppingPage />} />
               <Route path="/tracking/*" element={<TrackingPage />} />
+              <Route path="/budzet/*" element={<BudzetPage />} />
               <Route path="/supplements/*" element={<SupplementsPage />} />
               <Route path="/reminders" element={<ReminderPage />} />
               <Route path="/todos" element={<TodoPage />} />

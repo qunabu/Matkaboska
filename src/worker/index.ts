@@ -24,6 +24,7 @@ import { voiceNotesRouter } from './routes/voice-notes'
 import { pantryRouter } from './routes/pantry'
 import { habitsRouter, getHabitState } from './routes/habits'
 import { choresRouter, choreDue } from './routes/chores'
+import { budzetRouter } from './routes/budzet'
 import { habits, chores } from './db/index'
 import { getDb, reminders, push_subscriptions, settings, supplements, supplement_log } from './db/index'
 import { eq, and } from 'drizzle-orm'
@@ -72,6 +73,7 @@ api.route('/api/voice-notes', voiceNotesRouter)
 api.route('/api/pantry', pantryRouter)
 api.route('/api/habits', habitsRouter)
 api.route('/api/chores', choresRouter)
+api.route('/api/budzet', budzetRouter)
 
 type AssetsBinding = { fetch: (r: Request) => Promise<Response> }
 
