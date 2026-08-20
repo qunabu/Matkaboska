@@ -19,6 +19,7 @@ export default function Ustawienia({ onChanged }: any) {
   const [bank, setBank] = useState<any>(null);
   const [aspsps, setAspsps] = useState<any[]>([]);
   const [chosen, setChosen] = useState('');
+  const [psuType, setPsuType] = useState('personal');
   const [bankMsg, setBankMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -55,7 +56,7 @@ export default function Ustawienia({ onChanged }: any) {
   const connect = async () => {
     if (!chosen) return;
     setBankMsg('Przekierowuję do banku…');
-    try { const r: any = await post('/api/bank/connect', { aspsp_name: chosen, country: 'PL', valid_days: 90 });
+    try { const r: any = await post('/api/bank/connect', { aspsp_name: chosen, country: 'PL', valid_days: 90, psu_type: psuType });
       window.location.href = r.url; }
     catch (e: any) { setBankMsg(e.message); }
   };
@@ -115,6 +116,10 @@ export default function Ustawienia({ onChanged }: any) {
                   <select value={chosen} onChange={(e: any) => setChosen(e.target.value)} style={{ minWidth: 260 }}>
                     <option value="">— wybierz bank —</option>
                     {aspsps.map((a: any) => <option key={a.name} value={a.name}>{a.name}</option>)}
+                  </select>
+                  <select value={psuType} onChange={(e: any) => setPsuType(e.target.value)}>
+                    <option value="personal">osobiste</option>
+                    <option value="business">firmowe</option>
                   </select>
                   <button className="btn" onClick={connect} disabled={!chosen}>Połącz konto</button>
                 </>

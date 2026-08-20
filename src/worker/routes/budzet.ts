@@ -339,7 +339,7 @@ app.get('/bank/aspsps', async (c) => {
 app.post('/bank/connect', async (c) => {
   const cfg = ebConfig(c.env)
   if (!cfg) return c.json({ error: 'Enable Banking nie jest skonfigurowane' }, 400)
-  const b = await c.req.json<{ aspsp_name: string; country?: string; valid_days?: number }>()
+  const b = await c.req.json<{ aspsp_name: string; country?: string; valid_days?: number; psu_type?: 'personal' | 'business' }>()
   const country = b.country || 'PL'
   const days = Math.min(180, Math.max(1, b.valid_days ?? 90))
   const validUntil = new Date(Date.now() + days * 86400000).toISOString().replace(/\.\d+Z$/, '.000Z')
@@ -355,7 +355,7 @@ app.post('/bank/connect', async (c) => {
     JSON.stringify({ userId: c.var.userId, aspsp: b.aspsp_name, country, validUntil, psu }),
     { expirationTtl: 900 })
   try {
-    const r = await startAuth(cfg, { aspspName: b.aspsp_name, country, redirectUrl, state, validUntil, psu })
+    const r = await startAuth(cfg, { aspspName: b.aspsp_name, country, redirectUrl, state, validUntil, psu, psuType: b.psu_type ?? 'personal' })
     return c.json({ url: r.url })
   } catch (e) { return c.json({ error: (e as Error).message }, 502) }
 })

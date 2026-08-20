@@ -78,13 +78,13 @@ export const listAspsps = (cfg: EbConfig, country: string) =>
 
 export const startAuth = (cfg: EbConfig, p: {
   aspspName: string; country: string; redirectUrl: string; state: string
-  validUntil: string; psu?: PsuHeaders
+  validUntil: string; psu?: PsuHeaders; psuType?: 'personal' | 'business'
 }) => call<{ url: string; authorization_id: string }>(cfg, 'POST', '/auth', {
   access: { valid_until: p.validUntil },
   aspsp: { name: p.aspspName, country: p.country },
   state: p.state,
   redirect_url: p.redirectUrl,
-  psu_type: 'personal',
+  psu_type: p.psuType ?? 'personal',
 }, p.psu)
 
 export type EbAccount = {

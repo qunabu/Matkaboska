@@ -6,6 +6,9 @@ import { ebConfig, getTransactions, getBalances, getSession, type EbTransaction,
 type Env = { EB_APPLICATION_ID?: string; EB_PRIVATE_KEY?: string }
 
 const clean = (s?: string | null) => (s ?? '').replace(/\s+/g, ' ').trim()
+/** IBAN-y z API mają prefiks kraju („PL46…"), a te z wyciągów CSV zwykle nie.
+ *  Porównujemy po samych cyfrach, inaczej powstałyby zdublowane rachunki. */
+const ibanDigits = (s?: string | null) => (s ?? '').replace(/\D/g, '')
 
 /** Transakcja Enable Banking -> wiersz w formacie wspólnym z parserami CSV. */
 export function mapTransaction(t: EbTransaction, accountId: string, accountKey: string): ParsedRow | null {
@@ -51,8 +54,10 @@ export function mapTransaction(t: EbTransaction, accountId: string, accountKey: 
 async function resolveAccountId(s: Store, acc: EbAccount): Promise<string> {
   const iban = clean(acc.account_id?.iban)
   if (iban) {
-    const hit = await s.first<{ id: string }>(
-      'SELECT id FROM budzet_accounts WHERE user_id = ? AND iban = ?', s.userId, iban)
+    const want = ibanDigits(iban)
+    const all = await s.all<{ id: string; iban: string | null }>(
+      'SELECT id, iban FROM budzet_accounts WHERE user_id = ?', s.userId)
+    const hit = all.find((a) => a.iban && ibanDigits(a.iban) === want)
     if (hit) return hit.id
     const id = accountIdFor(iban)
     await s.run(
