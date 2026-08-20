@@ -32,6 +32,10 @@ export type Env = {
   FRISCO_WAREHOUSE?: string
   FRISCO_USER_ID?: string
   FRISCO_SID?: string
+  // Enable Banking (PSD2 AIS) — automatyczne pobieranie transakcji.
+  // Oba są sekretami Workera; klucz prywatny nigdy nie trafia do repozytorium.
+  EB_APPLICATION_ID?: string
+  EB_PRIVATE_KEY?: string
 }
 
 export type AppVariables = {

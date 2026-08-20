@@ -26,6 +26,9 @@ import { pantryRouter } from './routes/pantry'
 import { habitsRouter, getHabitState, localDateKey } from './routes/habits'
 import { choresRouter, choreDue } from './routes/chores'
 import { budzetRouter } from './routes/budzet'
+import { Store as BudzetStore } from './budzet/store'
+import { syncConnections } from './budzet/bank-sync'
+import { recategoriseAll as budzetRecategorise } from './budzet/importer'
 import { habits, chores } from './db/index'
 import { getDb, reminders, push_subscriptions, settings, supplements, supplement_log } from './db/index'
 import { eq, and } from 'drizzle-orm'
@@ -147,6 +150,28 @@ export default {
   },
 
   async scheduled(_event: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+    // Budżet: raz na dobę ściągamy nowe operacje z banków. Znacznik w KV pilnuje,
+    // żeby przy cronie co 15 minut nie odpalić tego kilkanaście razy.
+    if (env.EB_APPLICATION_ID && env.EB_PRIVATE_KEY) {
+      const todayKey = new Date().toISOString().slice(0, 10)
+      const marker = `budzet:banksync:${todayKey}`
+      const hourUtc = new Date().getUTCHours()
+      if (hourUtc >= 4 && !(await env.KV.get(marker))) {
+        await env.KV.put(marker, '1', { expirationTtl: 172800 })
+        try {
+          const users = await env.DB.prepare(
+            "SELECT DISTINCT user_id FROM budzet_bank_connections WHERE status = 'AUTHORIZED'").all()
+          for (const u of (users.results ?? []) as { user_id: string }[]) {
+            const s = new BudzetStore(env.DB, u.user_id)
+            try {
+              await syncConnections(s, env)
+              await budzetRecategorise(s)
+            } catch { /* jedno konto nie może zablokować pozostałych */ }
+          }
+        } catch { /* brak tabel przed migracją */ }
+      }
+    }
+
     if (!env.VAPID_PRIVATE_KEY) return
 
     const db = getDb(env.DB)

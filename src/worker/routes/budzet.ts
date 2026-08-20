@@ -5,6 +5,8 @@ import { CATEGORIES } from '../budzet/categories'
 import { importCsv, recategoriseAll } from '../budzet/importer'
 import { loadRules, seedRulesIfEmpty, syncPersonalRules } from '../budzet/rules'
 import * as A from '../budzet/analytics'
+import { ebConfig, listAspsps, startAuth, createSession } from '../budzet/enablebanking'
+import { saveSessionAccounts, syncConnections } from '../budzet/bank-sync'
 
 const app = new Hono<AppEnv>()
 const store = (c: { env: { DB: unknown }; var: { userId: string } }) =>
@@ -309,6 +311,95 @@ app.post('/reserves', async (c) => {
 
 app.delete('/reserves/:id', async (c) => {
   await store(c).run('DELETE FROM budzet_reserves WHERE id=? AND user_id=?', Number(c.req.param('id')), c.var.userId)
+  return c.json({ deleted: true })
+})
+
+/* ---------------- automatyczne pobieranie z banku ---------------- */
+
+app.get('/bank/status', async (c) => {
+  const s = store(c)
+  const configured = !!ebConfig(c.env)
+  const connections = await s.all(
+    `SELECT c.id, c.aspsp_name, c.aspsp_country, c.status, c.valid_until, c.last_sync_at, c.last_error,
+            (SELECT COUNT(*) FROM budzet_bank_accounts a WHERE a.connection_id = c.id AND a.user_id = c.user_id) accounts
+       FROM budzet_bank_connections c WHERE c.user_id = ? ORDER BY c.id DESC`, c.var.userId)
+  return c.json({ configured, connections })
+})
+
+app.get('/bank/aspsps', async (c) => {
+  const cfg = ebConfig(c.env)
+  if (!cfg) return c.json({ error: 'Enable Banking nie jest skonfigurowane' }, 400)
+  const country = c.req.query('country') || 'PL'
+  try {
+    const r = await listAspsps(cfg, country)
+    return c.json({ aspsps: (r.aspsps ?? []).map((a) => ({ name: a.name, country: a.country, logo: a.logo })) })
+  } catch (e) { return c.json({ error: (e as Error).message }, 502) }
+})
+
+app.post('/bank/connect', async (c) => {
+  const cfg = ebConfig(c.env)
+  if (!cfg) return c.json({ error: 'Enable Banking nie jest skonfigurowane' }, 400)
+  const b = await c.req.json<{ aspsp_name: string; country?: string; valid_days?: number }>()
+  const country = b.country || 'PL'
+  const days = Math.min(180, Math.max(1, b.valid_days ?? 90))
+  const validUntil = new Date(Date.now() + days * 86400000).toISOString().replace(/\.\d+Z$/, '.000Z')
+  const state = crypto.randomUUID()
+  const origin = new URL(c.req.url).origin
+  const redirectUrl = `${origin}/api/budzet/bank/callback`
+  // Stan trzymamy w KV (TTL 15 min) — chroni przed CSRF i wiąże powrót z kontem.
+  await c.env.KV.put(`budzet:ebstate:${state}`,
+    JSON.stringify({ userId: c.var.userId, aspsp: b.aspsp_name, country, validUntil }),
+    { expirationTtl: 900 })
+  try {
+    const r = await startAuth(cfg, { aspspName: b.aspsp_name, country, redirectUrl, state, validUntil })
+    return c.json({ url: r.url })
+  } catch (e) { return c.json({ error: (e as Error).message }, 502) }
+})
+
+app.get('/bank/callback', async (c) => {
+  const cfg = ebConfig(c.env)
+  const code = c.req.query('code')
+  const state = c.req.query('state')
+  const back = (msg: string) => c.redirect(`/budzet#budzet/ustawienia?bank=${encodeURIComponent(msg)}`)
+  if (!cfg || !code || !state) return back('blad')
+  const rawState = await c.env.KV.get(`budzet:ebstate:${state}`)
+  if (!rawState) return back('stan-wygasl')
+  await c.env.KV.delete(`budzet:ebstate:${state}`)
+  const st = JSON.parse(rawState) as { userId: string; aspsp: string; country: string; validUntil: string }
+  // Powrót z banku musi trafić do tego samego konta, które rozpoczęło autoryzację.
+  if (st.userId !== c.var.userId) return back('niezgodne-konto')
+
+  const s = store(c)
+  try {
+    const sess = await createSession(cfg, code)
+    const ins = await s.run(
+      `INSERT INTO budzet_bank_connections(user_id, aspsp_name, aspsp_country, session_id, status, valid_until, created_at)
+       VALUES(?,?,?,?,'AUTHORIZED',?,?)`,
+      c.var.userId, st.aspsp, st.country, sess.session_id,
+      sess.access?.valid_until ?? st.validUntil, new Date().toISOString())
+    const connId = (ins.meta as { last_row_id?: number })?.last_row_id as number
+    await saveSessionAccounts(s, connId, sess.accounts ?? [])
+    return back('polaczono')
+  } catch (e) {
+    return back('blad-' + encodeURIComponent((e as Error).message.slice(0, 80)))
+  }
+})
+
+app.post('/bank/sync', async (c) => {
+  const s = store(c)
+  const b = await c.req.json<{ connection_id?: number }>().catch(() => ({} as { connection_id?: number }))
+  try {
+    const r = await syncConnections(s, c.env, { connectionId: b?.connection_id })
+    await recategoriseAll(s)
+    return c.json(r)
+  } catch (e) { return c.json({ error: (e as Error).message }, 502) }
+})
+
+app.delete('/bank/connections/:id', async (c) => {
+  const s = store(c)
+  const id = Number(c.req.param('id'))
+  await s.run('DELETE FROM budzet_bank_accounts WHERE user_id = ? AND connection_id = ?', c.var.userId, id)
+  await s.run('DELETE FROM budzet_bank_connections WHERE user_id = ? AND id = ?', c.var.userId, id)
   return c.json({ deleted: true })
 })
 

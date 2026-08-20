@@ -5,6 +5,7 @@
 
 export type ParsedRow = {
   account_key: string          // IBAN albo etykieta konta z wyciągu
+  account_id?: string          // jawne wskazanie konta (źródła API, gdzie klucz nie wystarcza)
   account_name: string
   bank: string
   booked_on: string

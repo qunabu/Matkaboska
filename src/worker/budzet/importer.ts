@@ -12,7 +12,10 @@ export async function ensureAccounts(s: Store, rows: ParsedRow[]) {
   const existing = new Set((await s.all<{ id: string }>(
     'SELECT id FROM budzet_accounts WHERE user_id = ?', s.userId)).map((a) => a.id))
   const seen = new Map<string, ParsedRow>()
-  for (const r of rows) if (!seen.has(r.account_key)) seen.set(r.account_key, r)
+  for (const r of rows) {
+    if (r.account_id) continue          // konto już wskazane wprost
+    if (!seen.has(r.account_key)) seen.set(r.account_key, r)
+  }
 
   const stmts = []
   for (const [key, r] of seen) {
@@ -77,6 +80,24 @@ export async function seedStructureIfEmpty(s: Store) {
  */
 export async function importCsv(s: Store, text: string, filename: string) {
   const { format, rows } = detectAndParse(text, filename)
+  const res = await ingestRows(s, rows, { filename, format, fileHash: hash(text) })
+  return { format, ...res }
+}
+
+/**
+ * Wspólne wejście dla wyciągów CSV i pobrań przez API bankowe.
+ *
+ * Deduplikacja jest dwustopniowa, bo ta sama operacja przychodzi z dwóch źródeł
+ * pod różnymi identyfikatorami:
+ *  1. `dedupe_key` — dokładny klucz źródła (ten sam plik wgrany dwa razy),
+ *  2. `match_key` (konto + data + kwota) liczony jako wielozbiór — chroni przed
+ *     zdublowaniem operacji pobranej najpierw z CSV, a potem z API, a mimo to
+ *     przepuszcza dwie prawdziwie identyczne płatności tego samego dnia.
+ */
+export async function ingestRows(
+  s: Store, rows: ParsedRow[],
+  meta: { filename: string; format: string; fileHash: string },
+) {
   await ensureAccounts(s, rows)
   await seedRulesIfEmpty(s)
   await seedStructureIfEmpty(s)
@@ -86,21 +107,38 @@ export async function importCsv(s: Store, text: string, filename: string) {
   const known = new Set((await s.all<{ dedupe_key: string }>(
     'SELECT dedupe_key FROM budzet_transactions WHERE user_id = ?', s.userId)).map((r) => r.dedupe_key))
 
-  const fresh = rows.filter((r) => !known.has(r.dedupe_key))
-  const dup = rows.length - fresh.length
-  const dates = rows.map((r) => r.booked_on).sort()
+  const matchKey = (accountId: string, booked: string, amount: number) =>
+    `${accountId}|${booked}|${amount.toFixed(2)}`
+  const existingCounts = new Map<string, number>()
+  for (const r of await s.all<{ k: string; n: number }>(
+    `SELECT account_id || '|' || booked_on || '|' || printf('%.2f', amount) k, COUNT(*) n
+       FROM budzet_transactions WHERE user_id = ? GROUP BY k`, s.userId)) {
+    existingCounts.set(r.k, r.n)
+  }
 
+  const fresh: ParsedRow[] = []
+  let dup = 0
+  for (const r of rows) {
+    if (known.has(r.dedupe_key)) { dup++; continue }
+    const k = matchKey(r.account_id ?? accountIdFor(r.account_key), r.booked_on, r.amount)
+    const left = existingCounts.get(k) ?? 0
+    if (left > 0) { existingCounts.set(k, left - 1); dup++; continue }
+    fresh.push(r)
+    known.add(r.dedupe_key)
+  }
+
+  const dates = rows.map((r) => r.booked_on).sort()
   const imp = await s.d1.prepare(
     `INSERT INTO budzet_imports(user_id, filename, file_hash, format, imported_at, rows_parsed, rows_new, rows_dup, period_from, period_to)
      VALUES(?,?,?,?,?,?,?,?,?,?)`)
-    .bind(s.userId, filename, hash(text), format, new Date().toISOString(),
+    .bind(s.userId, meta.filename, meta.fileHash, meta.format, new Date().toISOString(),
       rows.length, fresh.length, dup, dates[0] ?? null, dates[dates.length - 1] ?? null)
     .run()
   const importId = (imp.meta as { last_row_id?: number })?.last_row_id ?? null
 
   const rules = await loadRules(s)
   await s.batch(fresh.map((r) => {
-    const accountId = accountIdFor(r.account_key)
+    const accountId = r.account_id ?? accountIdFor(r.account_key)
     const rule = matchRule(rules, r.haystack, r.amount)
     const b = inferBusiness(rule ? rule.is_business : null, kinds[accountId] ?? 'personal')
     const fromBank = rule ? null : matchBankCategory(r.bank_category)
@@ -123,7 +161,7 @@ export async function importCsv(s: Store, text: string, filename: string) {
   await inferAccountIbans(s)
   const transfers = await linkInternalTransfers(s)
   await assignTripSpending(s)
-  return { format, parsed: rows.length, inserted: fresh.length, duplicates: dup, importId, transfers }
+  return { parsed: rows.length, inserted: fresh.length, duplicates: dup, importId, transfers }
 }
 
 /**

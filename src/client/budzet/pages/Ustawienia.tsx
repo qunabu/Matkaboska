@@ -16,9 +16,16 @@ export default function Ustawienia({ onChanged }: any) {
   const [rules, setRules] = useState<any[]>([]);
   const [log, setLog] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [bank, setBank] = useState<any>(null);
+  const [aspsps, setAspsps] = useState<any[]>([]);
+  const [chosen, setChosen] = useState('');
+  const [bankMsg, setBankMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const load = () => { get('/api/settings').then(setS); get('/api/imports').then(setImports); get('/api/rules').then(setRules); };
+  const load = () => {
+    get('/api/settings').then(setS); get('/api/imports').then(setImports); get('/api/rules').then(setRules);
+    get('/api/bank/status').then(setBank).catch(() => setBank({ configured: false, connections: [] }));
+  };
   useEffect(() => { load(); }, []);
   if (!s) return <Empty>Ładowanie…</Empty>;
 
@@ -40,12 +47,86 @@ export default function Ustawienia({ onChanged }: any) {
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  const loadBanks = async () => {
+    setBankMsg('Pobieram listę banków…');
+    try { const r: any = await get('/api/bank/aspsps?country=PL'); setAspsps(r.aspsps || []); setBankMsg(null); }
+    catch (e: any) { setBankMsg(e.message); }
+  };
+  const connect = async () => {
+    if (!chosen) return;
+    setBankMsg('Przekierowuję do banku…');
+    try { const r: any = await post('/api/bank/connect', { aspsp_name: chosen, country: 'PL', valid_days: 90 });
+      window.location.href = r.url; }
+    catch (e: any) { setBankMsg(e.message); }
+  };
+  const syncBank = async (connection_id?: number) => {
+    setBusy(true); setBankMsg('Pobieram transakcje…');
+    try { const r: any = await post('/api/bank/sync', connection_id ? { connection_id } : {});
+      const tot = (r.results || []).reduce((a: number, x: any) => a + (x.inserted || 0), 0);
+      setBankMsg(`Pobrano ${tot} nowych operacji.`); load(); onChanged?.(); }
+    catch (e: any) { setBankMsg(e.message); }
+    setBusy(false);
+  };
+
   const recalc = async () => { setBusy(true); await post('/api/recategorise', {}); load(); onChanged?.(); setBusy(false); };
 
   return (
     <>
       <div className="page-head"><div><h1>Import i ustawienia</h1>
         <p>Co miesiąc pobierz nowe wyciągi i wrzuć je tutaj. Duplikaty są wykrywane po numerze referencyjnym, więc nakładające się okresy nie zaburzą danych — możesz spokojnie wgrać cały rok jeszcze raz.</p></div></div>
+
+      <Card title="Automatyczne pobieranie z banku" style={{ marginBottom: 12 }}>
+        {!bank ? <p className="muted">Ładowanie…</p> : !bank.configured ? (
+          <p className="muted" style={{ marginTop: 0, fontSize: 12.5 }}>
+            Integracja nie jest skonfigurowana. Wymaga aplikacji w Enable Banking
+            (identyfikator + klucz prywatny ustawione jako sekrety Workera).
+          </p>
+        ) : (
+          <>
+            <p className="muted" style={{ marginTop: 0, fontSize: 12.5 }}>
+              Po połączeniu operacje pobierają się same raz na dobę. Zgoda banku wygasa
+              (zwykle po 90 dniach) — wtedy trzeba połączyć konto ponownie.
+            </p>
+            {!!bank.connections.length && (
+              <div className="scroll" style={{ marginBottom: 10 }}><table>
+                <thead><tr><th>Bank</th><th>Status</th><th>Kont</th><th>Zgoda do</th><th>Ostatnie pobranie</th><th></th></tr></thead>
+                <tbody>{bank.connections.map((cn: any) => (
+                  <tr key={cn.id}>
+                    <td><strong>{cn.aspsp_name}</strong>{cn.last_error && <div className="neg" style={{ fontSize: 11 }}>{cn.last_error}</div>}</td>
+                    <td><span className={`chip ${cn.status === 'AUTHORIZED' ? 'g' : 'w'}`}>{cn.status}</span></td>
+                    <td className="num">{cn.accounts}</td>
+                    <td className="muted">{(cn.valid_until || '').slice(0, 10) || '—'}</td>
+                    <td className="muted">{(cn.last_sync_at || '').slice(0, 16).replace('T', ' ') || 'nigdy'}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <button className="btn ghost" style={{ padding: '3px 8px' }} disabled={busy}
+                        onClick={() => syncBank(cn.id)}>Pobierz</button>
+                      <button className="btn ghost" style={{ padding: '3px 8px', marginLeft: 4 }}
+                        onClick={async () => { await del(`/api/bank/connections/${cn.id}`); load(); }}>×</button>
+                    </td>
+                  </tr>
+                ))}</tbody>
+              </table></div>
+            )}
+            <div className="toolbar">
+              {!aspsps.length ? (
+                <button className="btn ghost" onClick={loadBanks}>Wybierz bank…</button>
+              ) : (
+                <>
+                  <select value={chosen} onChange={(e: any) => setChosen(e.target.value)} style={{ minWidth: 260 }}>
+                    <option value="">— wybierz bank —</option>
+                    {aspsps.map((a: any) => <option key={a.name} value={a.name}>{a.name}</option>)}
+                  </select>
+                  <button className="btn" onClick={connect} disabled={!chosen}>Połącz konto</button>
+                </>
+              )}
+              {!!bank.connections.length && (
+                <button className="btn ghost" onClick={() => syncBank()} disabled={busy}>Pobierz wszystko teraz</button>
+              )}
+            </div>
+            {bankMsg && <p className="muted" style={{ fontSize: 12.5, marginBottom: 0 }}>{bankMsg}</p>}
+          </>
+        )}
+      </Card>
 
       <Card title="Wgraj wyciągi CSV" style={{ marginBottom: 12 }}>
         <input ref={fileRef} type="file" accept=".csv" multiple onChange={upload} disabled={busy} />
