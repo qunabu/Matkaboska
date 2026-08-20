@@ -12,3 +12,7 @@ src/shared/build-info.ts
 .DS_Store
 *.log
 backups/
+
+# Klucze prywatne (Enable Banking itp.) — nigdy do repozytorium
+*.pem
+*.key
