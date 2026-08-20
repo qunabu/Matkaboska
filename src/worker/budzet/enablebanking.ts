@@ -15,6 +15,12 @@ const b64url = (buf: ArrayBuffer | Uint8Array) => {
 }
 
 function pemToPkcs8(pem: string): ArrayBuffer {
+  // WebCrypto importuje wyłącznie PKCS#8 ("BEGIN PRIVATE KEY"). Klucz w starszym
+  // formacie PKCS#1 trzeba przekonwertować, zanim trafi do sekretu Workera.
+  if (/BEGIN RSA PRIVATE KEY/.test(pem)) {
+    throw new Error('Klucz jest w formacie PKCS#1. Przekonwertuj go: ' +
+      'openssl pkcs8 -topk8 -nocrypt -in klucz.pem -out klucz-pkcs8.pem')
+  }
   const body = pem.replace(/-----(BEGIN|END)[^-]+-----/g, '').replace(/\s+/g, '')
   const bin = atob(body)
   const out = new Uint8Array(bin.length)
