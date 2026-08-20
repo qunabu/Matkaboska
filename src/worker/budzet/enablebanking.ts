@@ -48,11 +48,22 @@ export function ebConfig(env: { EB_APPLICATION_ID?: string; EB_PRIVATE_KEY?: str
   return { appId: env.EB_APPLICATION_ID, privateKey: env.EB_PRIVATE_KEY }
 }
 
-async function call<T>(cfg: EbConfig, method: string, path: string, body?: unknown): Promise<T> {
+/** Część banków (m.in. mBank) wymaga nagłówków identyfikujących końcowego
+ *  użytkownika — bez nich zwracają błąd zarówno przy autoryzacji, jak i przy
+ *  pobieraniu danych. */
+export type PsuHeaders = { ip?: string; userAgent?: string }
+
+async function call<T>(
+  cfg: EbConfig, method: string, path: string, body?: unknown, psu?: PsuHeaders,
+): Promise<T> {
   const jwt = await signJwt(cfg.appId, cfg.privateKey)
+  const headers: Record<string, string> = {
+    authorization: `Bearer ${jwt}`, 'content-type': 'application/json',
+  }
+  if (psu?.ip) headers['psu-ip-address'] = psu.ip
+  if (psu?.userAgent) headers['psu-user-agent'] = psu.userAgent
   const res = await fetch(BASE + path, {
-    method,
-    headers: { authorization: `Bearer ${jwt}`, 'content-type': 'application/json' },
+    method, headers,
     body: body ? JSON.stringify(body) : undefined,
   })
   const text = await res.text()
@@ -66,14 +77,15 @@ export const listAspsps = (cfg: EbConfig, country: string) =>
   call<{ aspsps: Aspsp[] }>(cfg, 'GET', `/aspsps?country=${encodeURIComponent(country)}`)
 
 export const startAuth = (cfg: EbConfig, p: {
-  aspspName: string; country: string; redirectUrl: string; state: string; validUntil: string
+  aspspName: string; country: string; redirectUrl: string; state: string
+  validUntil: string; psu?: PsuHeaders
 }) => call<{ url: string; authorization_id: string }>(cfg, 'POST', '/auth', {
   access: { valid_until: p.validUntil },
   aspsp: { name: p.aspspName, country: p.country },
   state: p.state,
   redirect_url: p.redirectUrl,
   psu_type: 'personal',
-})
+}, p.psu)
 
 export type EbAccount = {
   uid: string
@@ -83,13 +95,13 @@ export type EbAccount = {
   currency?: string
 }
 
-export const createSession = (cfg: EbConfig, code: string) =>
+export const createSession = (cfg: EbConfig, code: string, psu?: PsuHeaders) =>
   call<{ session_id: string; accounts: EbAccount[]; access?: { valid_until?: string }; aspsp?: Aspsp }>(
-    cfg, 'POST', '/sessions', { code })
+    cfg, 'POST', '/sessions', { code }, psu)
 
-export const getSession = (cfg: EbConfig, sessionId: string) =>
+export const getSession = (cfg: EbConfig, sessionId: string, psu?: PsuHeaders) =>
   call<{ status: string; accounts: EbAccount[]; access?: { valid_until?: string } }>(
-    cfg, 'GET', `/sessions/${sessionId}`)
+    cfg, 'GET', `/sessions/${sessionId}`, undefined, psu)
 
 export type EbTransaction = {
   entry_reference?: string
@@ -111,7 +123,7 @@ export type EbTransaction = {
 }
 
 export async function getTransactions(
-  cfg: EbConfig, accountUid: string, dateFrom: string,
+  cfg: EbConfig, accountUid: string, dateFrom: string, psu?: PsuHeaders,
 ): Promise<EbTransaction[]> {
   const out: EbTransaction[] = []
   let key: string | undefined
@@ -121,7 +133,7 @@ export async function getTransactions(
     const q = new URLSearchParams({ date_from: dateFrom })
     if (key) q.set('continuation_key', key)
     const r = await call<{ transactions: EbTransaction[]; continuation_key?: string }>(
-      cfg, 'GET', `/accounts/${accountUid}/transactions?${q}`)
+      cfg, 'GET', `/accounts/${accountUid}/transactions?${q}`, undefined, psu)
     out.push(...(r.transactions ?? []))
     if (!r.continuation_key) break
     key = r.continuation_key
@@ -129,6 +141,6 @@ export async function getTransactions(
   return out
 }
 
-export const getBalances = (cfg: EbConfig, accountUid: string) =>
+export const getBalances = (cfg: EbConfig, accountUid: string, psu?: PsuHeaders) =>
   call<{ balances: { name?: string; balance_amount: { amount: string; currency: string }; balance_type?: string }[] }>(
-    cfg, 'GET', `/accounts/${accountUid}/balances`)
+    cfg, 'GET', `/accounts/${accountUid}/balances`, undefined, psu)

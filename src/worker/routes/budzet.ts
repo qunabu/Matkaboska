@@ -344,14 +344,18 @@ app.post('/bank/connect', async (c) => {
   const days = Math.min(180, Math.max(1, b.valid_days ?? 90))
   const validUntil = new Date(Date.now() + days * 86400000).toISOString().replace(/\.\d+Z$/, '.000Z')
   const state = crypto.randomUUID()
+  const psu = {
+    ip: c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for')?.split(',')[0]?.trim(),
+    userAgent: c.req.header('user-agent'),
+  }
   const origin = new URL(c.req.url).origin
   const redirectUrl = `${origin}/api/budzet/bank/callback`
   // Stan trzymamy w KV (TTL 15 min) — chroni przed CSRF i wiąże powrót z kontem.
   await c.env.KV.put(`budzet:ebstate:${state}`,
-    JSON.stringify({ userId: c.var.userId, aspsp: b.aspsp_name, country, validUntil }),
+    JSON.stringify({ userId: c.var.userId, aspsp: b.aspsp_name, country, validUntil, psu }),
     { expirationTtl: 900 })
   try {
-    const r = await startAuth(cfg, { aspspName: b.aspsp_name, country, redirectUrl, state, validUntil })
+    const r = await startAuth(cfg, { aspspName: b.aspsp_name, country, redirectUrl, state, validUntil, psu })
     return c.json({ url: r.url })
   } catch (e) { return c.json({ error: (e as Error).message }, 502) }
 })
@@ -365,18 +369,22 @@ app.get('/bank/callback', async (c) => {
   const rawState = await c.env.KV.get(`budzet:ebstate:${state}`)
   if (!rawState) return back('stan-wygasl')
   await c.env.KV.delete(`budzet:ebstate:${state}`)
-  const st = JSON.parse(rawState) as { userId: string; aspsp: string; country: string; validUntil: string }
+  const st = JSON.parse(rawState) as {
+    userId: string; aspsp: string; country: string; validUntil: string
+    psu?: { ip?: string; userAgent?: string }
+  }
   // Powrót z banku musi trafić do tego samego konta, które rozpoczęło autoryzację.
   if (st.userId !== c.var.userId) return back('niezgodne-konto')
 
   const s = store(c)
   try {
-    const sess = await createSession(cfg, code)
+    const sess = await createSession(cfg, code, st.psu)
     const ins = await s.run(
-      `INSERT INTO budzet_bank_connections(user_id, aspsp_name, aspsp_country, session_id, status, valid_until, created_at)
-       VALUES(?,?,?,?,'AUTHORIZED',?,?)`,
+      `INSERT INTO budzet_bank_connections(user_id, aspsp_name, aspsp_country, session_id, status, valid_until, created_at, psu_ip, psu_user_agent)
+       VALUES(?,?,?,?,'AUTHORIZED',?,?,?,?)`,
       c.var.userId, st.aspsp, st.country, sess.session_id,
-      sess.access?.valid_until ?? st.validUntil, new Date().toISOString())
+      sess.access?.valid_until ?? st.validUntil, new Date().toISOString(),
+      st.psu?.ip ?? null, st.psu?.userAgent ?? null)
     const connId = (ins.meta as { last_row_id?: number })?.last_row_id as number
     await saveSessionAccounts(s, connId, sess.accounts ?? [])
     return back('polaczono')

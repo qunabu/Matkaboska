@@ -1,7 +1,7 @@
 import { Store } from './store'
 import { ingestRows } from './importer'
 import { accountIdFor, normaliseMerchant, hash, type ParsedRow } from './parsers'
-import { ebConfig, getTransactions, getBalances, getSession, type EbConfig, type EbTransaction, type EbAccount } from './enablebanking'
+import { ebConfig, getTransactions, getBalances, getSession, type EbTransaction, type EbAccount } from './enablebanking'
 
 type Env = { EB_APPLICATION_ID?: string; EB_PRIVATE_KEY?: string }
 
@@ -96,8 +96,8 @@ export async function syncConnections(s: Store, env: Env, opts: { connectionId?:
   const cfg = ebConfig(env)
   if (!cfg) throw new Error('Brak konfiguracji Enable Banking (EB_APPLICATION_ID / EB_PRIVATE_KEY)')
 
-  const conns = await s.all<{ id: number; session_id: string; aspsp_name: string; status: string }>(
-    `SELECT id, session_id, aspsp_name, status FROM budzet_bank_connections
+  const conns = await s.all<{ id: number; session_id: string; aspsp_name: string; status: string; psu_ip: string; psu_user_agent: string }>(
+    `SELECT id, session_id, aspsp_name, status, psu_ip, psu_user_agent FROM budzet_bank_connections
       WHERE user_id = ? AND session_id IS NOT NULL AND status = 'AUTHORIZED'
         ${opts.connectionId ? 'AND id = ?' : ''}`,
     ...(opts.connectionId ? [s.userId, opts.connectionId] : [s.userId]))
@@ -106,7 +106,9 @@ export async function syncConnections(s: Store, env: Env, opts: { connectionId?:
   for (const conn of conns) {
     try {
       // Bank mógł unieważnić zgodę przed jej datą ważności.
-      const sess = await getSession(cfg, conn.session_id)
+      // Te same nagłówki PSU, które bank widział przy autoryzacji.
+      const psu = { ip: conn.psu_ip || undefined, userAgent: conn.psu_user_agent || undefined }
+      const sess = await getSession(cfg, conn.session_id, psu)
       if (sess.status && sess.status !== 'AUTHORIZED') {
         await s.run(
           "UPDATE budzet_bank_connections SET status = ?, last_error = 'Zgoda wygasła — połącz konto ponownie' WHERE id = ? AND user_id = ?",
@@ -122,7 +124,7 @@ export async function syncConnections(s: Store, env: Env, opts: { connectionId?:
       let inserted = 0, duplicates = 0
       for (const a of accs) {
         const from = a.last_synced_to ? daysAgo(7) : daysAgo(89)
-        const txs = await getTransactions(cfg, a.uid, from)
+        const txs = await getTransactions(cfg, a.uid, from, psu)
         // Tylko operacje zaksięgowane: oczekujące zmieniają identyfikator po
         // rozliczeniu i weszłyby drugi raz.
         const rows = txs
@@ -142,7 +144,7 @@ export async function syncConnections(s: Store, env: Env, opts: { connectionId?:
 
         // Saldo z banku zasila poduszkę finansową i „ile mogę odłożyć".
         try {
-          const b = await getBalances(cfg, a.uid)
+          const b = await getBalances(cfg, a.uid, psu)
           const pick = b.balances?.find((x) => /CLBD|closing|available|ITAV/i.test(`${x.balance_type ?? ''}${x.name ?? ''}`))
             ?? b.balances?.[0]
           if (pick) {
