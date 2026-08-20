@@ -8,7 +8,7 @@ import { onboardingRouter } from './routes/onboarding'
 import { adminRouter } from './routes/admin'
 import { recipesRouter } from './routes/recipes'
 import { planRouter } from './routes/plan'
-import { settingsRouter } from './routes/settings'
+import { settingsRouter, getSettings } from './routes/settings'
 import { shoppingRouter } from './routes/shopping'
 import { sharedListRouter } from './routes/shared-list'
 import { foodLogRouter } from './routes/food-log'
@@ -16,19 +16,22 @@ import { productsRouter } from './routes/products'
 import { waterRouter } from './routes/water'
 import { supplementsRouter } from './routes/supplements'
 import { pushRouter, notify } from './routes/push'
+import type { PushPayload } from './routes/push'
 import { notificationsRouter } from './routes/notifications'
 import { friscoRouter } from './routes/frisco'
 import { todosRouter } from './routes/todos'
 import { ideasRouter } from './routes/ideas'
 import { voiceNotesRouter } from './routes/voice-notes'
 import { pantryRouter } from './routes/pantry'
-import { habitsRouter, getHabitState } from './routes/habits'
+import { habitsRouter, getHabitState, localDateKey } from './routes/habits'
 import { choresRouter, choreDue } from './routes/chores'
 import { budzetRouter } from './routes/budzet'
 import { habits, chores } from './db/index'
 import { getDb, reminders, push_subscriptions, settings, supplements, supplement_log } from './db/index'
 import { eq, and } from 'drizzle-orm'
 import type { Env } from './types'
+import type { Db } from './db/index'
+import { DEFAULT_SETTINGS } from '../shared/types'
 
 const api = new Hono<AppEnv>()
 
@@ -77,6 +80,42 @@ api.route('/api/budzet', budzetRouter)
 
 type AssetsBinding = { fetch: (r: Request) => Promise<Response> }
 
+type BatchItem = { payload: PushPayload; commit: () => Promise<void> }
+
+/** How many notifications one batch may put on the phone at once. */
+const MAX_PER_BATCH = 5
+
+/** True while the local clock sits inside the user's quiet window (wraps midnight). */
+function inQuietHours(nowMin: number, start: string | null, end: string | null): boolean {
+  if (!start || !end || start === end) return false
+  const toMin = (t: string) => {
+    const [h, m] = t.split(':').map(Number)
+    return h * 60 + m
+  }
+  const s = toMin(start)
+  const e = toMin(end)
+  return s < e ? nowMin >= s && nowMin < e : nowMin >= s || nowMin < e
+}
+
+// When the last batch went out. Kept in its own settings bucket ('push_state')
+// so cron writes never race the user editing their app settings.
+async function readLastBatchAt(db: Db, userId: string): Promise<number | null> {
+  try {
+    const [row] = await db.select().from(settings)
+      .where(and(eq(settings.user_id, userId), eq(settings.key, 'push_state')))
+    if (!row) return null
+    const v = JSON.parse(row.value) as { last_batch_at?: number }
+    return typeof v.last_batch_at === 'number' ? v.last_batch_at : null
+  } catch { return null }
+}
+
+async function writeLastBatchAt(db: Db, userId: string, at: number): Promise<void> {
+  const value = JSON.stringify({ last_batch_at: at })
+  await db.insert(settings)
+    .values({ user_id: userId, key: 'push_state', value })
+    .onConflictDoUpdate({ target: [settings.user_id, settings.key], set: { value } })
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url)
@@ -117,20 +156,12 @@ export default {
     if (allSubs.length === 0) return
 
     const userIds = [...new Set(allSubs.map((s) => s.user_id))]
+    const nowUnix = Math.floor(Date.now() / 1000)
 
     for (const userId of userIds) {
       const subs = allSubs.filter((s) => s.user_id === userId)
-
-      // Get user timezone from their settings
-      let tz = 'Europe/Warsaw'
-      try {
-        const [s] = await db.select().from(settings)
-          .where(and(eq(settings.user_id, userId), eq(settings.key, 'app')))
-        if (s) {
-          const v = JSON.parse(s.value) as { timezone?: string }
-          if (v.timezone) tz = v.timezone
-        }
-      } catch { /* use default */ }
+      const cfg = await getSettings(env, userId)
+      const tz = cfg.timezone || 'Europe/Warsaw'
 
       const now = new Date()
       const parts = new Intl.DateTimeFormat('en-GB', {
@@ -144,6 +175,16 @@ export default {
       const dow = wdMap[pget('weekday')] ?? now.getUTCDay()
       const todayKey = `${pget('year')}-${pget('month')}-${pget('day')}`
 
+      // Two gates decide whether the phone buzzes at all. Nothing is marked as
+      // fired while a gate holds, so a due item just waits for the next batch
+      // instead of being lost.
+      if (inQuietHours(nowMin, cfg.quiet_hours_start, cfg.quiet_hours_end)) continue
+      const intervalMin = Math.max(0, cfg.notify_interval_min ?? DEFAULT_SETTINGS.notify_interval_min)
+      const lastBatchAt = await readLastBatchAt(db, userId)
+      if (intervalMin > 0 && lastBatchAt && (nowUnix - lastBatchAt) / 60 < intervalMin) continue
+
+      const batch: BatchItem[] = []
+
       const allReminders = await db.select().from(reminders).where(eq(reminders.user_id, userId))
       for (const reminder of allReminders) {
         if (!reminder.enabled) continue
@@ -151,32 +192,40 @@ export default {
         if (!days.includes(dow)) continue
 
         const [rh, rm] = reminder.time.split(':').map(Number)
-        const remMin = rh * 60 + rm
-        const diff = nowMin - remMin
-        if (diff < 0 || diff >= 15) continue
+        // No upper bound on how late it may fire: a reminder held back by the
+        // batch window still belongs in the next batch, not in the bin.
+        if (nowMin < rh * 60 + rm) continue
 
         if (reminder.last_fired_at) {
-          const firedKey = new Intl.DateTimeFormat('en-CA', {
-            timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
-          }).format(new Date(reminder.last_fired_at * 1000))
+          const firedKey = localDateKey(tz, new Date(reminder.last_fired_at * 1000))
           if (firedKey === todayKey) continue
         }
 
-        await notify(env, userId, subs, {
-          title: reminder.label,
-          body: reminder.type === 'water' ? 'Pamiętaj o wypiciu wody 💧'
-            : reminder.type === 'supplement' ? 'Czas na suplementy 💊'
-            : reminder.type === 'cook' ? 'Czas gotować 🍲'
-            : reminder.type === 'prep' ? 'Przygotuj jedzenie na jutro 🥘'
-            : 'Przypomnienie 🌈',
-          url: '/',
+        const isWater = reminder.type === 'water'
+        batch.push({
+          payload: {
+            title: reminder.label,
+            body: isWater ? 'Pamiętaj o wypiciu wody 💧'
+              : reminder.type === 'supplement' ? 'Czas na suplementy 💊'
+              : reminder.type === 'cook' ? 'Czas gotować 🍲'
+              : reminder.type === 'prep' ? 'Przygotuj jedzenie na jutro 🥘'
+              : 'Przypomnienie 🌈',
+            url: '/',
+            tag: `rem-${reminder.id}`,
+            actions: isWater
+              ? [{ action: 'done', title: '💧 +1 szklanka' }]
+              : [{ action: 'read', title: '✓ OK' }],
+            act: isWater ? { kind: 'water', id: 0 } : undefined,
+          },
+          commit: async () => {
+            await db.update(reminders).set({ last_fired_at: nowUnix }).where(eq(reminders.id, reminder.id))
+          },
         })
-        await db.update(reminders).set({ last_fired_at: Math.floor(Date.now() / 1000) })
-          .where(eq(reminders.id, reminder.id))
       }
 
-      const NAG_MIN = 30
-      const nowUnix = Math.floor(Date.now() / 1000)
+      // Per-item nag floors still apply, but never tighter than the batch
+      // window — that window is the user's stated tolerance.
+      const supNag = Math.max(30, intervalMin)
       const logDateKey = new Date().toISOString().slice(0, 10)
       const allSupps = await db.select().from(supplements).where(eq(supplements.user_id, userId))
       for (const sup of allSupps) {
@@ -196,17 +245,23 @@ export default {
           .where(and(eq(supplement_log.supplement_id, sup.id), eq(supplement_log.date, logDateKey)))
         if (takenRows.length >= dueByNow) continue
 
-        if (sup.last_notified_at && (nowUnix - sup.last_notified_at) / 60 < NAG_MIN) continue
+        if (sup.last_notified_at && (nowUnix - sup.last_notified_at) / 60 < supNag) continue
 
-        await notify(env, userId, subs, {
-          title: sup.name,
-          body: sup.kind === 'medication'
-            ? 'Czas na lek 💊 — kliknij „Przyjmij", gdy weźmiesz'
-            : 'Czas na suplement 💊 — kliknij „Przyjmij", gdy weźmiesz',
-          url: '/supplements',
-          tag: `sup-${sup.id}`,
+        batch.push({
+          payload: {
+            title: sup.name,
+            body: sup.kind === 'medication'
+              ? 'Czas na lek 💊 — potwierdź przyciskiem poniżej'
+              : 'Czas na suplement 💊 — potwierdź przyciskiem poniżej',
+            url: '/supplements',
+            tag: `sup-${sup.id}`,
+            actions: [{ action: 'done', title: '💊 Przyjąłem' }],
+            act: { kind: 'supplement', id: sup.id },
+          },
+          commit: async () => {
+            await db.update(supplements).set({ last_notified_at: nowUnix }).where(eq(supplements.id, sup.id))
+          },
         })
-        await db.update(supplements).set({ last_notified_at: nowUnix }).where(eq(supplements.id, sup.id))
       }
 
       const allHabits = await db.select().from(habits).where(eq(habits.user_id, userId))
@@ -237,14 +292,23 @@ export default {
         }
         const body = st.streak > 0
           ? `Już ${st.streak} ${st.streak === 1 ? 'dzień' : 'dni'} 🔥 — czy dziś też się udało?`
-          : 'Czy dziś się udało? Kliknij, aby odpowiedzieć.'
-        await notify(env, userId, subs, {
-          title: h.name,
-          body,
-          url: '/habits',
-          tag: `habit-${h.id}`,
+          : 'Czy dziś się udało? Odpowiedz przyciskiem poniżej.'
+        batch.push({
+          payload: {
+            title: h.name,
+            body,
+            url: '/habits',
+            tag: `habit-${h.id}`,
+            actions: [
+              { action: 'yes', title: '✅ Tak' },
+              { action: 'no', title: '❌ Nie' },
+            ],
+            act: { kind: 'habit', id: h.id },
+          },
+          commit: async () => {
+            await db.update(habits).set({ prompted: true }).where(eq(habits.id, h.id))
+          },
         })
-        await db.update(habits).set({ prompted: true }).where(eq(habits.id, h.id))
       }
 
       const choreCtx = { tz, todayKey, dow, nowMin }
@@ -253,15 +317,43 @@ export default {
         if (!ch.active) continue
         const { due } = choreDue(ch, choreCtx)
         if (!due) continue
-        if (ch.last_notified_at && (nowUnix - ch.last_notified_at) / 60 < ch.nag_minutes) continue
-        await notify(env, userId, subs, {
-          title: ch.name,
-          body: 'Czas na to zadanie ✅ — kliknij „Zrobione", gdy skończysz',
-          url: '/chores',
-          tag: `chore-${ch.id}`,
+        const choreNag = Math.max(ch.nag_minutes, intervalMin)
+        if (ch.last_notified_at && (nowUnix - ch.last_notified_at) / 60 < choreNag) continue
+        batch.push({
+          payload: {
+            title: ch.name,
+            body: 'Czas na to zadanie ✅ — potwierdź przyciskiem poniżej',
+            url: '/chores',
+            tag: `chore-${ch.id}`,
+            actions: [{ action: 'done', title: '✅ Zrobione' }],
+            act: { kind: 'chore', id: ch.id },
+          },
+          commit: async () => {
+            await db.update(chores).set({ last_notified_at: nowUnix }).where(eq(chores.id, ch.id))
+          },
         })
-        await db.update(chores).set({ last_notified_at: nowUnix }).where(eq(chores.id, ch.id))
       }
+
+      if (batch.length === 0) continue
+
+      // Cap the burst: what does not fit stays uncommitted, so it leads the
+      // next batch instead of burying the phone under a wall of cards.
+      const sending = batch.slice(0, MAX_PER_BATCH)
+      for (const item of sending) {
+        await notify(env, userId, subs, item.payload)
+        await item.commit()
+      }
+      const overflow = batch.length - sending.length
+      if (overflow > 0) {
+        await notify(env, userId, subs, {
+          title: `…i jeszcze ${overflow}`,
+          body: 'Otwórz aplikację, żeby zobaczyć resztę 🌈',
+          url: '/',
+          tag: 'mbl-overflow',
+          actions: [{ action: 'read', title: '✓ OK' }],
+        })
+      }
+      await writeLastBatchAt(db, userId, nowUnix)
     }
   },
 } satisfies ExportedHandler<Env>

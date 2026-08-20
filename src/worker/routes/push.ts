@@ -1,10 +1,35 @@
 import { Hono } from 'hono'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, isNull } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, push_subscriptions, reminders, notifications } from '../db/index'
+import {
+  getDb, push_subscriptions, reminders, notifications,
+  chores, supplements, supplement_log, habits, habit_checkins, water_log,
+} from '../db/index'
+import { localDateKey, appTimezone } from './habits'
 import type { AppEnv, Env } from '../types'
 
 type PushSub = { endpoint: string; p256dh: string; auth: string }
+
+/** A button rendered inside the notification itself (Android/Chrome, desktop). */
+export type PushAction = { action: string; title: string }
+
+/**
+ * What an action button acts on. The service worker never calls a domain
+ * endpoint directly — it posts this back to /api/push/action, so the mutation
+ * (and the auth check behind it) stays server-side.
+ */
+export type PushActTarget = { kind: 'chore' | 'supplement' | 'habit' | 'water'; id: number }
+
+export interface PushPayload {
+  title: string
+  body: string
+  url?: string
+  tag?: string
+  actions?: PushAction[]
+  act?: PushActTarget
+  /** notifications-feed row id — filled in by notify() so an action can mark it read. */
+  nid?: number
+}
 
 const app = new Hono<AppEnv>()
 
@@ -51,7 +76,12 @@ app.post('/test', async (c) => {
   const subs = await db.select().from(push_subscriptions).where(eq(push_subscriptions.user_id, userId))
   if (subs.length === 0) return c.json({ error: 'No subscriptions' }, 400)
 
-  const payload = { title: 'Matka Boska 🌈', body: 'Powiadomienia działają! 🙏', url: '/' }
+  const payload: PushPayload = {
+    title: 'Matka Boska 🌈',
+    body: 'Powiadomienia działają! 🙏 Sprawdź przycisk poniżej.',
+    url: '/',
+    actions: [{ action: 'read', title: '✓ Przeczytane' }],
+  }
   await db.insert(notifications).values({ user_id: userId, title: payload.title, body: payload.body, url: payload.url, read_at: null }).catch(() => {})
   const results = await Promise.allSettled(
     subs.map(sub => sendPushNotification(c.env, sub.endpoint, sub.p256dh, sub.auth, payload))
@@ -123,6 +153,85 @@ app.delete('/reminders/:id', async (c) => {
   return c.json({ ok: true })
 })
 
+// POST /api/push/action — tapped an action button inside a notification.
+// The service worker posts here instead of calling the domain endpoint itself:
+// one code path, and the tenant check happens where it always does.
+app.post('/action', async (c) => {
+  const userId = c.var.userId
+  const parsed = z.object({
+    action: z.enum(['done', 'yes', 'no', 'read']),
+    kind: z.enum(['chore', 'supplement', 'habit', 'water']).optional(),
+    id: z.number().int().optional(),
+    nid: z.number().int().optional(),
+  }).safeParse(await c.req.json().catch(() => ({})))
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
+
+  const { action, kind, id, nid } = parsed.data
+  const db = getDb(c.env.DB)
+  const nowUnix = Math.floor(Date.now() / 1000)
+
+  // Mark the matching feed entry read no matter which action ran — tapping a
+  // button is an answer, so the bell should not keep nagging about it.
+  const markRead = async () => {
+    if (nid == null) return
+    await db.update(notifications).set({ read_at: nowUnix })
+      .where(and(eq(notifications.id, nid), eq(notifications.user_id, userId), isNull(notifications.read_at)))
+      .catch(() => {})
+  }
+
+  if (action === 'read' || !kind || id == null) {
+    await markRead()
+    return c.json({ ok: true, done: 'read' })
+  }
+
+  // Supplements and water are keyed by UTC date everywhere else in the app
+  // (client `todayDate()`, /api/supplements/:id/log), habits by the user's
+  // local date. Follow each one so an action never lands on a different day
+  // than the same tap made inside the app.
+  const utcKey = new Date().toISOString().slice(0, 10)
+
+  if (kind === 'chore') {
+    const [row] = await db.update(chores)
+      .set({ last_done_at: nowUnix, last_notified_at: null })
+      .where(and(eq(chores.id, id), eq(chores.user_id, userId)))
+      .returning({ id: chores.id })
+    if (!row) return c.json({ error: 'Not found' }, 404)
+    await markRead()
+    return c.json({ ok: true, done: 'chore' })
+  }
+
+  if (kind === 'supplement') {
+    const [sup] = await db.select({ id: supplements.id }).from(supplements)
+      .where(and(eq(supplements.id, id), eq(supplements.user_id, userId)))
+    if (!sup) return c.json({ error: 'Not found' }, 404)
+    await db.insert(supplement_log).values({ supplement_id: id, date: utcKey })
+    await markRead()
+    return c.json({ ok: true, done: 'supplement' })
+  }
+
+  if (kind === 'habit') {
+    const [h] = await db.select({ id: habits.id }).from(habits)
+      .where(and(eq(habits.id, id), eq(habits.user_id, userId)))
+    if (!h) return c.json({ error: 'Not found' }, 404)
+    const success = action !== 'no'
+    const habitKey = localDateKey(await appTimezone(db, userId))
+    await db.insert(habit_checkins).values({ habit_id: id, date: habitKey, success })
+      .onConflictDoUpdate({ target: [habit_checkins.habit_id, habit_checkins.date], set: { success } })
+    await markRead()
+    return c.json({ ok: true, done: 'habit' })
+  }
+
+  // Water: the notification carries no row id of its own — one tap = one glass.
+  const [existing] = await db.select().from(water_log)
+    .where(and(eq(water_log.user_id, userId), eq(water_log.date, utcKey)))
+  const glasses = (existing?.glasses ?? 0) + 1
+  await db.insert(water_log)
+    .values({ user_id: userId, date: utcKey, glasses, target_glasses: existing?.target_glasses ?? 8 })
+    .onConflictDoUpdate({ target: [water_log.user_id, water_log.date], set: { glasses } })
+  await markRead()
+  return c.json({ ok: true, done: 'water', glasses })
+})
+
 // ── VAPID web push: RFC 8291 (aes128gcm) + RFC 8292 (VAPID JWT, ES256) ────────
 
 export async function sendPushNotification(
@@ -130,7 +239,7 @@ export async function sendPushNotification(
   endpoint: string,
   p256dh: string,
   auth: string,
-  payload: { title: string; body: string; url?: string; tag?: string },
+  payload: PushPayload,
 ) {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) throw new Error('VAPID not configured')
 
@@ -162,7 +271,7 @@ export async function notify(
   env: Env,
   userId: string,
   subs: PushSub[],
-  payload: { title: string; body: string; url?: string; tag?: string },
+  payload: PushPayload,
 ) {
   try {
     await getDb(env.DB).insert(notifications).values({

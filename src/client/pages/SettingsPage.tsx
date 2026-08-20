@@ -8,6 +8,13 @@ import { useTheme } from '../lib/theme'
 import { BUILD_SHA, BUILT_AT } from '../../shared/build-info'
 import { forceAppUpdate } from '../hooks/usePwaUpdate'
 import pl from '../i18n/pl'
+import { NOTIFY_INTERVAL_CHOICES } from '../../shared/types'
+
+const intervalLabel = (min: number) =>
+  min === 0 ? pl.settings.notifyIntervalOff
+    : min < 60 ? `${min} min`
+    : min % 60 === 0 ? `${min / 60} h`
+    : `${Math.floor(min / 60)} h ${min % 60} min`
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
@@ -183,6 +190,9 @@ export default function SettingsPage() {
   const [proteinTarget, setProteinTarget] = useState(settings?.protein_g_target ?? 150)
   const [ironTarget, setIronTarget] = useState(settings?.iron_mg_target ?? 27)
   const [waterTarget, setWaterTarget] = useState(settings?.water_glasses_target ?? 8)
+  const [notifyInterval, setNotifyInterval] = useState(settings?.notify_interval_min ?? 180)
+  const [quietStart, setQuietStart] = useState(settings?.quiet_hours_start ?? '22:00')
+  const [quietEnd, setQuietEnd] = useState(settings?.quiet_hours_end ?? '07:00')
 
   useEffect(() => {
     if (settings) {
@@ -190,8 +200,18 @@ export default function SettingsPage() {
       setProteinTarget(settings.protein_g_target)
       setIronTarget(settings.iron_mg_target ?? 27)
       setWaterTarget(settings.water_glasses_target)
+      setNotifyInterval(settings.notify_interval_min ?? 180)
+      setQuietStart(settings.quiet_hours_start ?? '22:00')
+      setQuietEnd(settings.quiet_hours_end ?? '07:00')
     }
   }, [settings])
+
+  // The notification controls save on change — they sit in their own section,
+  // away from the targets form and its save button.
+  const notifyMutation = useMutation({
+    mutationFn: (patch: Parameters<typeof settingsApi.update>[0]) => settingsApi.update(patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
+  })
 
   const saveMutation = useMutation({
     mutationFn: () => settingsApi.update({
@@ -393,6 +413,61 @@ export default function SettingsPage() {
                   : pl.settings.testError}
               </p>
             )}
+
+            <div className="mt-4 space-y-4 border-t border-gray-100 pt-4 dark:border-gray-700">
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {pl.settings.notifyInterval}
+                  </label>
+                  <select
+                    value={notifyInterval}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      setNotifyInterval(v)
+                      notifyMutation.mutate({ notify_interval_min: v })
+                    }}
+                    className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  >
+                    {NOTIFY_INTERVAL_CHOICES.map((min) => (
+                      <option key={min} value={min}>{intervalLabel(min)}</option>
+                    ))}
+                  </select>
+                </div>
+                <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">{pl.settings.notifyIntervalHint}</p>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {pl.settings.quietHours}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">{pl.settings.quietFrom}</span>
+                    <input
+                      type="time"
+                      value={quietStart}
+                      onChange={(e) => {
+                        setQuietStart(e.target.value)
+                        notifyMutation.mutate({ quiet_hours_start: e.target.value })
+                      }}
+                      className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                    />
+                    <span className="text-xs text-gray-400">{pl.settings.quietTo}</span>
+                    <input
+                      type="time"
+                      value={quietEnd}
+                      onChange={(e) => {
+                        setQuietEnd(e.target.value)
+                        notifyMutation.mutate({ quiet_hours_end: e.target.value })
+                      }}
+                      className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                    />
+                  </div>
+                </div>
+                <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">{pl.settings.quietHoursHint}</p>
+              </div>
+            </div>
           </div>
         </section>
 

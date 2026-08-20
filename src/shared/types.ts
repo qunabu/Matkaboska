@@ -319,6 +319,11 @@ export interface AppSettings {
   timezone: string
   quiet_hours_start: string | null  // HH:MM
   quiet_hours_end: string | null
+  // Minimum gap between notification batches, in minutes. The cron still runs
+  // every 15 min, but a user only gets pushed once per window: everything that
+  // came due in the meantime arrives together, each item as its own actionable
+  // notification. 0 = no throttle (every tick may push).
+  notify_interval_min: number
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -331,7 +336,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   timezone: 'Europe/Warsaw',
   quiet_hours_start: '22:00',
   quiet_hours_end: '07:00',
+  notify_interval_min: 180,
 }
+
+/** Options offered in Settings for the notification batch window. */
+export const NOTIFY_INTERVAL_CHOICES = [0, 30, 60, 120, 180, 240, 360] as const
 
 export interface ApiList<T> { items: T[]; total: number }
 export interface ApiOk { ok: true }
