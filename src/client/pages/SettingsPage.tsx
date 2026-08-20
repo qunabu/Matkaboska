@@ -9,6 +9,7 @@ import { BUILD_SHA, BUILT_AT } from '../../shared/build-info'
 import { forceAppUpdate } from '../hooks/usePwaUpdate'
 import pl from '../i18n/pl'
 import { NOTIFY_INTERVAL_CHOICES } from '../../shared/types'
+import { syncPushSubscription } from '../lib/push'
 
 const intervalLabel = (min: number) =>
   min === 0 ? pl.settings.notifyIntervalOff
@@ -160,6 +161,7 @@ export default function SettingsPage() {
   const [notifState, setNotifState] = useState<'default' | 'granted' | 'denied'>('default')
   const [vapidKey, setVapidKey] = useState<string | null>(null)
   const [testMsg, setTestMsg] = useState<'sent' | 'denied' | 'error' | 'unsupported' | null>(null)
+  const [resyncMsg, setResyncMsg] = useState<'ok' | 'error' | null>(null)
   const [moduleSettings, setModuleSettings] = useState(getModuleSettings)
   const { theme, toggle: toggleTheme } = useTheme()
   const [sound, setSound] = useState(soundEnabled)
@@ -184,6 +186,12 @@ export default function SettingsPage() {
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
     queryFn: () => settingsApi.get(),
+  })
+
+  const { data: pushStatus, refetch: refetchStatus } = useQuery({
+    queryKey: ['push-status'],
+    queryFn: () => pushApi.status(),
+    staleTime: 0,
   })
 
   const [kcalTarget, setKcalTarget] = useState(settings?.kcal_target ?? 2300)
@@ -227,25 +235,12 @@ export default function SettingsPage() {
     },
   })
 
-  async function ensureSubscription(pubKey: string) {
-    if (!('serviceWorker' in navigator)) return
-    const reg = await navigator.serviceWorker.ready
-    let sub = await reg.pushManager.getSubscription()
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(pubKey).buffer as ArrayBuffer,
-      })
-    }
-    await pushApi.subscribe(sub.toJSON() as PushSubscriptionJSON)
-  }
-
-  // Register a push subscription automatically once permission is granted and
-  // the server VAPID public key is known.
+  // Register automatically once permission is granted, then show what the
+  // server actually holds — an empty device list is the whole explanation when
+  // notifications go quiet.
   useEffect(() => {
-    if (notifState === 'granted' && vapidKey) {
-      ensureSubscription(vapidKey).catch((err) => console.error('Auto-subscribe failed', err))
-    }
+    if (notifState !== 'granted') return
+    syncPushSubscription().then(() => refetchStatus())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifState, vapidKey])
 
@@ -254,13 +249,9 @@ export default function SettingsPage() {
 
     const perm = await Notification.requestPermission()
     setNotifState(perm as typeof notifState)
-    if (perm !== 'granted' || !vapidKey) return
-
-    try {
-      await ensureSubscription(vapidKey)
-    } catch (err) {
-      console.error('Push subscribe failed', err)
-    }
+    if (perm !== 'granted') return
+    await syncPushSubscription()
+    refetchStatus()
   }
 
   async function sendTestNotification() {
@@ -414,6 +405,39 @@ export default function SettingsPage() {
               </p>
             )}
 
+            <div className="mt-4 space-y-2 border-t border-gray-100 pt-4 text-xs dark:border-gray-700">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-gray-500 dark:text-gray-400">
+                  {pl.settings.pushDevices}: <strong className="text-gray-700 dark:text-gray-200">{pushStatus?.devices ?? '–'}</strong>
+                </span>
+                <button
+                  onClick={async () => {
+                    setResyncMsg(null)
+                    const r = await syncPushSubscription()
+                    await refetchStatus()
+                    setResyncMsg(r === 'ok' ? 'ok' : 'error')
+                  }}
+                  className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"
+                >
+                  {pl.settings.pushRefresh}
+                </button>
+              </div>
+              <p className="text-gray-500 dark:text-gray-400">
+                {pl.settings.pushLastBatch}:{' '}
+                {pushStatus?.lastBatchAt
+                  ? new Date(pushStatus.lastBatchAt * 1000).toLocaleString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                  : pl.settings.pushNever}
+              </p>
+              {notifState === 'granted' && pushStatus && pushStatus.devices === 0 && (
+                <p className="text-red-500">{pl.settings.pushDevicesNone}</p>
+              )}
+              {resyncMsg && (
+                <p className={resyncMsg === 'ok' ? 'text-green-600 dark:text-green-400' : 'text-red-500'}>
+                  {resyncMsg === 'ok' ? pl.settings.pushRefreshed : pl.settings.pushRefreshFailed}
+                </p>
+              )}
+            </div>
+
             <div className="mt-4 space-y-4 border-t border-gray-100 pt-4 dark:border-gray-700">
               <div>
                 <div className="flex items-center justify-between gap-3">
@@ -560,9 +584,3 @@ export default function SettingsPage() {
   )
 }
 
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
-  const raw = atob(base64)
-  return Uint8Array.from(raw, c => c.charCodeAt(0))
-}

@@ -97,3 +97,40 @@ async function openApp(url) {
   }
   if (self.clients.openWindow) return self.clients.openWindow(url)
 }
+
+// The browser may retire a subscription on its own (site data cleared, quota
+// pressure, key rotation). Without this handler the app just goes quiet until
+// someone re-enables notifications by hand.
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(resubscribe())
+})
+
+async function resubscribe() {
+  try {
+    const res = await fetch('/api/version', { cache: 'no-store' })
+    if (!res.ok) return
+    const { vapidPublicKey } = await res.json()
+    if (!vapidPublicKey) return
+    const sub = await self.registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: base64UrlToBytes(vapidPublicKey),
+    })
+    const json = sub.toJSON()
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys, userAgent: 'service-worker' }),
+    })
+  } catch (e) {
+    // Nothing to do from here — the app re-syncs on next start.
+  }
+}
+
+function base64UrlToBytes(b64) {
+  const padded = (b64 + '='.repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = atob(padded)
+  const out = new Uint8Array(raw.length)
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i)
+  return out
+}

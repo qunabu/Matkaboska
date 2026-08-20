@@ -2,13 +2,18 @@ import { Hono } from 'hono'
 import { eq, and, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import {
-  getDb, push_subscriptions, reminders, notifications,
+  getDb, push_subscriptions, reminders, notifications, settings,
   chores, supplements, supplement_log, habits, habit_checkins, water_log,
 } from '../db/index'
 import { localDateKey, appTimezone } from './habits'
 import type { AppEnv, Env } from '../types'
 
 type PushSub = { endpoint: string; p256dh: string; auth: string }
+
+/** A rejected push, with the status the push service returned. */
+export class PushError extends Error {
+  constructor(message: string, readonly status: number) { super(message) }
+}
 
 /** A button rendered inside the notification itself (Android/Chrome, desktop). */
 export type PushAction = { action: string; title: string }
@@ -83,12 +88,31 @@ app.post('/test', async (c) => {
     actions: [{ action: 'read', title: '✓ Przeczytane' }],
   }
   await db.insert(notifications).values({ user_id: userId, title: payload.title, body: payload.body, url: payload.url, read_at: null }).catch(() => {})
-  const results = await Promise.allSettled(
-    subs.map(sub => sendPushNotification(c.env, sub.endpoint, sub.p256dh, sub.auth, payload))
-  )
-  const sent = results.filter(r => r.status === 'fulfilled').length
-  const errors = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected').map(r => String(r.reason))
-  return c.json({ sent, total: subs.length, errors })
+  const { sent, dropped, errors } = await deliver(c.env, userId, subs, payload)
+  return c.json({ sent, total: subs.length, dropped, errors })
+})
+
+// GET /api/push/status — what the server actually holds for this account.
+// Zero devices is the usual reason "push stopped working" with no error anywhere.
+app.get('/status', async (c) => {
+  const userId = c.var.userId
+  const db = getDb(c.env.DB)
+  const subs = await db.select().from(push_subscriptions).where(eq(push_subscriptions.user_id, userId))
+  let lastBatchAt: number | null = null
+  try {
+    const [row] = await db.select().from(settings)
+      .where(and(eq(settings.user_id, userId), eq(settings.key, 'push_state')))
+    if (row) {
+      const v = JSON.parse(row.value) as { last_batch_at?: number }
+      lastBatchAt = typeof v.last_batch_at === 'number' ? v.last_batch_at : null
+    }
+  } catch { /* no state yet */ }
+  return c.json({
+    configured: Boolean(c.env.VAPID_PRIVATE_KEY),
+    devices: subs.length,
+    lastBatchAt,
+    subscriptions: subs.map((s) => ({ id: s.id, userAgent: s.user_agent, createdAt: s.created_at })),
+  })
 })
 
 // GET /api/reminders
@@ -260,7 +284,7 @@ export async function sendPushNotification(
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new Error(`Push ${res.status} ${text}`.trim())
+    throw new PushError(`Push ${res.status} ${text}`.trim(), res.status)
   }
 }
 
@@ -273,18 +297,52 @@ export async function notify(
   subs: PushSub[],
   payload: PushPayload,
 ) {
+  let nid: number | undefined
   try {
-    await getDb(env.DB).insert(notifications).values({
+    const [row] = await getDb(env.DB).insert(notifications).values({
       user_id: userId,
       title: payload.title,
       body: payload.body,
       url: payload.url ?? null,
       read_at: null,
-    })
+    }).returning({ id: notifications.id })
+    nid = row?.id
   } catch { /* feed insert is non-critical */ }
-  await Promise.allSettled(
+  await deliver(env, userId, subs, nid ? { ...payload, nid } : payload)
+}
+
+/**
+ * Push to every subscription and drop the ones the push service says are gone.
+ * A 404/410 means the browser threw the subscription away (rotated it, cleared
+ * site data, reinstalled the PWA) — keeping the row would make every later
+ * batch fail silently, which is exactly how push "turns itself off".
+ */
+export async function deliver(
+  env: Env,
+  userId: string,
+  subs: PushSub[],
+  payload: PushPayload,
+): Promise<{ sent: number; dropped: number; errors: string[] }> {
+  const results = await Promise.allSettled(
     subs.map((s) => sendPushNotification(env, s.endpoint, s.p256dh, s.auth, payload)),
   )
+  const dead: string[] = []
+  const errors: string[] = []
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') return
+    const err = r.reason
+    errors.push(String(err))
+    if (err instanceof PushError && (err.status === 404 || err.status === 410)) dead.push(subs[i].endpoint)
+  })
+  if (dead.length > 0) {
+    const db = getDb(env.DB)
+    for (const endpoint of dead) {
+      await db.delete(push_subscriptions)
+        .where(and(eq(push_subscriptions.user_id, userId), eq(push_subscriptions.endpoint, endpoint)))
+        .catch(() => {})
+    }
+  }
+  return { sent: results.filter((r) => r.status === 'fulfilled').length, dropped: dead.length, errors }
 }
 
 async function buildVapidJwt(audience: string, subject: string, publicKey: string, privateKey: string): Promise<string> {

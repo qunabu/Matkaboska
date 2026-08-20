@@ -9,6 +9,7 @@ import OnboardingPage from './pages/OnboardingPage'
 import NotificationBell from './components/NotificationBell'
 import WeekPrintView from './components/WeekPrintView'
 import { useTheme } from './lib/theme'
+import { syncPushSubscription } from './lib/push'
 import pl from './i18n/pl'
 import { BUILD_VERSION } from '../shared/build-info'
 
@@ -260,6 +261,16 @@ function AppShell() {
     await installEvt.userChoice.catch(() => {})
     setInstallEvt(null)
   }
+
+  // Re-register the push subscription on every start. Browsers drop or rotate
+  // subscriptions on their own (site data cleared, PWA reinstalled, long idle),
+  // and until now only opening Settings put it back — which is why push could
+  // go quiet with nothing to see anywhere.
+  useEffect(() => {
+    syncPushSubscription().then((r) => {
+      if (r === 'error') console.warn('Push re-subscribe failed')
+    })
+  }, [])
 
   useEffect(() => {
     async function check() {

@@ -2,6 +2,7 @@ import type {
   Recipe, RecipeWithNotes, MealPlanEntry, MealPlanEntryFull, FoodLogEntry, DailySummary,
   WaterLog, SupplementWithStatus, SupplementLog, ShoppingList, ShoppingItem,
   Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote, PantryItem, Habit, Chore,
+  PushStatus,
   FoodSuggestion, FoodLogAverages,
 } from '../../shared/types'
 
@@ -298,6 +299,7 @@ export const pushApi = {
     }) }),
   unsubscribe: (endpoint: string) => req<ApiOk>('/push/unsubscribe', { method: 'DELETE', body: JSON.stringify({ endpoint }) }),
   test: () => req('/push/test', { method: 'POST' }),
+  status: () => req<PushStatus>('/push/status'),
 }
 
 // ── Auth (CF Access / Google) ────────────────────────────────────────────────

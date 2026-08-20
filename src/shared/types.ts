@@ -342,6 +342,14 @@ export const DEFAULT_SETTINGS: AppSettings = {
 /** Options offered in Settings for the notification batch window. */
 export const NOTIFY_INTERVAL_CHOICES = [0, 30, 60, 120, 180, 240, 360] as const
 
+/** What the server holds for push on this account — see GET /api/push/status. */
+export interface PushStatus {
+  configured: boolean
+  devices: number
+  lastBatchAt: number | null
+  subscriptions: { id: number; userAgent: string | null; createdAt: number }[]
+}
+
 export interface ApiList<T> { items: T[]; total: number }
 export interface ApiOk { ok: true }
 export interface ApiError { error: string }
