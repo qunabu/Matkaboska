@@ -664,6 +664,9 @@ export async function payoutDefaults(s: Store) {
       GROUP BY month`, [s.userId, cfg.account_tax || ''])
 
   const daily = await needForTarget(s, 'daily')
+  // Średnia bywa wyższa od mediany przez drogie miesiące — tę różnicę dopłacasz
+  // z PKO, więc plan musi ją pokazywać jako odpływ z oszczędności, nie ukrywać.
+  const dailyMean = await needForTarget(s, 'daily', true)
   const hub = await needForTarget(s, 'hub')
   const savingsGoal = await needForTarget(s, 'savings', true)
 
@@ -710,6 +713,7 @@ export async function payoutDefaults(s: Store) {
     household_monthly: round(ing),
     household_adhoc_monthly: round(adhocHousehold),
     mbank_monthly: round(daily),
+    mbank_mean_monthly: round(dailyMean),
     pko_monthly: round(hub),
     travel_goal_monthly: round(savingsGoal),
     company_buffer_target: num(cfg.company_buffer_target, 15000),
@@ -824,7 +828,13 @@ export async function payoutPlan(s: Store, o: {
   // Stan docelowy liczymy od PEŁNEJ prowizji miesięcznej, nie od tegomiesięcznej
   // wpłaty. W miesiącu, w którym subkonto ma nadwyżkę z przeszłości, przelew jest
   // mniejszy i „oszczędności" wyglądają na wyższe, niż wynika z powtarzalnego rytmu.
-  const privateAtProvision = round(gross - provision - keepCompany)
+  // Stan docelowy to zwykły miesiąc: sama faktura, bez jednorazowej premii i przy
+  // pełnej prowizji podatkowej. Inaczej miesiąc z premią wyglądałby jak norma.
+  const steadyVat = invoice * (d.vat_rate / (1 + d.vat_rate))
+  const steadyPit = (invoice - steadyVat) * d.pit_rate_of_net
+  const steadyProvision = round(steadyVat * (1 - inputShare) + steadyPit + d.zus_monthly
+    + d.subkonto_other_monthly + accrualMonthly + resFor('tax'))
+  const privateAtProvision = round(invoice - steadyProvision - keepCompany)
   const savingsSteady = round(privateAtProvision - toIng - toHouseholdAdhoc - toMbank)
 
   const w = completeMonths(await monthlyWaterfall(s))
@@ -842,8 +852,11 @@ export async function payoutPlan(s: Store, o: {
   const plannedSpend = keepCompany + toMbank + pkoSpend + toHouseholdAdhoc + toIng
   // Z salda PKO schodzą jeszcze większe/losowe wydatki i wyjazdy — dopiero po nich
   // widać, o ile oszczędności realnie rosną.
-  const pkoOutflow = round(pkoSpend + avgTravel)
-  const realSavings = round(savingsSteady - pkoSpend)
+  // Z PKO nie płacisz bezpośrednio — zasilasz mBank, gdy w drogim miesiącu
+  // brakuje, i finansujesz wyjazdy. To są jedyne odpływy z oszczędności.
+  const dopłatyDoMbank = round(Math.max(0, (d.mbank_mean_monthly ?? toMbank) - toMbank))
+  const pkoOutflow = round(pkoSpend + dopłatyDoMbank + avgTravel)
+  const realSavings = round(savingsSteady - pkoSpend - dopłatyDoMbank)
 
   return {
     input: {
@@ -852,7 +865,7 @@ export async function payoutPlan(s: Store, o: {
     },
     params: d, reserve: res, reserves: rp,
     subkonto: {
-      total: round(toSubkonto), provision, catch_up: catchUp,
+      total: round(toSubkonto), provision, provision_steady: steadyProvision, catch_up: catchUp,
       lines: [
         { label: 'VAT od tej faktury (po odliczeniu naliczonego)', value: round(vat * (1 - inputShare)) },
         { label: 'PIT-28 (ryczałt)', value: round(pit) },
@@ -867,6 +880,7 @@ export async function payoutPlan(s: Store, o: {
     steady: {
       savings: savingsSteady,
       pko_spend: round(pkoSpend),
+      mbank_topups: dopłatyDoMbank,
       travel_monthly: round(avgTravel),
       pko_outflow: pkoOutflow,
       real_savings: realSavings,

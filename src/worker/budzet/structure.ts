@@ -7,7 +7,7 @@ export type Target = { id: string; name: string }
 
 export const TARGETS: Target[] = [
   { id: 'daily',     name: 'Konto codzienne' },
-  { id: 'hub',       name: 'Konto główne — większe i stałe' },
+  { id: 'daily',       name: 'Konto główne — większe i stałe' },
   { id: 'business',  name: 'Konto firmowe — koszty działalności' },
   { id: 'tax',       name: 'Subkonto — podatki i rezerwy' },
   { id: 'household', name: 'Gospodarstwo domowe' },
@@ -29,15 +29,15 @@ const DEFAULTS: Record<string, string> = {
   zdrowie_leki: 'daily',
 
   // PKO prywatne: większe, planowane, stałe zobowiązania
-  zdrowie_opieka: 'hub',
-  ubrania: 'hub', elektronika: 'hub', edukacja: 'hub',
-  dom_remont: 'hub', dom_wyposazenie: 'hub', dom_media: 'hub',
-  dom_uslugi: 'hub', ubezpieczenia: 'hub',
+  zdrowie_opieka: 'daily',
+  ubrania: 'daily', elektronika: 'daily', edukacja: 'daily',
+  dom_remont: 'daily', dom_wyposazenie: 'daily', dom_media: 'daily',
+  dom_uslugi: 'daily', ubezpieczenia: 'daily',
   // Rachunki stałe i przewidywalne trzymamy razem z podatkami.
   telekom: 'tax',
-  auto_serwis: 'hub', auto_ubezpieczenie: 'hub',
-  darowizny: 'hub', mandaty: 'hub', inne: 'hub',
-  do_sklasyfikowania: 'hub',
+  auto_serwis: 'daily', auto_ubezpieczenie: 'daily',
+  darowizny: 'daily', mandaty: 'daily', inne: 'daily',
+  do_sklasyfikowania: 'daily',
 
   // Firma
   uslugi_firmowe: 'business', ksiegowosc: 'business',
@@ -57,6 +57,8 @@ const DEFAULTS: Record<string, string> = {
 
 export const DEFAULT_TARGETS: Record<string, string> = DEFAULTS
 
+/** Domyślnie wydatek trafia na konto codzienne — PKO nie jest kontem wydatkowym,
+ *  służy wyłącznie do przelewów między własnymi rachunkami i do oszczędzania. */
 export function defaultTargetFor(categoryId: string): string {
-  return DEFAULTS[categoryId] || 'hub'
+  return DEFAULTS[categoryId] || 'daily'
 }

@@ -12,7 +12,7 @@ const PARAMS = [
   ['household_adhoc_monthly', 'Gospodarstwo — przelewy doraźne'],
   ['travel_goal_monthly', 'Cel na wyjazdy / mies.'],
   ['mbank_monthly', 'mBank — codzienne'],
-  ['pko_monthly', 'PKO — wydatki własne'],
+  ['mbank_mean_monthly', 'mBank — średnia rzeczywista'],
 ];
 
 const nextMonth = (m: string) => {
@@ -116,7 +116,7 @@ export default function PlanWyplaty({ months }: any) {
             <Tile label="Docelowo co miesiąc" value={pln(p.steady.savings)}
                   sub="gdy rezerwa podatkowa jest dokładnie opłacona" />
             <Tile label="Średni odpływ z PKO" value={pln(p.steady.pko_outflow)}
-                  sub={`większe wydatki ${pln(p.steady.pko_spend)} + wyjazdy ${pln(p.steady.travel_monthly)}`} />
+                  sub={`dopłaty do mBanku ${pln(p.steady.mbank_topups)} + wyjazdy ${pln(p.steady.travel_monthly)}`} />
             <Tile label="Realny przyrost oszczędności" tone={p.steady.net_accumulation >= 0 ? 'pos' : 'neg'}
                   value={pln(p.steady.net_accumulation)} sub="docelowo, po odjęciu odpływu z PKO" />
           </div>
@@ -214,8 +214,8 @@ export default function PlanWyplaty({ months }: any) {
                 </p>
                 <table><tbody>
                   <tr><td>Zostaje na PKO docelowo / mies.</td><td className="num">{pln2(p.steady.savings)}</td></tr>
-                  <tr><td className="muted" style={{ paddingLeft: 16 }}>większe i losowe wydatki</td>
-                      <td className="num neg">−{pln2(p.steady.pko_spend)}</td></tr>
+                  <tr><td className="muted" style={{ paddingLeft: 16 }}>dopłaty do mBanku w drogich miesiącach</td>
+                      <td className="num neg">−{pln2(p.steady.mbank_topups)}</td></tr>
                   <tr><td className="muted" style={{ paddingLeft: 16 }}>wyjazdy</td>
                       <td className="num neg">−{pln2(p.steady.travel_monthly)}</td></tr>
                   <tr style={{ borderTop: '2px solid var(--border-strong)' }}>
@@ -226,7 +226,7 @@ export default function PlanWyplaty({ months }: any) {
                 {p.steady.net_accumulation < 0 && (
                   <p className="warnc" style={{ fontSize: 12.5, marginBottom: 0 }}>
                     Saldo PKO będzie się kurczyć o {pln(Math.abs(p.steady.net_accumulation))} miesięcznie.
-                    Żeby rosło, wyjazdy musiałyby zejść poniżej {pln(Math.max(0, p.steady.savings - p.steady.pko_spend))}/mies.
+                    Żeby rosło, wyjazdy musiałyby zejść poniżej {pln(Math.max(0, p.steady.savings - p.steady.mbank_topups))}/mies.
                   </p>
                 )}
               </Card>

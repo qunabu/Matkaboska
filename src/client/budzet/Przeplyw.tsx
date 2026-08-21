@@ -45,8 +45,8 @@ export default function Przeplyw({ p }: { p: any }) {
     },
     {
       key: 'hub', title: 'PKO prywatne', amount: p.private.total, color: 'var(--series-1)',
-      covers: ['stąd zasilasz ING i mBank', 'większe i losowe wydatki', 'wakacje'],
-      note: 'hub prywatny',
+      covers: ['tylko przelewy i oszczędności', 'stąd zasilasz ING i mBank', 'nic nie płacisz stąd wprost'],
+      note: 'konto przelotowe i skarbonka',
     },
   ]
 
@@ -57,13 +57,16 @@ export default function Przeplyw({ p }: { p: any }) {
       note: p.private.adhoc > 0 ? `w tym ${pln(p.private.adhoc)} doraźnych` : undefined,
     },
     {
-      key: 'daily', title: 'mBank — codzienne', amount: p.private.mbank, color: 'var(--series-3)',
-      covers: ['jedzenie i zakupy', 'przedszkole i dzieci', 'transport, sport, drobne'],
+      key: 'daily', title: 'mBank — wszystkie wydatki', amount: p.private.mbank, color: 'var(--series-3)',
+      covers: ['jedzenie, zakupy, dzieci', 'zdrowie, ubrania, dom', 'wszystko niefirmowe'],
+      note: p.steady.mbank_topups > 0
+        ? `w drogim miesiącu dopłacasz z PKO, średnio ${pln(p.steady.mbank_topups)}`
+        : undefined,
     },
     {
       key: 'save', title: 'ZOSTAJE NA PKO', amount: p.private.savings, color: 'var(--series-6)',
       covers: ['to są Twoje oszczędności', 'z tego idą wakacje', 'i większe losowe wydatki'],
-      note: `saldo PKO = ile masz odłożone · średnio ${pln(p.steady.pko_outflow)}/mies. z tego schodzi`,
+      note: `saldo PKO = ile masz odłożone · średnio ${pln(p.steady.pko_outflow)}/mies. schodzi na dopłaty i wyjazdy`,
     },
   ]
 
