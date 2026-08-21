@@ -10,18 +10,22 @@ prototypie `~/Desktop/localhost/budzet` — ten jest nieaktualny i służy już 
 za archiwum. Katalog roboczy: `~/Desktop/localhost/Matkaboska`.
 
 Produkcja: https://meal-planner.qunabu.workers.dev/budzet
-Baza: D1 `meal-planner-db`, tabele z prefiksem `budzet_`, `user_id = 'qunabu.com@gmail.com'`.
+Baza: D1 `meal-planner-db`, tabele z prefiksem `budzet_`. Wszystko jest
+scope'owane po `user_id` (adres e-mail konta Google) — ustal go raz na początku:
+`SELECT DISTINCT user_id FROM budzet_transactions` i podstawiaj w kolejnych
+zapytaniach. To repozytorium jest **publiczne**, więc nie wpisuj tu adresów,
+kwot ani innych danych konkretnej osoby.
 
 ## Krok 0 — autoryzacja
 
 ```bash
-export CLOUDFLARE_API_TOKEN=$(cat ~/.config/budzet/cf-token)
+export CLOUDFLARE_API_TOKEN=$(cat "$BUDZET_TOKEN_FILE")   # ścieżkę poda użytkownik
 ```
 
-Trwała sesja OAuth wranglera dotyczy konta handsontable.com i **nie ma dostępu**
-do bazy Qunabu — bez tego tokenu każde zapytanie do D1 zwróci błąd. Jeśli token
-wygasł, poproś użytkownika o odnowienie (instrukcja: `~/.config/budzet/README.md`)
-i nie próbuj obchodzić tego `wrangler login` — nadpisałby profil do pracy z Handsontable.
+Trwała sesja OAuth wranglera może dotyczyć innego konta Cloudflare niż to, które
+jest właścicielem bazy — wtedy każde zapytanie do D1 zwróci błąd mimo „zalogowania".
+Poproś wówczas użytkownika o token API do właściwego konta i **nie ratuj się
+`wrangler login`**: nadpisałby profil używany do innej pracy.
 
 Zapytania uruchamiaj z katalogu Matkaboska:
 `npx wrangler d1 execute meal-planner-db --remote --json --command "…"`
@@ -34,10 +38,10 @@ Zanim policzysz cokolwiek, sprawdź, czy dane nadają się do wnioskowania:
   Wszystkie trzy połączenia powinny mieć świeże `last_sync_at` i pusty `last_error`.
 - **Zgoda bankowa**: jeśli `valid_until` jest bliżej niż 21 dni — powiedz o tym
   na początku raportu, nie na końcu. Po wygaśnięciu pobieranie milknie bez błędu.
-- **Suma kontrolna**: `SELECT COUNT(*), ROUND(SUM(amount),2) FROM budzet_transactions WHERE user_id='qunabu.com@gmail.com'`
+- **Suma kontrolna**: `SELECT COUNT(*), ROUND(SUM(amount),2) FROM budzet_transactions WHERE user_id = ?`
   Porównaj z poprzednim przeglądem. Skok liczby transakcji przy niezmienionym
   zakresie dat = prawdopodobne duplikaty (patrz Pułapki).
-- **Duplikaty**: `SELECT account_id, booked_on, printf('%.2f',amount) k, COUNT(*) n FROM budzet_transactions WHERE user_id='qunabu.com@gmail.com' GROUP BY 1,2,3 HAVING n>1 ORDER BY n DESC LIMIT 10`
+- **Duplikaty**: `SELECT account_id, booked_on, printf('%.2f',amount) k, COUNT(*) n FROM budzet_transactions WHERE user_id = ? GROUP BY 1,2,3 HAVING n>1 ORDER BY n DESC LIMIT 10`
   Uwaga: dwie różne transakcje tej samej kwoty jednego dnia to norma — sprawdź
   `counterparty_norm`, zanim nazwiesz coś duplikatem.
 
@@ -77,15 +81,24 @@ Nie powtarzaj liczb, które się nie zmieniły. Nie proponuj oszczędności poni
 
 ## Model finansowy — nie wyprowadzaj go od nowa
 
-- **Przychód**: kaskada brutto → VAT (23%, przepływowy) → netto → ZUS, PIT-28
-  (ryczałt ~11,2% netto) → koszty firmy → dostępne.
-- **Struktura kont**: subkonto = podatki + biuro + telekom; firmowe = koszty
-  i mini poduszka; **PKO = wyłącznie przelewy i oszczędności, nic się stamtąd
-  nie płaci**; mBank = wszystkie wydatki niefirmowe; ING = sztywne 9 500 zł.
-- **Saldo PKO to stan oszczędności** — to jest definicja, nie szacunek.
+Konkretne kwoty, stawki i terminy są **danymi w bazie, nie w tym pliku** —
+odczytaj je, zamiast zakładać:
+
+- parametry planu → `GET /api/budzet/payout/defaults` oraz tabela `budzet_settings`
+- role rachunków → `budzet_settings` (`account_business`, `account_tax`,
+  `account_daily`, `account_hub`) i tabela `budzet_accounts`
+- przypisanie kategorii do kont → `budzet_category_targets`
+- zobowiązania z terminem i rezerwy → `budzet_accruals`, `budzet_reserves`
+
+Zasady modelu, które nie zmieniają się między miesiącami:
+
+- **Przychód**: kaskada brutto → VAT (przepływowy, nie jest dochodem) → netto →
+  ZUS i PIT-28 → koszty firmy → dostępne.
+- **Konto główne (hub) nie jest kontem wydatkowym** — przyjmuje resztę, zasila
+  pozostałe rachunki i gromadzi oszczędności. **Jego saldo to stan oszczędności**:
+  definicja, nie szacunek.
 - Wyjazdy finansowane są z oszczędności, nie z bieżących wydatków.
-- Zobowiązanie za biuro: 600 zł netto + VAT od 02-2025, zapłata luty 2027,
-  6 rat po 2 952 zł od września 2026.
+- Kwoty stałych przelewów są zobowiązaniami z ustawień, nie medianą z historii.
 - Miesiące brzegowe są niepełne — nigdy nie wchodzą do średnich.
 
 ## Pułapki — sprawdzone, nie powtarzaj
