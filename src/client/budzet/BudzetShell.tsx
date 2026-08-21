@@ -51,6 +51,10 @@ export default function BudzetShell() {
   const accounts = overview?.accounts ?? []
   const unknown = overview?.coverage?.unknown_n ?? 0
   const empty = overview && (overview.months?.length ?? 0) === 0
+  // Zgoda PSD2 wygasa i trzeba ją odnowić ręcznie — po terminie pobieranie
+  // po prostu milknie, więc ostrzegamy z wyprzedzeniem.
+  const expiring = (overview?.bank ?? []).filter((b: any) => b.days_left != null && b.days_left <= 21)
+  const failing = (overview?.bank ?? []).filter((b: any) => b.last_error)
 
   const drill = (m: string) => { setMerchant(m); setTab('transakcje') }
 
@@ -67,6 +71,23 @@ export default function BudzetShell() {
       </div>
 
       {err && <div className="note" style={{ borderLeftColor: 'var(--bad)' }}>Błąd: {err}</div>}
+
+      {expiring.map((b: any) => (
+        <div key={b.id} className="note"
+             style={{ borderLeftColor: b.days_left <= 3 ? 'var(--bad)' : 'var(--warn)' }}>
+          <strong>{b.aspsp_name}</strong>: zgoda bankowa {b.days_left <= 0 ? 'wygasła'
+            : `wygasa za ${b.days_left} ${b.days_left === 1 ? 'dzień' : 'dni'}`} ({String(b.valid_until).slice(0, 10)}).
+          Bez odnowienia transakcje przestaną się pobierać.{' '}
+          <button className="btn" style={{ padding: '3px 10px', marginLeft: 6 }}
+                  onClick={() => setTab('ustawienia')}>Odnów połączenie</button>
+        </div>
+      ))}
+
+      {failing.map((b: any) => (
+        <div key={'e' + b.id} className="note" style={{ borderLeftColor: 'var(--bad)' }}>
+          <strong>{b.aspsp_name}</strong>: ostatnie pobranie nie powiodło się — {String(b.last_error).slice(0, 160)}
+        </div>
+      ))}
 
       {empty && tab !== 'ustawienia' && (
         <div className="note">

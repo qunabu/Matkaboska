@@ -171,9 +171,53 @@ export default {
       } catch { /* brak tabel przed migracją */ }
     }
 
-    if (!env.VAPID_PRIVATE_KEY) return
-
     const db = getDb(env.DB)
+
+    // Budżet: przypomnienie o wygasającej zgodzie bankowej. Bez odnowienia
+    // pobieranie po prostu przestaje działać, a w tabeli połączeń łatwo to
+    // przeoczyć — dlatego push na 14, 7, 3 i 1 dzień przed terminem.
+    if (env.VAPID_PRIVATE_KEY) {
+      try {
+        const rows = await env.DB.prepare(`
+          SELECT id, user_id, aspsp_name, valid_until, expiry_notified_days,
+                 CAST(julianday(valid_until) - julianday('now') AS INTEGER) AS dni
+            FROM budzet_bank_connections
+           WHERE status = 'AUTHORIZED' AND valid_until IS NOT NULL`).all()
+        const PROGI = [14, 7, 3, 1]
+        for (const r of (rows.results ?? []) as {
+          id: number; user_id: string; aspsp_name: string; valid_until: string
+          expiry_notified_days: number | null; dni: number
+        }[]) {
+          // NAJCIAŚNIEJSZY z przekroczonych progów: przy 5 dniach przekroczone są
+          // 14 i 7, więc bierzemy 7. Zwykłe `find` zwracałoby zawsze 14 (bo 3 ≤ 14)
+          // i przypomnienie przyszłoby raz zamiast eskalować.
+          const przekroczone = PROGI.filter((p) => r.dni <= p)
+          if (!przekroczone.length) continue
+          const prog = Math.min(...przekroczone)
+          // Wysyłamy raz na próg; kolejny (mniejszy) próg wyzwoli następne.
+          if (r.expiry_notified_days !== null && r.expiry_notified_days <= prog) continue
+
+          const subs = await db.select().from(push_subscriptions)
+            .where(eq(push_subscriptions.user_id, r.user_id))
+          if (subs.length) {
+            const dni = Math.max(0, r.dni)
+            await notify(env, r.user_id, subs, {
+              title: `Zgoda bankowa wygasa — ${r.aspsp_name}`,
+              body: dni === 0
+                ? 'Wygasa dziś. Bez odnowienia transakcje przestaną się pobierać.'
+                : `Zostało ${dni} ${dni === 1 ? 'dzień' : 'dni'}. Połącz konto ponownie, żeby pobieranie działało dalej.`,
+              url: '/budzet#budzet/ustawienia',
+              tag: `budzet-zgoda-${r.id}`,
+            })
+          }
+          await env.DB.prepare(
+            'UPDATE budzet_bank_connections SET expiry_notified_days = ? WHERE id = ?')
+            .bind(prog, r.id).run()
+        }
+      } catch { /* brak tabel przed migracją */ }
+    }
+
+    if (!env.VAPID_PRIVATE_KEY) return
 
     // Get distinct users who have push subscriptions
     const allSubs = await db.select().from(push_subscriptions)

@@ -56,6 +56,11 @@ app.get('/overview', async (c) => {
     accruals: await A.accruals(s),
     outstanding_accruals: await A.outstandingAccruals(s),
     settings: await getSettings(s),
+    bank: await s.all(
+      `SELECT id, aspsp_name, valid_until, last_sync_at, last_error,
+              CAST(julianday(valid_until) - julianday('now') AS INTEGER) AS days_left
+         FROM budzet_bank_connections
+        WHERE user_id = ? AND status = 'AUTHORIZED' ORDER BY valid_until`, c.var.userId),
   })
 })
 
@@ -409,6 +414,16 @@ app.get('/bank/callback', async (c) => {
       sess.access?.valid_until ?? st.validUntil, new Date().toISOString(),
       st.psu?.ip ?? null, st.psu?.userAgent ?? null)
     const connId = (ins.meta as { last_row_id?: number })?.last_row_id as number
+    // Odnowienie zgody tworzy nowe połączenie — poprzednie dla tego samego banku
+    // musi przestać być aktywne, inaczej pobieranie i przypomnienia dublują się.
+    await s.run(
+      `UPDATE budzet_bank_connections SET status = 'REPLACED'
+        WHERE user_id = ? AND aspsp_name = ? AND aspsp_country = ? AND id <> ? AND status = 'AUTHORIZED'`,
+      c.var.userId, st.aspsp, st.country, connId)
+    await s.run(
+      `DELETE FROM budzet_bank_accounts WHERE user_id = ? AND connection_id IN (
+         SELECT id FROM budzet_bank_connections WHERE user_id = ? AND status = 'REPLACED')`,
+      c.var.userId, c.var.userId)
     await saveSessionAccounts(s, connId, sess.accounts ?? [])
     return back('polaczono')
   } catch (e) {
