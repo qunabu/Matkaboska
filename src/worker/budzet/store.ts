@@ -51,6 +51,10 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   reminder_payout_day: '5',      // faktura zwykle wpływa 3.–7.
   reminder_review_day: '25',     // przegląd przed kwartalnym VAT-em
   reminder_hour: '9',
+  // Udział VAT naliczonego odliczanego od należnego (0–0.5). Domyślnie 0:
+  // przy odkładaniu bezpieczniej odłożyć pełne 23% i mieć nadwyżkę,
+  // niż nie dopłacić do urzędu.
+  vat_input_share: '0',
 }
 
 export async function getSettings(s: Store): Promise<Record<string, string>> {

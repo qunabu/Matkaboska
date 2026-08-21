@@ -639,17 +639,19 @@ async function needForTarget(s: Store, target: string, useMean = false) {
   return w.length ? w.reduce((x, m) => x + (byMonth[m.month] ?? 0), 0) / w.length : 0
 }
 
+/**
+ * Udział VAT naliczonego, o który pomniejszamy prowizję na subkonto.
+ *
+ * NIE wyprowadzamy go z historii: płatności VAT w oknie danych rozliczają
+ * kwartały sprzed tego okna, więc porównanie „należny minus zapłacony" daje
+ * wynik przypadkowy (na realnych danych wychodziło raz 4%, raz −15%).
+ * Domyślnie 0 — przy odkładaniu bezpieczniej mieć nadwyżkę niż niedobór.
+ * Kto zna swój rzeczywisty udział, ustawia go świadomie w ustawieniach.
+ */
 async function inputVatShare(s: Store) {
   const cfg = await getSettings(s)
-  const vatRate = num(cfg.vat_rate, 0.23)
-  const g = await s.first<{ s: number }>(
-    `SELECT COALESCE(SUM(amount),0) s FROM budzet_transactions WHERE user_id = ? AND category_id='przychod_firmowy'`, s.userId)
-  const p = await s.first<{ s: number }>(
-    `SELECT COALESCE(SUM(amount),0) s FROM budzet_transactions WHERE user_id = ? AND category_id='podatek_vat'`, s.userId)
-  const due = (g?.s ?? 0) * (vatRate / (1 + vatRate))
-  const paid = -(p?.s ?? 0)
-  if (due <= 0 || paid <= 0) return 0
-  return Math.min(0.5, Math.max(0, (due - paid) / due))
+  const v = num(cfg.vat_input_share, 0)
+  return Math.min(0.5, Math.max(0, v))
 }
 
 export async function payoutDefaults(s: Store) {

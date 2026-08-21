@@ -90,14 +90,19 @@ export async function importCsv(s: Store, text: string, filename: string) {
  * Deduplikacja jest dwustopniowa, bo ta sama operacja przychodzi z dwóch źródeł
  * pod różnymi identyfikatorami:
  *  1. `dedupe_key` — dokładny klucz źródła (ten sam plik wgrany dwa razy),
- *  2. dopasowanie po koncie, kwocie i nazwie sprzedawcy w OKNIE ±10 dni,
- *     liczone jako wielozbiór.
+ *  2. dopasowanie po koncie i kwocie w OKNIE ±10 dni, liczone jako wielozbiór.
  *
  * Okno jest konieczne, bo banki datują tę samą operację różnie w zależności od
  * kanału: mBank podaje w CSV datę operacji, a w API datę księgowania. Przy
  * płatnościach krajowych różnica to jeden dzień, przy zagranicznych bywa pięć —
  * okno ±4 dni przepuściło 11 duplikatów z wyjazdu. Stąd ±10 dni, ale wtedy samo
  * konto i kwota to za mało, więc dochodzi nazwa sprzedawcy.
+ *
+ * Nazwa sprzedawcy NIE jest warunkiem — ta sama operacja bywa opisana zupełnie
+ * inaczej w każdym kanale („RĘCZNA SPŁATA KARTY" vs „KARTA MASTERCARD ME RĘCZNA
+ * SPŁ", „Booking.com" vs „Hotel at Booking.com"). Wymaganie zgodności nazwy
+ * wpuściło 340 duplikatów. Nazwa służy wyłącznie do wyboru najlepszego kandydata,
+ * gdy pasuje ich kilka.
  *
  * Wielozbiór (każdy istniejący wiersz może „skonsumować" tylko jedną nową
  * operację) sprawia, że dwie prawdziwie identyczne płatności nadal wchodzą obie —
@@ -144,8 +149,16 @@ export async function ingestRows(
     const list = buckets.get(k)
     const day = dayNum(r.booked_on)
     const wanted = [tag(r.counterparty_norm), tag(r.counterparty)].filter(Boolean)
-    const hit = list?.find((x) => !x.used && Math.abs(x.day - day) <= WINDOW_DAYS
-      && (!wanted.length || x.tags.some((t) => t && wanted.includes(t))))
+    // Najbliższa data wygrywa, nazwa rozstrzyga tylko remis. Odwrotna kolejność
+    // (najpierw nazwa) rozrywa pary przy wielu identycznych kwotach w krótkim
+    // czasie — dopasowanie zabiera odległego kandydata, a bliski zostaje bez
+    // partnera i wpada jako „nowy". Tak przeszło 14 duplikatów drobnych biletów.
+    const wolne = (list ?? [])
+      .filter((x) => !x.used && Math.abs(x.day - day) <= WINDOW_DAYS)
+      .sort((a, b) => Math.abs(a.day - day) - Math.abs(b.day - day))
+    const najblizej = wolne.length ? Math.abs(wolne[0]!.day - day) : -1
+    const hit = wolne.find((x) => Math.abs(x.day - day) === najblizej
+      && x.tags.some((t) => t && wanted.includes(t))) ?? wolne[0]
     if (hit) { hit.used = true; dup++; continue }
     fresh.push(r)
     known.add(r.dedupe_key)
@@ -256,10 +269,17 @@ export async function linkInternalTransfers(s: Store) {
   }
   await s.batch(stmts)
 
-  // 4) Sparowane przelewy własne są wewnętrzne.
+  // 4) Sparowane przelewy własne są wewnętrzne — OBIE nogi, nawet jeśli tylko
+  //    jedna została rozpoznana regułą. Druga strona bywa opisana nazwą firmy
+  //    albo w ogóle nierozpoznana; zostawienie jej „na zewnątrz" dawało stan
+  //    niespójny: jedna połowa przelewu wewnętrzna, druga licząca się do wyniku.
   await s.run(
-    `UPDATE budzet_transactions SET is_internal = 1
-      WHERE user_id = ? AND category_id = 'transfer_wlasny' AND transfer_group IS NOT NULL`, s.userId)
+    `UPDATE budzet_transactions SET is_internal = 1, category_id = 'transfer_wlasny'
+      WHERE user_id = ?1 AND transfer_group IS NOT NULL AND category_source <> 'manual'
+        AND transfer_group IN (
+          SELECT transfer_group FROM budzet_transactions
+           WHERE user_id = ?1 AND category_id = 'transfer_wlasny' AND transfer_group IS NOT NULL)`,
+    s.userId)
 
   // 5) Przelew własny bez drugiej nogi pochodzi z rachunku, którego nie
   //    eksportujemy (np. konto gospodarstwa). To realny ruch gotówki.
