@@ -8,6 +8,7 @@ import * as A from '../budzet/analytics'
 import { ebConfig, listAspsps, startAuth, createSession } from '../budzet/enablebanking'
 import { saveSessionAccounts, syncConnections } from '../budzet/bank-sync'
 import { suggestCategories } from '../budzet/classify-ai'
+import { resolveAnthropicKey } from './settings'
 
 const app = new Hono<AppEnv>()
 const store = (c: { env: { DB: unknown }; var: { userId: string } }) =>
@@ -114,7 +115,12 @@ app.get('/review-queue', async (c) => c.json(await A.reviewQueue(store(c))))
  * kategorii bankowych, więc dla danych z API to jedyne wsparcie poza regułami.
  */
 app.post('/ai-suggest', async (c) => {
-  if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: 'Brak klucza Anthropic' }, 400)
+  // Klucz trzymany jest w ustawieniach użytkownika (tak jak dla makroskładników),
+  // a nie w sekretach Workera — sekret to tylko awaryjny fallback.
+  const apiKey = (await resolveAnthropicKey(c.env, c.var.userId)) || c.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    return c.json({ error: 'Brak klucza Anthropic — uzupełnij go w Ustawieniach aplikacji' }, 400)
+  }
   const s = store(c)
   const b = await c.req.json<{ limit?: number }>().catch(() => ({} as { limit?: number }))
   const queue = await A.reviewQueue(s, Math.min(20, b?.limit ?? 12)) as {
@@ -122,7 +128,7 @@ app.post('/ai-suggest', async (c) => {
   }[]
   if (!queue.length) return c.json({ suggestions: [], usedSearch: false })
   try {
-    const r = await suggestCategories(c.env, queue.map((q) => ({
+    const r = await suggestCategories(apiKey, queue.map((q) => ({
       merchant: q.merchant, n: q.n, total: q.total,
       bank_categories: q.bank_categories, sample: q.sample_desc,
     })))

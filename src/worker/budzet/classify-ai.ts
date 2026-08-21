@@ -45,13 +45,13 @@ function extractJsonArray(text: string): unknown[] | null {
 }
 
 export async function suggestCategories(
-  env: { ANTHROPIC_API_KEY?: string },
+  apiKey: string,
   items: SuggestItem[],
 ): Promise<{ suggestions: Suggestion[]; usedSearch: boolean }> {
-  if (!env.ANTHROPIC_API_KEY) throw new Error('Brak ANTHROPIC_API_KEY')
+  if (!apiKey) throw new Error('Brak klucza Anthropic')
   if (!items.length) return { suggestions: [], usedSearch: false }
 
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
+  const client = new Anthropic({ apiKey })
 
   const catalogue = CATEGORIES
     .filter((c) => !['do_sklasyfikowania', 'transfer_wlasny'].includes(c.id))
