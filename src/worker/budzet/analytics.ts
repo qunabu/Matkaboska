@@ -798,7 +798,11 @@ export async function payoutPlan(s: Store, o: { amount?: number; planMonth?: str
   const toMbank = round(d.mbank_monthly + resFor('daily'))
   const pkoSpend = round(d.pko_monthly + resFor('hub'))
   const savings = round(toPrivate - toIng - toHouseholdAdhoc - toMbank - pkoSpend)
-  const savingsSteady = round(savings + catchUp)
+  // Stan docelowy liczymy od PEŁNEJ prowizji miesięcznej, nie od tegomiesięcznej
+  // wpłaty. W miesiącu, w którym subkonto ma nadwyżkę z przeszłości, przelew jest
+  // mniejszy i „oszczędności" wyglądają na wyższe, niż wynika z powtarzalnego rytmu.
+  const privateAtProvision = round(gross - provision - keepCompany)
+  const savingsSteady = round(privateAtProvision - toIng - toHouseholdAdhoc - toMbank - pkoSpend)
 
   const w = completeMonths(await monthlyWaterfall(s))
   const avgAdj = w.length ? w.reduce((a, b) => a + b.nadwyzka_skorygowana, 0) / w.length : 0
