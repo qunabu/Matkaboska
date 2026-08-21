@@ -784,8 +784,12 @@ export async function payoutPlan(s: Store, o: { amount?: number; planMonth?: str
 
   const provision = round(vat * (1 - inputShare) + pit + d.zus_monthly + d.subkonto_other_monthly
     + accrualMonthly + resFor('tax'))
+  // Cel: subkonto ma pokrywać dokładnie należne zobowiązania — ani mniej, ani
+  // więcej. Gdy znamy saldo, przelewamy różnicę do wymaganej rezerwy; pełną
+  // prowizję miesięczną bierzemy tylko wtedy, gdy salda nie znamy. Bez tego
+  // nadwyżka narosła w poprzednich miesiącach leżałaby bezczynnie.
   const catchUp = res.transfer == null ? 0 : round(Math.max(0, res.transfer - provision))
-  const toSubkonto = res.transfer == null ? provision : Math.max(provision, res.transfer)
+  const toSubkonto = res.transfer == null ? provision : res.transfer
 
   const keepCompany = round(d.company_costs_monthly + resFor('business'))
   const toPrivate = round(gross - toSubkonto - keepCompany)
