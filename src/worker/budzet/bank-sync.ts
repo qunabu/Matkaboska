@@ -234,9 +234,11 @@ export async function syncConnections(
           }
 
           if (amount != null) {
+            // Różnica dwóch sald daje ogon zmiennoprzecinkowy (−921.4099999999999).
+            const rounded = Math.round((amount + Number.EPSILON) * 100) / 100
             await s.run(
               'UPDATE budzet_accounts SET current_balance = ?, balance_as_of = ?, balance_type = ? WHERE user_id = ? AND id = ?',
-              amount, new Date().toISOString().slice(0, 10), label, s.userId, a.account_id)
+              rounded, new Date().toISOString().slice(0, 10), label, s.userId, a.account_id)
           }
         } catch { /* saldo jest dodatkiem — brak nie przerywa synchronizacji */ }
       }
