@@ -126,15 +126,27 @@ const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString()
  * Okno startowe cofamy o 7 dni względem ostatniej synchronizacji, bo banki
  * doksięgowują operacje wstecz; duplikaty i tak odsiewa `ingestRows`.
  */
-export async function syncConnections(s: Store, env: Env, opts: { connectionId?: number } = {}) {
+export async function syncConnections(
+  s: Store, env: Env,
+  opts: { connectionId?: number; maxConnections?: number; staleHours?: number } = {},
+) {
   const cfg = ebConfig(env)
   if (!cfg) throw new Error('Brak konfiguracji Enable Banking (EB_APPLICATION_ID / EB_PRIVATE_KEY)')
 
-  const conns = await s.all<{ id: number; session_id: string; aspsp_name: string; status: string; psu_ip: string; psu_user_agent: string }>(
+  const where = ["user_id = ?", 'session_id IS NOT NULL', "status = 'AUTHORIZED'"]
+  const args: unknown[] = [s.userId]
+  if (opts.connectionId) { where.push('id = ?'); args.push(opts.connectionId) }
+  if (opts.staleHours) {
+    // Najpierw te, które najdłużej czekały — dzięki temu kolejne tyknięcia crona
+    // domykają połączenia pominięte w poprzednim przebiegu.
+    where.push(`(last_sync_at IS NULL OR last_sync_at < datetime('now', ?))`)
+    args.push(`-${opts.staleHours} hours`)
+  }
+  let conns = await s.all<{ id: number; session_id: string; aspsp_name: string; status: string; psu_ip: string; psu_user_agent: string }>(
     `SELECT id, session_id, aspsp_name, status, psu_ip, psu_user_agent FROM budzet_bank_connections
-      WHERE user_id = ? AND session_id IS NOT NULL AND status = 'AUTHORIZED'
-        ${opts.connectionId ? 'AND id = ?' : ''}`,
-    ...(opts.connectionId ? [s.userId, opts.connectionId] : [s.userId]))
+      WHERE ${where.join(' AND ')}
+      ORDER BY COALESCE(last_sync_at, '') ASC`, ...args)
+  if (opts.maxConnections) conns = conns.slice(0, opts.maxConnections)
 
   const results: { connection: string; accounts: number; inserted: number; duplicates: number; error?: string }[] = []
   for (const conn of conns) {
@@ -161,8 +173,16 @@ export async function syncConnections(s: Store, env: Env, opts: { connectionId?:
 
       let inserted = 0, duplicates = 0
       for (const a of accs) {
-        const from = a.last_synced_to ? daysAgo(7) : daysAgo(89)
-        const txs = await getTransactions(cfg, a.uid, from, psu)
+        // Banki różnie ograniczają historię: Pekao odmawia powyżej 90 dni,
+        // mBank ignoruje parametr i oddaje ~rok. Schodzimy w dół, aż zadziała.
+        const windows = a.last_synced_to ? [7] : [89, 60, 30, 7]
+        let txs: EbTransaction[] | null = null
+        let lastErr: Error | null = null
+        for (const w of windows) {
+          try { txs = await getTransactions(cfg, a.uid, daysAgo(w), psu); break }
+          catch (e) { lastErr = e as Error }
+        }
+        if (!txs) throw lastErr ?? new Error('Nie udało się pobrać operacji')
         // Tylko operacje zaksięgowane: oczekujące zmieniają identyfikator po
         // rozliczeniu i weszłyby drugi raz.
         const rows = txs

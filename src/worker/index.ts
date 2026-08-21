@@ -150,26 +150,25 @@ export default {
   },
 
   async scheduled(_event: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
-    // Budżet: raz na dobę ściągamy nowe operacje z banków. Znacznik w KV pilnuje,
-    // żeby przy cronie co 15 minut nie odpalić tego kilkanaście razy.
+    // Budżet: pobieranie z banków. JEDNO połączenie na tyknięcie — pełny przebieg
+    // wszystkich banków naraz przekracza budżet czasu Workera i cichaczem urywa
+    // się w połowie (tak przepadło trzecie połączenie przy pierwszym uruchomieniu).
+    // Cron co 15 minut domyka resztę, a warunek „nieświeże od 20 h" utrzymuje
+    // dobową kadencję i sam ponawia nieudane próby.
     if (env.EB_APPLICATION_ID && env.EB_PRIVATE_KEY) {
-      const todayKey = new Date().toISOString().slice(0, 10)
-      const marker = `budzet:banksync:${todayKey}`
-      const hourUtc = new Date().getUTCHours()
-      if (hourUtc >= 4 && !(await env.KV.get(marker))) {
-        await env.KV.put(marker, '1', { expirationTtl: 172800 })
-        try {
-          const users = await env.DB.prepare(
-            "SELECT DISTINCT user_id FROM budzet_bank_connections WHERE status = 'AUTHORIZED'").all()
-          for (const u of (users.results ?? []) as { user_id: string }[]) {
-            const s = new BudzetStore(env.DB, u.user_id)
-            try {
-              await syncConnections(s, env)
-              await budzetRecategorise(s)
-            } catch { /* jedno konto nie może zablokować pozostałych */ }
-          }
-        } catch { /* brak tabel przed migracją */ }
-      }
+      try {
+        const users = await env.DB.prepare(
+          `SELECT DISTINCT user_id FROM budzet_bank_connections
+            WHERE status = 'AUTHORIZED'
+              AND (last_sync_at IS NULL OR last_sync_at < datetime('now', '-20 hours'))`).all()
+        for (const u of (users.results ?? []) as { user_id: string }[]) {
+          const s = new BudzetStore(env.DB, u.user_id)
+          try {
+            const r = await syncConnections(s, env, { maxConnections: 1, staleHours: 20 })
+            if (r.connections > 0) await budzetRecategorise(s)
+          } catch { /* jedno konto nie może zablokować pozostałych */ }
+        }
+      } catch { /* brak tabel przed migracją */ }
     }
 
     if (!env.VAPID_PRIVATE_KEY) return
