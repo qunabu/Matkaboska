@@ -151,9 +151,12 @@ export async function syncConnections(s: Store, env: Env, opts: { connectionId?:
         continue
       }
 
-      const accs = await s.all<{ id: number; uid: string; account_id: string; iban: string; last_synced_to: string; cash_account_type: string }>(
-        `SELECT id, uid, account_id, iban, last_synced_to, cash_account_type
-           FROM budzet_bank_accounts WHERE user_id = ? AND connection_id = ? AND enabled = 1`,
+      const accs = await s.all<{ id: number; uid: string; account_id: string; iban: string; last_synced_to: string; cash_account_type: string; kind: string }>(
+        `SELECT ba.id, ba.uid, ba.account_id, ba.iban, ba.last_synced_to, ba.cash_account_type,
+                COALESCE(a.kind, 'personal') AS kind
+           FROM budzet_bank_accounts ba
+           LEFT JOIN budzet_accounts a ON a.id = ba.account_id AND a.user_id = ba.user_id
+          WHERE ba.user_id = ? AND ba.connection_id = ? AND ba.enabled = 1`,
         s.userId, conn.id)
 
       let inserted = 0, duplicates = 0
@@ -180,19 +183,40 @@ export async function syncConnections(s: Store, env: Env, opts: { connectionId?:
         // Saldo z banku zasila poduszkę finansową i „ile mogę odłożyć".
         try {
           const b = await getBalances(cfg, a.uid, psu)
-          const isCard = (a.cash_account_type ?? '').toUpperCase() === 'CARD'
           const byType = (t: string) => b.balances?.find((x) => (x.balance_type ?? '').toUpperCase() === t)
-          // Przy karcie CLAV/ITAV to DOSTĘPNY LIMIT, nie stan środków — zapisany
-          // jako saldo wyglądałby jak kilka tysięcy oszczędności. Bierzemy więc
-          // wyłącznie saldo księgowe.
-          const pick = isCard
-            ? (byType('CLBD') ?? byType('ITBD') ?? null)
-            : (byType('CLBD') ?? byType('CLAV') ?? byType('ITAV') ?? b.balances?.[0] ?? null)
-          if (pick) {
+          const val = (x?: { balance_amount: { amount: string } } | null) =>
+            x ? Number(x.balance_amount.amount) : null
+          // O tym, że to karta, decyduje typ NASZEGO konta: mBank raportuje kartę
+          // kredytową jako CACC, więc poleganie na cash_account_type z API zawodzi.
+          const isCard = a.kind === 'credit_card' || (a.cash_account_type ?? '').toUpperCase() === 'CARD'
+
+          const bookedT = byType('CLBD') ?? byType('ITBD')
+          const availT = byType('CLAV') ?? byType('ITAV')
+          let amount: number | null = null
+          let label: string | null = null
+
+          if (isCard) {
+            const booked = val(bookedT), avail = val(availT)
+            // Dla karty „booked" to przyznany limit, a „available" pozostała jego
+            // część — zadłużeniem jest różnica. Zapis któregokolwiek wprost
+            // wyglądałby jak kilkanaście tysięcy oszczędności.
+            if (booked != null && avail != null && booked >= avail) {
+              amount = -(booked - avail)
+              label = `${bookedT?.balance_type ?? '?'}-${availT?.balance_type ?? '?'} (zadłużenie)`
+            } else if (booked != null) {
+              amount = booked
+              label = bookedT?.balance_type ?? null
+            }
+          } else {
+            const pick = bookedT ?? availT ?? b.balances?.[0] ?? null
+            amount = val(pick)
+            label = pick?.balance_type ?? null
+          }
+
+          if (amount != null) {
             await s.run(
               'UPDATE budzet_accounts SET current_balance = ?, balance_as_of = ?, balance_type = ? WHERE user_id = ? AND id = ?',
-              Number(pick.balance_amount.amount), new Date().toISOString().slice(0, 10),
-              pick.balance_type ?? null, s.userId, a.account_id)
+              amount, new Date().toISOString().slice(0, 10), label, s.userId, a.account_id)
           }
         } catch { /* saldo jest dodatkiem — brak nie przerywa synchronizacji */ }
       }

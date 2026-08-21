@@ -90,9 +90,14 @@ export async function importCsv(s: Store, text: string, filename: string) {
  * Deduplikacja jest dwustopniowa, bo ta sama operacja przychodzi z dwóch źródeł
  * pod różnymi identyfikatorami:
  *  1. `dedupe_key` — dokładny klucz źródła (ten sam plik wgrany dwa razy),
- *  2. `match_key` (konto + data + kwota) liczony jako wielozbiór — chroni przed
- *     zdublowaniem operacji pobranej najpierw z CSV, a potem z API, a mimo to
- *     przepuszcza dwie prawdziwie identyczne płatności tego samego dnia.
+ *  2. dopasowanie po koncie i kwocie w OKNIE ±4 dni, liczone jako wielozbiór.
+ *
+ * Okno jest konieczne, bo banki datują tę samą operację różnie w zależności od
+ * kanału: mBank podaje w CSV datę operacji, a w API datę księgowania — zwykle
+ * o dzień późniejszą. Dopasowanie po dokładnej dacie przepuściłoby prawie
+ * tysiąc zdublowanych wierszy. Wielozbiór (każdy istniejący wiersz może
+ * „skonsumować" tylko jedną nową operację) sprawia, że dwie prawdziwie
+ * identyczne płatności nadal wchodzą obie.
  */
 export async function ingestRows(
   s: Store, rows: ParsedRow[],
@@ -107,24 +112,35 @@ export async function ingestRows(
   const known = new Set((await s.all<{ dedupe_key: string }>(
     'SELECT dedupe_key FROM budzet_transactions WHERE user_id = ?', s.userId)).map((r) => r.dedupe_key))
 
-  const matchKey = (accountId: string, booked: string, amount: number) =>
-    `${accountId}|${booked}|${amount.toFixed(2)}`
-  const existingCounts = new Map<string, number>()
-  for (const r of await s.all<{ k: string; n: number }>(
-    `SELECT account_id || '|' || booked_on || '|' || printf('%.2f', amount) k, COUNT(*) n
-       FROM budzet_transactions WHERE user_id = ? GROUP BY k`, s.userId)) {
-    existingCounts.set(r.k, r.n)
+  const WINDOW_DAYS = 4
+  const dayNum = (d: string) => Math.round(Date.parse(d) / 86400000)
+  const bucketKey = (accountId: string, amount: number) => `${accountId}|${amount.toFixed(2)}`
+  const buckets = new Map<string, { day: number; used: boolean }[]>()
+  for (const e of await s.all<{ account_id: string; booked_on: string; amount: number }>(
+    'SELECT account_id, booked_on, amount FROM budzet_transactions WHERE user_id = ?', s.userId)) {
+    const k = bucketKey(e.account_id, e.amount)
+    const list = buckets.get(k) ?? []
+    list.push({ day: dayNum(e.booked_on), used: false })
+    buckets.set(k, list)
   }
 
   const fresh: ParsedRow[] = []
   let dup = 0
   for (const r of rows) {
     if (known.has(r.dedupe_key)) { dup++; continue }
-    const k = matchKey(r.account_id ?? accountIdFor(r.account_key), r.booked_on, r.amount)
-    const left = existingCounts.get(k) ?? 0
-    if (left > 0) { existingCounts.set(k, left - 1); dup++; continue }
+    const accountId = r.account_id ?? accountIdFor(r.account_key)
+    const k = bucketKey(accountId, r.amount)
+    const list = buckets.get(k)
+    const day = dayNum(r.booked_on)
+    const hit = list?.find((x) => !x.used && Math.abs(x.day - day) <= WINDOW_DAYS)
+    if (hit) { hit.used = true; dup++; continue }
     fresh.push(r)
     known.add(r.dedupe_key)
+    // Wstawiany wiersz też wchodzi do puli — inaczej kolejne pozycje z tej samej
+    // paczki mogłyby się z nim rozminąć i wejść drugi raz.
+    const own = buckets.get(k) ?? []
+    own.push({ day, used: true })
+    buckets.set(k, own)
   }
 
   const dates = rows.map((r) => r.booked_on).sort()
