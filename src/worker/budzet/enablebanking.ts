@@ -89,9 +89,15 @@ export const startAuth = (cfg: EbConfig, p: {
 
 export type EbAccount = {
   uid: string
-  account_id?: { iban?: string }
+  account_id?: { iban?: string; other?: { identification?: string } }
+  /** Stabilny między sesjami — jedyny sensowny klucz dla kart, które nie mają IBAN-u. */
+  identification_hash?: string
+  /** CACC | CARD | CASH | LOAN | SVGS | OTHR */
+  cash_account_type?: string
+  usage?: string
   name?: string
   product?: string
+  details?: string
   currency?: string
 }
 

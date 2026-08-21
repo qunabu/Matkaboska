@@ -49,15 +49,33 @@ export function mapTransaction(t: EbTransaction, accountId: string, accountKey: 
   }
 }
 
-/** Konto z banku wiążemy z istniejącym rachunkiem po IBAN-ie — inaczej dane
- *  z API utworzyłyby duplikat konta obok tego z importu CSV. */
+/** Ostatnie cztery cyfry z etykiety rachunku — dla kart to jedyny wspólny
+ *  mianownik między maską z wyciągu („5396********1087") a danymi z API. */
+const last4 = (s?: string | null) => {
+  const groups = (s ?? '').match(/\d{4,}/g)
+  return groups?.length ? groups[groups.length - 1]!.slice(-4) : null
+}
+
+/** Typ rachunku z API na nasze kategorie kont. */
+function kindFor(acc: EbAccount): string {
+  const t = (acc.cash_account_type ?? '').toUpperCase()
+  if (t === 'CARD') return 'credit_card'
+  const label = `${acc.name ?? ''} ${acc.product ?? ''}`.toUpperCase()
+  if (/MASTERCARD|VISA|KARTA KREDYT|CREDIT CARD/.test(label)) return 'credit_card'
+  return 'personal'
+}
+
+/** Konto z banku wiążemy z istniejącym rachunkiem — po IBAN-ie, a dla kart po
+ *  końcówce numeru. Inaczej dane z API utworzyłyby duplikat obok konta z CSV. */
 async function resolveAccountId(s: Store, acc: EbAccount): Promise<string> {
+  const kind = kindFor(acc)
+  const existing = await s.all<{ id: string; iban: string | null; source_key: string | null; kind: string }>(
+    'SELECT id, iban, source_key, kind FROM budzet_accounts WHERE user_id = ?', s.userId)
   const iban = clean(acc.account_id?.iban)
+
   if (iban) {
     const want = ibanDigits(iban)
-    const all = await s.all<{ id: string; iban: string | null }>(
-      'SELECT id, iban FROM budzet_accounts WHERE user_id = ?', s.userId)
-    const hit = all.find((a) => a.iban && ibanDigits(a.iban) === want)
+    const hit = existing.find((a) => a.iban && ibanDigits(a.iban) === want)
     if (hit) return hit.id
     const id = accountIdFor(iban)
     await s.run(
@@ -65,15 +83,24 @@ async function resolveAccountId(s: Store, acc: EbAccount): Promise<string> {
        VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(user_id, id) DO NOTHING`,
       s.userId, id, iban, iban,
       clean(acc.name) || clean(acc.product) || `Rachunek ${iban.slice(-4)}`,
-      clean(acc.name)?.slice(0, 24) || `…${iban.slice(-4)}`, 'personal', 'API')
+      (clean(acc.name) || `…${iban.slice(-4)}`).slice(0, 24), kind, 'API')
     return id
   }
-  const id = `acc_${hash(acc.uid).slice(0, 10)}`
+
+  // Bez IBAN-u (typowo karta): dopasowanie po końcówce numeru do konta z wyciągu.
+  const tail = last4(`${acc.name ?? ''} ${acc.product ?? ''} ${acc.details ?? ''} ${acc.account_id?.other?.identification ?? ''}`)
+  if (tail) {
+    const hit = existing.find((a) => last4(a.source_key) === tail || (a.iban && a.iban.endsWith(tail)))
+    if (hit) return hit.id
+  }
+
+  const stable = clean(acc.identification_hash) || acc.uid
+  const id = `acc_${hash(stable).slice(0, 10)}`
   await s.run(
     `INSERT INTO budzet_accounts(user_id, id, iban, source_key, name, short, kind, bank)
      VALUES(?,?,NULL,?,?,?,?,?) ON CONFLICT(user_id, id) DO NOTHING`,
-    s.userId, id, acc.uid, clean(acc.name) || 'Rachunek bankowy',
-    (clean(acc.name) || 'Rachunek').slice(0, 24), 'personal', 'API')
+    s.userId, id, stable, clean(acc.name) || clean(acc.product) || 'Rachunek bankowy',
+    (clean(acc.name) || clean(acc.product) || 'Rachunek').slice(0, 24), kind, 'API')
   return id
 }
 
@@ -83,10 +110,12 @@ export async function saveSessionAccounts(
   for (const a of accounts) {
     const accountId = await resolveAccountId(s, a)
     await s.run(
-      `INSERT INTO budzet_bank_accounts(user_id, connection_id, uid, iban, name, currency, account_id)
-       VALUES(?,?,?,?,?,?,?)`,
+      `INSERT INTO budzet_bank_accounts(user_id, connection_id, uid, iban, name, currency, account_id,
+         identification_hash, cash_account_type)
+       VALUES(?,?,?,?,?,?,?,?,?)`,
       s.userId, connectionId, a.uid, clean(a.account_id?.iban) || null,
-      clean(a.name) || clean(a.product) || null, a.currency ?? null, accountId)
+      clean(a.name) || clean(a.product) || null, a.currency ?? null, accountId,
+      clean(a.identification_hash) || null, clean(a.cash_account_type) || null)
   }
 }
 
@@ -122,8 +151,9 @@ export async function syncConnections(s: Store, env: Env, opts: { connectionId?:
         continue
       }
 
-      const accs = await s.all<{ id: number; uid: string; account_id: string; iban: string; last_synced_to: string }>(
-        'SELECT id, uid, account_id, iban, last_synced_to FROM budzet_bank_accounts WHERE user_id = ? AND connection_id = ? AND enabled = 1',
+      const accs = await s.all<{ id: number; uid: string; account_id: string; iban: string; last_synced_to: string; cash_account_type: string }>(
+        `SELECT id, uid, account_id, iban, last_synced_to, cash_account_type
+           FROM budzet_bank_accounts WHERE user_id = ? AND connection_id = ? AND enabled = 1`,
         s.userId, conn.id)
 
       let inserted = 0, duplicates = 0
@@ -150,12 +180,19 @@ export async function syncConnections(s: Store, env: Env, opts: { connectionId?:
         // Saldo z banku zasila poduszkę finansową i „ile mogę odłożyć".
         try {
           const b = await getBalances(cfg, a.uid, psu)
-          const pick = b.balances?.find((x) => /CLBD|closing|available|ITAV/i.test(`${x.balance_type ?? ''}${x.name ?? ''}`))
-            ?? b.balances?.[0]
+          const isCard = (a.cash_account_type ?? '').toUpperCase() === 'CARD'
+          const byType = (t: string) => b.balances?.find((x) => (x.balance_type ?? '').toUpperCase() === t)
+          // Przy karcie CLAV/ITAV to DOSTĘPNY LIMIT, nie stan środków — zapisany
+          // jako saldo wyglądałby jak kilka tysięcy oszczędności. Bierzemy więc
+          // wyłącznie saldo księgowe.
+          const pick = isCard
+            ? (byType('CLBD') ?? byType('ITBD') ?? null)
+            : (byType('CLBD') ?? byType('CLAV') ?? byType('ITAV') ?? b.balances?.[0] ?? null)
           if (pick) {
             await s.run(
-              'UPDATE budzet_accounts SET current_balance = ?, balance_as_of = ? WHERE user_id = ? AND id = ?',
-              Number(pick.balance_amount.amount), new Date().toISOString().slice(0, 10), s.userId, a.account_id)
+              'UPDATE budzet_accounts SET current_balance = ?, balance_as_of = ?, balance_type = ? WHERE user_id = ? AND id = ?',
+              Number(pick.balance_amount.amount), new Date().toISOString().slice(0, 10),
+              pick.balance_type ?? null, s.userId, a.account_id)
           }
         } catch { /* saldo jest dodatkiem — brak nie przerywa synchronizacji */ }
       }

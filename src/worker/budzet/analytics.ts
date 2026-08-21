@@ -556,10 +556,17 @@ export async function netWorth(s: Store) {
     'SELECT * FROM budzet_net_worth_items WHERE user_id = ? ORDER BY kind, amount DESC', s.userId)
   const accounts = await s.all<{ name: string; kind: string; current_balance: number }>(
     'SELECT name, kind, current_balance FROM budzet_accounts WHERE user_id = ? AND current_balance IS NOT NULL', s.userId)
-  const assets: Record<string, unknown>[] = accounts.filter((a) => a.kind !== 'credit_card')
+  // Karta kredytowa: ujemne saldo to dług, dodatnie to nadpłata. Wcześniej
+  // dodatnie było po cichu pomijane — teraz obie strony trafiają do zestawienia.
+  const cards = accounts.filter((a) => a.kind === 'credit_card')
+  const assets: Record<string, unknown>[] = accounts
+    .filter((a) => a.kind !== 'credit_card')
     .map((a) => ({ kind: 'asset', name: a.name, category: 'Rachunki', amount: a.current_balance, source: 'account' }))
+    .concat(cards.filter((a) => a.current_balance > 0)
+      .map((a) => ({ kind: 'asset', name: `${a.name} (nadpłata)`, category: 'Karty', amount: a.current_balance, source: 'account' })))
     .concat(manual.filter((m) => m.kind === 'asset').map((m) => ({ ...m, source: 'manual' })))
-  const liabilities: Record<string, unknown>[] = accounts.filter((a) => a.kind === 'credit_card' && a.current_balance < 0)
+  const liabilities: Record<string, unknown>[] = cards
+    .filter((a) => a.current_balance < 0)
     .map((a) => ({ kind: 'liability', name: a.name, category: 'Karty', amount: Math.abs(a.current_balance), source: 'account' }))
     .concat(manual.filter((m) => m.kind === 'liability').map((m) => ({ ...m, source: 'manual' })))
   for (const a of await accruals(s)) {
