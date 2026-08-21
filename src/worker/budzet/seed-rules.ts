@@ -39,7 +39,9 @@ export const SEED_RULES: SeedRule[] = [
 
   // ---------- transfery ----------
   
-  R('SP[ŁL]ATA KARTY|SP[ŁL]ATA - PRZELEW WEWN|R[ĘE]CZNA SP[ŁL]ATA KARTY|AUTOMATYCZNA SP[ŁL]ATA KARTY', 'transfer_wlasny', 'Spłata karty kredytowej', null, 850),
+  // Banki opisują spłatę karty na kilka sposobów; każdy z nich to przelew
+  // między własnymi rachunkami, nie przychód ani wydatek.
+  R('SP[ŁL]ATA KARTY|SP[ŁL]ATA AUTOMATYCZNA|AUTOMATYCZNA SP[ŁL]ATA|R[ĘE]CZNA SP[ŁL]ATA|SP[ŁL]ATA[^|]*DZI[ĘE]KUJEMY|SP[ŁL]ATA - PRZELEW WEWN', 'transfer_wlasny', 'Spłata karty kredytowej', null, 850),
 
   // ---------- dzieci ----------
   R('Przedszkole', 'dzieci_przedszkole', 'Przedszkole', false, 700),

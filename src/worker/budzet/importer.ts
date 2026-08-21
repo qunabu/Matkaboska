@@ -90,14 +90,18 @@ export async function importCsv(s: Store, text: string, filename: string) {
  * Deduplikacja jest dwustopniowa, bo ta sama operacja przychodzi z dwóch źródeł
  * pod różnymi identyfikatorami:
  *  1. `dedupe_key` — dokładny klucz źródła (ten sam plik wgrany dwa razy),
- *  2. dopasowanie po koncie i kwocie w OKNIE ±4 dni, liczone jako wielozbiór.
+ *  2. dopasowanie po koncie, kwocie i nazwie sprzedawcy w OKNIE ±10 dni,
+ *     liczone jako wielozbiór.
  *
  * Okno jest konieczne, bo banki datują tę samą operację różnie w zależności od
- * kanału: mBank podaje w CSV datę operacji, a w API datę księgowania — zwykle
- * o dzień późniejszą. Dopasowanie po dokładnej dacie przepuściłoby prawie
- * tysiąc zdublowanych wierszy. Wielozbiór (każdy istniejący wiersz może
- * „skonsumować" tylko jedną nową operację) sprawia, że dwie prawdziwie
- * identyczne płatności nadal wchodzą obie.
+ * kanału: mBank podaje w CSV datę operacji, a w API datę księgowania. Przy
+ * płatnościach krajowych różnica to jeden dzień, przy zagranicznych bywa pięć —
+ * okno ±4 dni przepuściło 11 duplikatów z wyjazdu. Stąd ±10 dni, ale wtedy samo
+ * konto i kwota to za mało, więc dochodzi nazwa sprzedawcy.
+ *
+ * Wielozbiór (każdy istniejący wiersz może „skonsumować" tylko jedną nową
+ * operację) sprawia, że dwie prawdziwie identyczne płatności nadal wchodzą obie —
+ * także dwa takie same parkingi w odstępie tygodnia.
  */
 export async function ingestRows(
   s: Store, rows: ParsedRow[],
@@ -112,15 +116,22 @@ export async function ingestRows(
   const known = new Set((await s.all<{ dedupe_key: string }>(
     'SELECT dedupe_key FROM budzet_transactions WHERE user_id = ?', s.userId)).map((r) => r.dedupe_key))
 
-  const WINDOW_DAYS = 4
+  const WINDOW_DAYS = 10
   const dayNum = (d: string) => Math.round(Date.parse(d) / 86400000)
   const bucketKey = (accountId: string, amount: number) => `${accountId}|${amount.toFixed(2)}`
-  const buckets = new Map<string, { day: number; used: boolean }[]>()
-  for (const e of await s.all<{ account_id: string; booked_on: string; amount: number }>(
-    'SELECT account_id, booked_on, amount FROM budzet_transactions WHERE user_id = ?', s.userId)) {
+  /** Znacznik sprzedawcy odporny na drobne różnice zapisu między kanałami. */
+  const tag = (x?: string | null) =>
+    (x ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)
+  const buckets = new Map<string, { day: number; tags: string[]; used: boolean }[]>()
+  for (const e of await s.all<{ account_id: string; booked_on: string; amount: number
+                                counterparty_norm: string | null; counterparty: string | null }>(
+    `SELECT account_id, booked_on, amount, counterparty_norm, counterparty
+       FROM budzet_transactions WHERE user_id = ?`, s.userId)) {
     const k = bucketKey(e.account_id, e.amount)
     const list = buckets.get(k) ?? []
-    list.push({ day: dayNum(e.booked_on), used: false })
+    // Zapisana nazwa bywa etykietą z reguły, a przychodząca jest surowa —
+    // dlatego trzymamy oba warianty i wystarczy zgodność któregokolwiek.
+    list.push({ day: dayNum(e.booked_on), tags: [tag(e.counterparty_norm), tag(e.counterparty)], used: false })
     buckets.set(k, list)
   }
 
@@ -132,14 +143,16 @@ export async function ingestRows(
     const k = bucketKey(accountId, r.amount)
     const list = buckets.get(k)
     const day = dayNum(r.booked_on)
-    const hit = list?.find((x) => !x.used && Math.abs(x.day - day) <= WINDOW_DAYS)
+    const wanted = [tag(r.counterparty_norm), tag(r.counterparty)].filter(Boolean)
+    const hit = list?.find((x) => !x.used && Math.abs(x.day - day) <= WINDOW_DAYS
+      && (!wanted.length || x.tags.some((t) => t && wanted.includes(t))))
     if (hit) { hit.used = true; dup++; continue }
     fresh.push(r)
     known.add(r.dedupe_key)
     // Wstawiany wiersz też wchodzi do puli — inaczej kolejne pozycje z tej samej
     // paczki mogłyby się z nim rozminąć i wejść drugi raz.
     const own = buckets.get(k) ?? []
-    own.push({ day, used: true })
+    own.push({ day, tags: wanted, used: true })
     buckets.set(k, own)
   }
 
