@@ -84,6 +84,8 @@ export const SEED_RULES: SeedRule[] = [
   // Trener personalny / siłownia — płatne pakietami, tytuł przelewu „zwrot” myli.
   R('EMPIK|LEGIMI|AUDIOTEKA|STORYTEL|KSI[ĘE]GARNI', 'ksiazki', null, false, 620),
   R('KWIACIARNIA|PROJEKT KWIATY|\\bKWIATY\\b|FLORIST', 'prezenty', 'Kwiaciarnia', false, 640),
+  // Piekarnie i cukiernie liczymy jako zakup żywności, nie jedzenie na mieście.
+  R('PIEKARNIA|CUKIERNIA|PIERNIKARNIA|PRACOWNIA WYPIEK|BREADWHITE|BACCATE|LE DELICE', 'zywnosc', null, false, 645),
   R('EOBUWIE|ZALANDO|KAPPAHL|H&M|RESERVED|ZARA|CCC|SINSAY|MOHITO|MEDICINE|4F', 'ubrania', null, false, 620),
   R('MEDIA ?EXPERT|RTV ?EURO|X-KOM|MORELE|KOMPUTRONIK|APPLE STORE|IKEA', 'elektronika', null, false, 610),
   R('MARKET OBI|CASTORAMA|LEROY|GDANSKIE SKLADY DRZEWN|ESSAV-SKLAD DREWNA|BRICOMAN|PSB|SKLAD BUDOWLANY', 'dom_remont', null, false, 610),
