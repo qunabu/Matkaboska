@@ -7,6 +7,7 @@ import { loadRules, seedRulesIfEmpty, syncPersonalRules } from '../budzet/rules'
 import * as A from '../budzet/analytics'
 import { ebConfig, listAspsps, startAuth, createSession } from '../budzet/enablebanking'
 import { saveSessionAccounts, syncConnections } from '../budzet/bank-sync'
+import { suggestCategories } from '../budzet/classify-ai'
 
 const app = new Hono<AppEnv>()
 const store = (c: { env: { DB: unknown }; var: { userId: string } }) =>
@@ -101,6 +102,28 @@ app.get('/trips', async (c) => c.json(await A.trips(store(c))))
 app.get('/anomalies', async (c) => c.json(await A.anomalies(store(c), { month: c.req.query('month') })))
 app.get('/ratios', async (c) => c.json(await A.ratios(store(c))))
 app.get('/review-queue', async (c) => c.json(await A.reviewQueue(store(c))))
+
+/**
+ * Propozycje kategorii dla nieznanych sprzedawców. Nic nie zapisuje — wynik jest
+ * podpowiedzią, którą użytkownik zatwierdza w kolejce. Enable Banking nie zwraca
+ * kategorii bankowych, więc dla danych z API to jedyne wsparcie poza regułami.
+ */
+app.post('/ai-suggest', async (c) => {
+  if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: 'Brak klucza Anthropic' }, 400)
+  const s = store(c)
+  const b = await c.req.json<{ limit?: number }>().catch(() => ({} as { limit?: number }))
+  const queue = await A.reviewQueue(s, Math.min(20, b?.limit ?? 12)) as {
+    merchant: string; n: number; total: number; bank_categories: string; sample_desc: string
+  }[]
+  if (!queue.length) return c.json({ suggestions: [], usedSearch: false })
+  try {
+    const r = await suggestCategories(c.env, queue.map((q) => ({
+      merchant: q.merchant, n: q.n, total: q.total,
+      bank_categories: q.bank_categories, sample: q.sample_desc,
+    })))
+    return c.json(r)
+  } catch (e) { return c.json({ error: (e as Error).message.slice(0, 300) }, 502) }
+})
 
 /* ---------------- transakcje ---------------- */
 app.get('/transactions', async (c) => {
