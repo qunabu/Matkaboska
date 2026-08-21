@@ -10,6 +10,9 @@ const LABELS = {
   household_transfer_mortgage: ['Rata kredytu w transferze do gospodarstwa (zł)', 'Część przelewu na ING, która idzie na hipotekę.'],
   household_fixed: ['Stały przelew do gospodarstwa (zł)', 'Sztywna kwota co miesiąc. Puste = wylicz z historii.'],
   household_adhoc_fixed: ['Doraźne przelewy domowe (zł)', 'Zaplanowana kwota poza stałym przelewem. Puste = średnia z historii.'],
+  reminder_payout_day: ['Przypomnienie o rozpisaniu przelewu (dzień)', 'Dzień miesiąca, gdy zwykle wpływa faktura. 0 wyłącza.'],
+  reminder_review_day: ['Przypomnienie o przeglądzie (dzień)', 'Miesięczny przegląd anomalii i kolejki. 0 wyłącza.'],
+  reminder_hour: ['Godzina przypomnień', 'Nie wcześniej niż o tej godzinie czasu lokalnego.'],
 };
 
 export default function Ustawienia({ onChanged }: any) {

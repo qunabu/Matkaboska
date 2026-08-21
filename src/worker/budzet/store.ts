@@ -47,6 +47,10 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   // obowiązuje sztywno, bo to zobowiązanie, a nie wypadkowa wydatków.
   household_fixed: '',
   household_adhoc_fixed: '',
+  // Cykliczne przypomnienia: dzień miesiąca (0 = wyłączone) i godzina lokalna.
+  reminder_payout_day: '5',      // faktura zwykle wpływa 3.–7.
+  reminder_review_day: '25',     // przegląd przed kwartalnym VAT-em
+  reminder_hour: '9',
 }
 
 export async function getSettings(s: Store): Promise<Record<string, string>> {

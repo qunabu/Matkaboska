@@ -173,6 +173,57 @@ export default {
 
     const db = getDb(env.DB)
 
+    // Budżet: cykliczne przypomnienia — rozpisanie przelewu po wpływie faktury
+    // i miesięczny przegląd. Znacznik w KV pilnuje, żeby przy cronie co 15 minut
+    // wysłać je raz w miesiącu, a nie kilkadziesiąt razy.
+    if (env.VAPID_PRIVATE_KEY) {
+      try {
+        const users = await env.DB.prepare(
+          'SELECT DISTINCT user_id FROM budzet_transactions').all()
+        for (const u of (users.results ?? []) as { user_id: string }[]) {
+          const cfgRows = await env.DB.prepare(
+            "SELECT key, value FROM budzet_settings WHERE user_id = ?").bind(u.user_id).all()
+          const cfg = Object.fromEntries(
+            ((cfgRows.results ?? []) as { key: string; value: string }[]).map((r) => [r.key, r.value]))
+
+          // Dzień i godzina liczone w strefie użytkownika, nie w UTC.
+          let tz = 'Europe/Warsaw'
+          try {
+            const app = await env.DB.prepare("SELECT value FROM settings WHERE user_id = ? AND key = 'app'")
+              .bind(u.user_id).first<{ value: string }>()
+            if (app) { const v = JSON.parse(app.value) as { timezone?: string }; if (v.timezone) tz = v.timezone }
+          } catch { /* domyślna strefa */ }
+          const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: tz, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit',
+          }).formatToParts(new Date())
+          const g = (t: string) => parts.find((p) => p.type === t)?.value ?? ''
+          const dzien = Number(g('day')), godz = Number(g('hour'))
+          const mies = `${g('year')}-${g('month')}`
+          if (godz < Number(cfg.reminder_hour ?? 9)) continue
+
+          const przypomnienia = [
+            { typ: 'wyplata', dzien: Number(cfg.reminder_payout_day ?? 5),
+              title: 'Faktura powinna być na koncie',
+              body: 'Rozpisz przelewy: subkonto, ING, mBank, reszta na PKO.',
+              url: '/budzet#budzet/plan' },
+            { typ: 'przeglad', dzien: Number(cfg.reminder_review_day ?? 25),
+              title: 'Przegląd budżetu',
+              body: 'Sprawdź anomalie, kolejkę do sklasyfikowania i płatności cykliczne.',
+              url: '/budzet#budzet/anomalie' },
+          ]
+          for (const p of przypomnienia) {
+            if (!p.dzien || dzien < p.dzien) continue
+            const marker = `budzet:przyp:${p.typ}:${u.user_id}:${mies}`
+            if (await env.KV.get(marker)) continue
+            const subs = await db.select().from(push_subscriptions)
+              .where(eq(push_subscriptions.user_id, u.user_id))
+            await env.KV.put(marker, '1', { expirationTtl: 3456000 })
+            if (subs.length) await notify(env, u.user_id, subs, { ...p, tag: `budzet-${p.typ}` })
+          }
+        }
+      } catch { /* brak tabel przed migracją */ }
+    }
+
     // Budżet: przypomnienie o wygasającej zgodzie bankowej. Bez odnowienia
     // pobieranie po prostu przestaje działać, a w tabeli połączeń łatwo to
     // przeoczyć — dlatego push na 14, 7, 3 i 1 dzień przed terminem.
