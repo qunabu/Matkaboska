@@ -43,6 +43,10 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   owner_name: '',
   household_iban: '',
   household_label: '',
+  // Stały przelew do gospodarstwa. Pusty = wylicz z historii; wpisana kwota
+  // obowiązuje sztywno, bo to zobowiązanie, a nie wypadkowa wydatków.
+  household_fixed: '',
+  household_adhoc_fixed: '',
 }
 
 export async function getSettings(s: Store): Promise<Record<string, string>> {

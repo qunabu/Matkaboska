@@ -8,6 +8,8 @@ const LABELS = {
   kindergarten_food_rate: ['Stawka wyżywienia w przedszkolu (zł/dzień)', 'Służy do rozbicia opłaty na część stałą i wyżywienie.'],
   emergency_months_target: ['Poduszka — cel w miesiącach', 'Ile miesięcy kosztów bazowych chcesz mieć odłożone.'],
   household_transfer_mortgage: ['Rata kredytu w transferze do gospodarstwa (zł)', 'Część przelewu na ING, która idzie na hipotekę.'],
+  household_fixed: ['Stały przelew do gospodarstwa (zł)', 'Sztywna kwota co miesiąc. Puste = wylicz z historii.'],
+  household_adhoc_fixed: ['Doraźne przelewy domowe (zł)', 'Zaplanowana kwota poza stałym przelewem. Puste = średnia z historii.'],
 };
 
 export default function Ustawienia({ onChanged }: any) {

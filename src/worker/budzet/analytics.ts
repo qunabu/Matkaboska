@@ -704,14 +704,18 @@ export async function payoutDefaults(s: Store) {
   const nettoByMonth = Object.fromEntries((await monthlyWaterfall(s)).map((w) => [w.month, w.netto]))
   const pitRatios = pitRows.filter((r) => (nettoByMonth[r.month] ?? 0) > 0).map((r) => r.t / nettoByMonth[r.month])
 
+  // Kwoty ustalone przez użytkownika mają pierwszeństwo przed medianą z historii.
+  const fixedIng = cfg.household_fixed !== '' ? num(cfg.household_fixed, 0) : null
+  const fixedAdhoc = cfg.household_adhoc_fixed !== '' ? num(cfg.household_adhoc_fixed, 0) : null
+
   return {
     vat_rate: vatRate,
     pit_rate_of_net: round((median(pitRatios) || 0.112) * 10000) / 10000,
     zus_monthly: round(median(zusRows.map((r) => r.z)) || 0),
     subkonto_other_monthly: round(subkontoOther),
     company_costs_monthly: round(companyCosts),
-    household_monthly: round(ing),
-    household_adhoc_monthly: round(adhocHousehold),
+    household_monthly: fixedIng ?? round(ing),
+    household_adhoc_monthly: fixedAdhoc ?? round(adhocHousehold),
     mbank_monthly: round(daily),
     mbank_mean_monthly: round(dailyMean),
     pko_monthly: round(hub),
