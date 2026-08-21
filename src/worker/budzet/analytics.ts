@@ -865,8 +865,18 @@ export async function payoutPlan(s: Store, o: {
   const realSavings = round(savingsSteady - pkoSpend - dopłatyDoMbank)
 
   const cfgAll = await getSettings(s)
+  // Struktura zaczyna obowiązywać od wpływu faktury w danym miesiącu, nie od 1.
+  // dnia — do tego czasu pieniądze rozchodzą się jeszcze po staremu.
+  const sf = cfgAll.structure_from || ''
+  let structureStart: { month: string; date: string | null } | null = null
+  if (sf) {
+    const first = await s.first<{ d: string }>(
+      `SELECT MIN(booked_on) d FROM budzet_transactions
+        WHERE user_id = ? AND category_id = 'przychod_firmowy' AND month = ?`, s.userId, sf)
+    structureStart = { month: sf, date: first?.d ?? null }
+  }
   return {
-    structure_from: cfgAll.structure_from || null,
+    structure_from: structureStart,
     input: {
       gross: round(gross), netto: round(netto), vat: round(vat),
       invoice: round(invoice), bonus_net: round(bonusNet), bonus_gross: bonusGross,

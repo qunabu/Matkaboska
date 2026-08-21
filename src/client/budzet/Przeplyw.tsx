@@ -47,7 +47,9 @@ export default function Przeplyw({ p }: { p: any }) {
       key: 'hub', title: 'PKO prywatne', amount: p.private.total, color: 'var(--series-1)',
       covers: ['tylko przelewy i oszczędności', 'stąd zasilasz ING i mBank', 'nic nie płacisz stąd wprost'],
       note: p.structure_from
-        ? `konto przelotowe i skarbonka — zasada obowiązuje od ${p.structure_from}`
+        ? (p.structure_from.date
+            ? `konto przelotowe i skarbonka — od ${p.structure_from.date}`
+            : 'konto przelotowe i skarbonka — od najbliższego przelewu z faktury')
         : 'konto przelotowe i skarbonka',
     },
   ]
@@ -93,9 +95,15 @@ export default function Przeplyw({ p }: { p: any }) {
 
       {p.structure_from && (
         <div className="note" style={{ marginTop: 14 }}>
-          Struktura obowiązuje od <strong>{p.structure_from}</strong>. Wcześniejsze wydatki
-          bywały płacone z różnych rachunków, więc saldo PKO odpowiada stanowi oszczędności
-          dopiero od tej daty — starsze miesiące czytaj przez kategorie, nie przez salda kont.
+          {p.structure_from.date ? (
+            <>Struktura obowiązuje od <strong>{p.structure_from.date}</strong> — dnia, w którym
+            wpłynęła faktura. Wcześniejsze wydatki bywały płacone z różnych rachunków, więc saldo
+            PKO odpowiada stanowi oszczędności dopiero od tego momentu.</>
+          ) : (
+            <>Struktura zacznie obowiązywać <strong>od przelewu z faktury</strong> (spodziewany
+            na początku {p.structure_from.month}) — nie od 1. dnia miesiąca. Do tego czasu
+            pieniądze rozchodzą się jeszcze po staremu, a saldo PKO nie jest miarą oszczędności.</>
+          )}
         </div>
       )}
 
