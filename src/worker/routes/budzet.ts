@@ -474,7 +474,9 @@ app.get('/payout/defaults', async (c) => {
 })
 
 app.post('/payout/plan', async (c) => {
-  const b = await c.req.json<{ amount?: number; planMonth?: string; overrides?: Record<string, number> }>()
+  const b = await c.req.json<{
+    amount?: number; planMonth?: string; overrides?: Record<string, number>; bonusNet?: number
+  }>()
   return c.json(await A.payoutPlan(store(c), b))
 })
 

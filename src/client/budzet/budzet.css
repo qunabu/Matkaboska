@@ -107,3 +107,31 @@ html.dark .bdz {
 .bdz .note { font-size: 12px; color: var(--text-secondary); background: var(--surface-2);
   border: 1px solid var(--border); border-left: 3px solid var(--accent);
   padding: 9px 12px; border-radius: 0 7px 7px 0; margin-bottom: 14px; }
+
+/* ── diagram przepływu ─────────────────────────────────────────────────── */
+.bdz .bdz-flow { margin-bottom: 16px; }
+.bdz .bdz-row { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
+.bdz .bdz-node { background: var(--surface-1); border: 1px solid var(--border);
+  border-top: 3px solid var(--border-strong); border-radius: 10px; padding: 12px 14px;
+  min-width: 190px; display: flex; flex-direction: column; }
+.bdz .bdz-node-top { margin: 0 auto; max-width: 460px; text-align: center; align-items: center; }
+.bdz .bdz-node-title { font-size: 11.5px; color: var(--text-muted); text-transform: uppercase;
+  letter-spacing: .06em; }
+.bdz .bdz-node-amount { font-size: 23px; font-weight: 640; margin: 5px 0 8px;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.bdz .bdz-node-covers { margin: 0; padding-left: 15px; font-size: 12px;
+  color: var(--text-secondary); line-height: 1.55; }
+.bdz .bdz-node-note { font-size: 11px; color: var(--text-muted); margin-top: 8px;
+  padding-top: 7px; border-top: 1px dashed var(--border); }
+.bdz .bdz-node-top .bdz-node-note { border-top: 0; padding-top: 0; margin-top: 4px; }
+.bdz .bdz-arrow { height: 22px; position: relative; }
+.bdz .bdz-arrow::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0;
+  border-left: 2px solid var(--border-strong); }
+.bdz .bdz-arrow-right::before { left: auto; right: 16.6%; }
+.bdz .bdz-sub { font-size: 11.5px; color: var(--text-muted); text-align: right;
+  padding-right: 8px; margin-bottom: 6px; }
+@media (max-width: 760px) {
+  .bdz .bdz-row { flex-direction: column; }
+  .bdz .bdz-arrow-right::before { right: 50%; }
+  .bdz .bdz-sub { text-align: center; padding-right: 0; }
+}

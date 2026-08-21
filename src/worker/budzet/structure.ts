@@ -24,13 +24,17 @@ const DEFAULTS: Record<string, string> = {
   hobby: 'daily', uroda: 'daily', ksiazki: 'daily',
   gotowka: 'daily', zwierzeta: 'daily', subskrypcje: 'daily',
   zakupy_online: 'daily', p2p: 'daily', prezenty: 'daily',
+  // Przedszkole i sprawy dzieci to wydatki powtarzalne — konto codzienne.
+  dzieci_przedszkole: 'daily', dzieci_zajecia: 'daily', dzieci_inne: 'daily',
+  zdrowie_leki: 'daily',
 
   // PKO prywatne: większe, planowane, stałe zobowiązania
-  dzieci_przedszkole: 'hub', dzieci_zajecia: 'hub', dzieci_inne: 'hub',
-  zdrowie_opieka: 'hub', zdrowie_leki: 'hub',
+  zdrowie_opieka: 'hub',
   ubrania: 'hub', elektronika: 'hub', edukacja: 'hub',
   dom_remont: 'hub', dom_wyposazenie: 'hub', dom_media: 'hub',
-  dom_uslugi: 'hub', telekom: 'hub', ubezpieczenia: 'hub',
+  dom_uslugi: 'hub', ubezpieczenia: 'hub',
+  // Rachunki stałe i przewidywalne trzymamy razem z podatkami.
+  telekom: 'tax',
   auto_serwis: 'hub', auto_ubezpieczenie: 'hub',
   darowizny: 'hub', mandaty: 'hub', inne: 'hub',
   do_sklasyfikowania: 'hub',

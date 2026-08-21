@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Empty, Tile, Money } from '../ui';
+import Przeplyw from '../Przeplyw';
 import { get, post, pln, pln2, MONTH_LABEL } from '../api';
 
 const PARAMS = [
@@ -25,6 +26,7 @@ export default function PlanWyplaty({ months }: any) {
   const [amount, setAmount] = useState('');
   const [month, setMonth] = useState('');
   const [ov, setOv] = useState<any>({});
+  const [bonus, setBonus] = useState('');
   const [plan, setPlan] = useState<any>(null);
 
   useEffect(() => {
@@ -37,8 +39,10 @@ export default function PlanWyplaty({ months }: any) {
 
   useEffect(() => {
     if (!amount || !month) return;
-    post('/api/payout/plan', { amount: Number(amount), planMonth: month, overrides: ov }).then(setPlan);
-  }, [amount, month, JSON.stringify(ov)]);
+    post('/api/payout/plan', {
+      amount: Number(amount), planMonth: month, overrides: ov, bonusNet: Number(bonus) || 0,
+    }).then(setPlan);
+  }, [amount, month, bonus, JSON.stringify(ov)]);
 
   if (!base) return <Empty>Ładowanie…</Empty>;
   const p = plan;
@@ -65,36 +69,57 @@ export default function PlanWyplaty({ months }: any) {
           <p>Wpisz kwotę, która wpłynęła na konto firmowe. Aplikacja rozpisze, ile przelać na subkonto podatkowe, ile zostawić w firmie i jak podzielić resztę między ING, mBank i oszczędności na PKO.</p></div>
       </div>
 
-      <div className="toolbar">
-        <label style={{ fontSize: 13 }}>Kwota przelewu (brutto)&nbsp;
-          <input type="number" step="0.01" value={amount} onChange={(e: any) => setAmount(e.target.value)} style={{ width: 140 }} /></label>
-        <label style={{ fontSize: 13 }}>Miesiąc&nbsp;
-          <select value={month} onChange={(e: any) => setMonth(e.target.value)}>
-            {monthOpts.map((m: any) => <option key={m} value={m}>{MONTH_LABEL(m)}</option>)}
-          </select></label>
-        {base.last_invoice && <span className="muted">ostatnia faktura: {pln2(base.last_invoice.amount)} ({base.last_invoice.booked_on})</span>}
-      </div>
+      <Card style={{ marginBottom: 14 }}>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div>
+            <div className="muted" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
+              Kwota z faktury (brutto)
+            </div>
+            <input type="number" step="0.01" value={amount} onChange={(e: any) => setAmount(e.target.value)}
+                   style={{ width: 170, fontSize: 20, fontWeight: 600, padding: '8px 10px' }} />
+          </div>
+          <div>
+            <div className="muted" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
+              Premia netto (opcjonalnie)
+            </div>
+            <input type="number" step="0.01" value={bonus} placeholder="0"
+                   onChange={(e: any) => setBonus(e.target.value)}
+                   style={{ width: 140, fontSize: 20, padding: '8px 10px' }} />
+          </div>
+          <div>
+            <div className="muted" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>
+              Miesiąc
+            </div>
+            <select value={month} onChange={(e: any) => setMonth(e.target.value)} style={{ padding: '9px 10px' }}>
+              {monthOpts.map((m: any) => <option key={m} value={m}>{MONTH_LABEL(m)}</option>)}
+            </select>
+          </div>
+          <button className="btn" style={{ padding: '11px 20px', fontSize: 15 }}
+                  onClick={() => setAmount(String(base.last_invoice?.amount ?? amount))}>
+            Przyszedł przelew — rozpisz
+          </button>
+        </div>
+        <p className="muted" style={{ fontSize: 12, margin: '10px 0 0' }}>
+          Wpisz kwotę, która wpłynęła na konto firmowe. Rozpis przelicza się od razu.
+          {base.last_invoice && <> Ostatnia faktura: <strong>{pln2(base.last_invoice.amount)}</strong> ({base.last_invoice.booked_on}).</>}
+        </p>
+      </Card>
 
       {!p ? <Empty>Podaj kwotę.</Empty> : (
         <>
-          <div className="grid g4" style={{ marginBottom: 12 }}>
-            <Tile label="Na subkonto podatkowe" value={pln(p.subkonto.total)}
-                  sub={p.subkonto.catch_up > 0 ? `w tym ${pln(p.subkonto.catch_up)} nadrabiania zaległości` : 'sama bieżąca prowizja'} />
-            <Tile label="Na PKO prywatne" value={pln(p.private.total)} sub="stąd dzielisz dalej" />
-            <Tile label="Oszczędności w tym miesiącu" tone={p.private.savings >= 0 ? 'pos' : 'neg'}
-                  value={pln(p.private.savings)} sub={`docelowo ${pln(p.steady.savings)} po nadrobieniu zaległości`} />
-            <Tile label="Realny przyrost oszczędności" tone={p.steady.net_accumulation >= 0 ? 'pos' : 'neg'}
-                  value={pln(p.steady.net_accumulation)}
-                  sub={`odkładasz ${pln(p.steady.real_savings)} · wyjazdy pobierają ${pln(p.steady.travel_monthly)}`} />
-          </div>
+          <Przeplyw p={p} />
 
-          {p.subkonto.catch_up > 0 && (
-            <div className="note" style={{ borderLeftColor: 'var(--warn)' }}>
-              <strong>{pln(p.subkonto.catch_up)}</strong> z przelewu na subkonto to <strong>jednorazowe nadrobienie zaległości</strong>,
-              głównie niezafakturowany wynajem biura ({pln(p.reserve.accrued_liabilities)}). W kolejnych miesiącach,
-              przy tej samej fakturze, na subkonto wystarczy {pln(p.subkonto.provision)}, a do odłożenia zostanie {pln(p.steady.savings)}.
-            </div>
-          )}
+          <div className="grid g4" style={{ marginBottom: 12 }}>
+            <Tile label="Zostaje na PKO w tym miesiącu" tone={p.private.savings >= 0 ? 'pos' : 'neg'}
+                  value={pln(p.private.savings)}
+                  sub={p.subkonto.catch_up > 0 ? `w tym efekt nadrobienia zaległości` : 'po stałych przelewach'} />
+            <Tile label="Docelowo co miesiąc" value={pln(p.steady.savings)}
+                  sub="gdy rezerwa podatkowa jest dokładnie opłacona" />
+            <Tile label="Średni odpływ z PKO" value={pln(p.steady.pko_outflow)}
+                  sub={`większe wydatki ${pln(p.steady.pko_spend)} + wyjazdy ${pln(p.steady.travel_monthly)}`} />
+            <Tile label="Realny przyrost oszczędności" tone={p.steady.net_accumulation >= 0 ? 'pos' : 'neg'}
+                  value={pln(p.steady.net_accumulation)} sub="docelowo, po odjęciu odpływu z PKO" />
+          </div>
 
           {p.reserves?.items?.length > 0 && (
             <Card title="Rezerwy na wydatki cykliczne wliczone w plan" style={{ marginBottom: 12 }}>
@@ -184,36 +209,24 @@ export default function PlanWyplaty({ months }: any) {
 
               <Card title="Ile z tego naprawdę zostaje">
                 <p className="muted" style={{ marginTop: 0, fontSize: 12.5 }}>
-                  Plan przydziela <strong>mediany</strong>. Wahania zwykłego życia pokrywa bufor na PKO,
-                  a wyjazdy finansujesz z konta oszczędnościowego — dlatego są tu osobną pozycją,
-                  a nie częścią bufora.
+                  Na PKO zostaje wszystko, czego nie wysłałeś dalej — i to jest Twój stan oszczędności.
+                  Z tego samego salda schodzą jednak większe, nieregularne wydatki i wyjazdy.
                 </p>
                 <table><tbody>
-                  <tr><td>Oszczędności docelowo / mies.</td><td className="num">{pln2(p.steady.savings)}</td></tr>
-                  <tr><td className="muted" style={{ paddingLeft: 16 }}>faktyczne wydatki bez wyjazdów</td>
-                      <td className="num muted">{pln2(p.steady.avg_spend_no_travel)}</td></tr>
-                  <tr><td className="muted" style={{ paddingLeft: 16 }}>zaplanowane</td>
-                      <td className="num muted">{pln2(p.steady.planned_spend)}</td></tr>
-                  <tr><td>Bufor płynności na PKO</td><td className="num warnc">−{pln2(p.steady.liquidity_buffer)}</td></tr>
-                  <tr><td><strong>Trafia na konto oszczędnościowe</strong></td>
-                      <td className="num"><strong className="pos">{pln2(p.steady.real_savings)}</strong></td></tr>
-                  <tr><td>Średnie pobranie na wyjazdy</td><td className="num neg">−{pln2(p.steady.travel_monthly)}</td></tr>
+                  <tr><td>Zostaje na PKO docelowo / mies.</td><td className="num">{pln2(p.steady.savings)}</td></tr>
+                  <tr><td className="muted" style={{ paddingLeft: 16 }}>większe i losowe wydatki</td>
+                      <td className="num neg">−{pln2(p.steady.pko_spend)}</td></tr>
+                  <tr><td className="muted" style={{ paddingLeft: 16 }}>wyjazdy</td>
+                      <td className="num neg">−{pln2(p.steady.travel_monthly)}</td></tr>
                   <tr style={{ borderTop: '2px solid var(--border-strong)' }}>
                       <td><strong>Realny przyrost oszczędności</strong></td>
-                      <td className="num"><strong className={p.steady.net_accumulation >= 0 ? 'pos' : 'neg'}>{pln2(p.steady.net_accumulation)}</strong></td></tr>
+                      <td className="num"><strong className={p.steady.net_accumulation >= 0 ? 'pos' : 'neg'}>
+                        {pln2(p.steady.net_accumulation)}</strong></td></tr>
                 </tbody></table>
                 {p.steady.net_accumulation < 0 && (
                   <p className="warnc" style={{ fontSize: 12.5, marginBottom: 0 }}>
-                    {p.steady.real_savings > 0 ? (
-                      <>Wyjazdy zjadają całość odkładanej kwoty i jeszcze {pln(Math.abs(p.steady.net_accumulation))} ponad nią.
-                      Żeby oszczędności rosły, wyjazdy musiałyby zejść poniżej {pln(p.steady.real_savings)}/mies.
-                      ({pln(p.steady.real_savings * 12)} rocznie).</>
-                    ) : (
-                      <>Po sfinansowaniu wszystkich kont i raty za biuro brakuje {pln(Math.abs(p.steady.real_savings))}/mies.
-                      <strong> jeszcze zanim doliczysz wyjazdy.</strong> Z wyjazdami luka rośnie do {pln(Math.abs(p.steady.net_accumulation))}/mies.
-                      ({pln(Math.abs(p.steady.net_accumulation) * 12)} rocznie). Same wyjazdy nie są tu jedyną przyczyną —
-                      przy tej fakturze nie domyka się już sam plan bieżący.</>
-                    )}
+                    Saldo PKO będzie się kurczyć o {pln(Math.abs(p.steady.net_accumulation))} miesięcznie.
+                    Żeby rosło, wyjazdy musiałyby zejść poniżej {pln(Math.max(0, p.steady.savings - p.steady.pko_spend))}/mies.
                   </p>
                 )}
               </Card>

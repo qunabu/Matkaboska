@@ -716,14 +716,27 @@ export async function payoutDefaults(s: Store) {
   }
 }
 
-function vatQuarter(month: string) {
+/**
+ * Do kiedy VAT jest rozliczony. Przelew do US w miesiącu M reguluje kwartał,
+ * który zakończył się przed M (termin: 25. dnia po końcu kwartału). Wszystko
+ * zafakturowane po tej dacie jest wciąż nieopłacone.
+ *
+ * Liczenie „VAT-u bieżącego kwartału" było błędne: zaraz po przełomie kwartału
+ * rezerwa spadała, mimo że VAT za poprzedni kwartał czekał jeszcze na zapłatę.
+ */
+function vatClearedThrough(lastPaymentDate: string | null): string {
+  if (!lastPaymentDate) return '0000-01-01'
+  const [y, m] = lastPaymentDate.slice(0, 7).split('-').map(Number)
+  const q = Math.floor((m - 1) / 3)          // kwartał, w którym zapłacono
+  const endMonth = q * 3                      // koniec POPRZEDNIEGO kwartału
+  if (endMonth === 0) return `${y - 1}-12-31`
+  const lastDay = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][endMonth - 1]
+  return `${y}-${String(endMonth).padStart(2, '0')}-${lastDay}`
+}
+
+function quarterLabel(month: string) {
   const [y, m] = month.split('-').map(Number)
-  const q = Math.floor((m - 1) / 3)
-  return {
-    from: `${y}-${String(q * 3 + 1).padStart(2, '0')}-01`,
-    to: `${y}-${String(q * 3 + 3).padStart(2, '0')}-31`,
-    label: `${y} Q${q + 1}`,
-  }
+  return `${y} Q${Math.floor((m - 1) / 3) + 1}`
 }
 
 export async function subkontoReserve(s: Store, o: { planMonth?: string; plannedGross?: number } = {}) {
@@ -735,18 +748,17 @@ export async function subkontoReserve(s: Store, o: { planMonth?: string; planned
   const d = await payoutDefaults(s)
   const inputShare = await inputVatShare(s)
 
-  const q = vatQuarter(month)
+  const lastVat = await s.first<{ d: string }>(
+    `SELECT MAX(booked_on) d FROM budzet_transactions WHERE user_id = ? AND category_id='podatek_vat'`, s.userId)
+  const clearedThrough = vatClearedThrough(lastVat?.d ?? null)
   const gq = await s.first<{ s: number }>(
     `SELECT COALESCE(SUM(amount),0) s FROM budzet_transactions
-      WHERE user_id = ? AND category_id='przychod_firmowy' AND booked_on BETWEEN ? AND ?`, s.userId, q.from, q.to)
+      WHERE user_id = ? AND category_id='przychod_firmowy' AND booked_on > ?`, s.userId, clearedThrough)
   const inData = await s.first<{ c: number }>(
     `SELECT COUNT(*) c FROM budzet_transactions WHERE user_id = ? AND category_id='przychod_firmowy' AND month = ?`, s.userId, month)
   const quarterGross = (gq?.s ?? 0) + ((inData?.c ?? 0) > 0 ? 0 : plannedGross)
   const vatDue = quarterGross * (vatRate / (1 + vatRate)) * (1 - inputShare)
-  const vp = await s.first<{ s: number }>(
-    `SELECT COALESCE(SUM(amount),0) s FROM budzet_transactions
-      WHERE user_id = ? AND category_id='podatek_vat' AND booked_on > ?`, s.userId, q.to)
-  const vatPaid = -(vp?.s ?? 0)
+  const vatPaid = 0   // wszystko po `clearedThrough` jest z definicji niezapłacone
 
   const netto = plannedGross ? plannedGross - plannedGross * (vatRate / (1 + vatRate)) : 0
   const pitDue = netto * d.pit_rate_of_net
@@ -758,7 +770,8 @@ export async function subkontoReserve(s: Store, o: { planMonth?: string; planned
 
   const required = Math.max(0, vatDue - vatPaid) + pitDue + d.zus_monthly + d.subkonto_other_monthly + sched.required_so_far
   return {
-    plan_month: month, quarter: q.label, quarter_gross: round(quarterGross),
+    plan_month: month, quarter: quarterLabel(month), quarter_gross: round(quarterGross),
+    vat_cleared_through: clearedThrough,
     vat_due: round(Math.max(0, vatDue - vatPaid)), pit_due: round(pitDue),
     zus_due: round(d.zus_monthly), other_due: round(d.subkonto_other_monthly),
     accrued_liabilities: round(sched.required_so_far), accrual_schedule: sched,
@@ -768,10 +781,17 @@ export async function subkontoReserve(s: Store, o: { planMonth?: string; planned
   }
 }
 
-export async function payoutPlan(s: Store, o: { amount?: number; planMonth?: string; overrides?: Record<string, number> } = {}) {
+export async function payoutPlan(s: Store, o: {
+  amount?: number; planMonth?: string; overrides?: Record<string, number>
+  /** Jednorazowa premia podana NETTO — doliczamy VAT, bo wchodzi na fakturę. */
+  bonusNet?: number
+} = {}) {
   const base = await payoutDefaults(s)
   const d = { ...base, ...(o.overrides ?? {}) }
-  const gross = Number(o.amount) || 0
+  const invoice = Number(o.amount) || 0
+  const bonusNet = Number(o.bonusNet) || 0
+  const bonusGross = round(bonusNet * (1 + d.vat_rate))
+  const gross = invoice + bonusGross
   const vat = gross * (d.vat_rate / (1 + d.vat_rate))
   const netto = gross - vat
   const pit = netto * d.pit_rate_of_net
@@ -797,12 +817,15 @@ export async function payoutPlan(s: Store, o: { amount?: number; planMonth?: str
   const toHouseholdAdhoc = round(d.household_adhoc_monthly || 0)
   const toMbank = round(d.mbank_monthly + resFor('daily'))
   const pkoSpend = round(d.pko_monthly + resFor('hub'))
-  const savings = round(toPrivate - toIng - toHouseholdAdhoc - toMbank - pkoSpend)
+  // Na PKO zostaje wszystko, czego nie wysłano dalej. Wydatki własne PKO (większe,
+  // losowe, wakacje) NIE są przelewem — schodzą z tego samego salda później, więc
+  // odejmowanie ich tutaj rozjeżdżało sumę i zaniżało „ile mam odłożone".
+  const savings = round(toPrivate - toIng - toHouseholdAdhoc - toMbank)
   // Stan docelowy liczymy od PEŁNEJ prowizji miesięcznej, nie od tegomiesięcznej
   // wpłaty. W miesiącu, w którym subkonto ma nadwyżkę z przeszłości, przelew jest
   // mniejszy i „oszczędności" wyglądają na wyższe, niż wynika z powtarzalnego rytmu.
   const privateAtProvision = round(gross - provision - keepCompany)
-  const savingsSteady = round(privateAtProvision - toIng - toHouseholdAdhoc - toMbank - pkoSpend)
+  const savingsSteady = round(privateAtProvision - toIng - toHouseholdAdhoc - toMbank)
 
   const w = completeMonths(await monthlyWaterfall(s))
   const avgAdj = w.length ? w.reduce((a, b) => a + b.nadwyzka_skorygowana, 0) / w.length : 0
@@ -817,11 +840,16 @@ export async function payoutPlan(s: Store, o: { amount?: number; planMonth?: str
   const avgSpendNoTravel = w.length ? w.reduce((a, b) => a + (spendNoTravel[b.month] ?? 0), 0) / w.length : 0
   const avgTravel = d.travel_goal_monthly ?? 0
   const plannedSpend = keepCompany + toMbank + pkoSpend + toHouseholdAdhoc + toIng
-  const liquidityBuffer = round(Math.max(0, avgSpendNoTravel - plannedSpend))
-  const realSavings = round(savingsSteady - liquidityBuffer)
+  // Z salda PKO schodzą jeszcze większe/losowe wydatki i wyjazdy — dopiero po nich
+  // widać, o ile oszczędności realnie rosną.
+  const pkoOutflow = round(pkoSpend + avgTravel)
+  const realSavings = round(savingsSteady - pkoSpend)
 
   return {
-    input: { gross: round(gross), netto: round(netto), vat: round(vat) },
+    input: {
+      gross: round(gross), netto: round(netto), vat: round(vat),
+      invoice: round(invoice), bonus_net: round(bonusNet), bonus_gross: bonusGross,
+    },
     params: d, reserve: res, reserves: rp,
     subkonto: {
       total: round(toSubkonto), provision, catch_up: catchUp,
@@ -837,8 +865,12 @@ export async function payoutPlan(s: Store, o: { amount?: number; planMonth?: str
     company: { keep: keepCompany, buffer_target: d.company_buffer_target },
     private: { total: toPrivate, ing: toIng, adhoc: toHouseholdAdhoc, mbank: toMbank, pko_spend: pkoSpend, savings },
     steady: {
-      savings: savingsSteady, liquidity_buffer: liquidityBuffer, real_savings: realSavings,
-      travel_monthly: round(avgTravel), net_accumulation: round(realSavings - avgTravel),
+      savings: savingsSteady,
+      pko_spend: round(pkoSpend),
+      travel_monthly: round(avgTravel),
+      pko_outflow: pkoOutflow,
+      real_savings: realSavings,
+      net_accumulation: round(savingsSteady - pkoOutflow),
       avg_spend_no_travel: round(avgSpendNoTravel), planned_spend: round(plannedSpend),
     },
     warnings: {
