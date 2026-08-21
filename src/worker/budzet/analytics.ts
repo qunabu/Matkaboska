@@ -864,7 +864,9 @@ export async function payoutPlan(s: Store, o: {
   const pkoOutflow = round(pkoSpend + dopłatyDoMbank + avgTravel)
   const realSavings = round(savingsSteady - pkoSpend - dopłatyDoMbank)
 
+  const cfgAll = await getSettings(s)
   return {
+    structure_from: cfgAll.structure_from || null,
     input: {
       gross: round(gross), netto: round(netto), vat: round(vat),
       invoice: round(invoice), bonus_net: round(bonusNet), bonus_gross: bonusGross,

@@ -55,6 +55,10 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   // przy odkładaniu bezpieczniej odłożyć pełne 23% i mieć nadwyżkę,
   // niż nie dopłacić do urzędu.
   vat_input_share: '0',
+  // Od kiedy obowiązuje docelowa struktura kont. Przed tą datą wydatki bywały
+  // płacone z różnych rachunków, więc saldo konta głównego NIE odpowiada jeszcze
+  // stanowi oszczędności — interfejs musi o tym mówić wprost.
+  structure_from: '',
 }
 
 export async function getSettings(s: Store): Promise<Record<string, string>> {

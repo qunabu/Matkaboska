@@ -4,6 +4,7 @@ import { get, put, post, del, pln } from '../api';
 
 const LABELS = {
   vat_rate: ['Stawka VAT', 'Ułamek, np. 0.23 dla 23%.'],
+  structure_from: ['Struktura kont obowiązuje od (RRRR-MM)', 'Od tego miesiąca saldo PKO odpowiada stanowi oszczędności. Puste = bez adnotacji.'],
   vat_input_share: ['Udział VAT naliczonego', 'O ile pomniejszyć odkładany VAT (0 = odkładaj pełne 23%). Ostrożniej zostawić 0.'],
   company_buffer_target: ['Bufor na koncie firmowym (zł)', 'Ile zostawiasz na koncie firmowym; nadwyżka ponad tę kwotę jest wskazywana jako gotowa do odłożenia.'],
   kindergarten_food_rate: ['Stawka wyżywienia w przedszkolu (zł/dzień)', 'Służy do rozbicia opłaty na część stałą i wyżywienie.'],

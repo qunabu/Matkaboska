@@ -46,7 +46,9 @@ export default function Przeplyw({ p }: { p: any }) {
     {
       key: 'hub', title: 'PKO prywatne', amount: p.private.total, color: 'var(--series-1)',
       covers: ['tylko przelewy i oszczędności', 'stąd zasilasz ING i mBank', 'nic nie płacisz stąd wprost'],
-      note: 'konto przelotowe i skarbonka',
+      note: p.structure_from
+        ? `konto przelotowe i skarbonka — zasada obowiązuje od ${p.structure_from}`
+        : 'konto przelotowe i skarbonka',
     },
   ]
 
@@ -88,6 +90,14 @@ export default function Przeplyw({ p }: { p: any }) {
       <div className="bdz-arrow bdz-arrow-right" />
       <div className="bdz-sub">z konta PKO dzielisz dalej</div>
       <div className="bdz-row">{poziom2.map((n) => <Box key={n.key} n={n} />)}</div>
+
+      {p.structure_from && (
+        <div className="note" style={{ marginTop: 14 }}>
+          Struktura obowiązuje od <strong>{p.structure_from}</strong>. Wcześniejsze wydatki
+          bywały płacone z różnych rachunków, więc saldo PKO odpowiada stanowi oszczędności
+          dopiero od tej daty — starsze miesiące czytaj przez kategorie, nie przez salda kont.
+        </div>
+      )}
 
       {p.private.savings < 0 && (
         <div className="note" style={{ borderLeftColor: 'var(--bad)', marginTop: 14 }}>
