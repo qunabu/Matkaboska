@@ -100,6 +100,15 @@ function inQuietHours(nowMin: number, start: string | null, end: string | null):
   return s < e ? nowMin >= s && nowMin < e : nowMin >= s || nowMin < e
 }
 
+/** Minuta dnia (0-1439) danego znacznika czasu w strefie użytkownika. */
+function localMinutes(tz: string, d: Date): number {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit',
+  }).formatToParts(d)
+  const g = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? '0')
+  return g('hour') * 60 + g('minute')
+}
+
 // When the last batch went out. Kept in its own settings bucket ('push_state')
 // so cron writes never race the user editing their app settings.
 async function readLastBatchAt(db: Db, userId: string): Promise<number | null> {
@@ -342,9 +351,9 @@ export default {
         })
       }
 
-      // Per-item nag floors still apply, but never tighter than the batch
-      // window — that window is the user's stated tolerance.
-      const supNag = Math.max(30, intervalMin)
+      // Jedno powiadomienie na rzecz — bez ponawiania co interwał. Nieodhaczona
+      // pozycja czeka do następnego terminu (kolejnej dawki, kolejnego dnia),
+      // zamiast dzwonić w kółko.
       const logDateKey = new Date().toISOString().slice(0, 10)
       const allSupps = await db.select().from(supplements).where(eq(supplements.user_id, userId))
       for (const sup of allSupps) {
@@ -364,7 +373,16 @@ export default {
           .where(and(eq(supplement_log.supplement_id, sup.id), eq(supplement_log.date, logDateKey)))
         if (takenRows.length >= dueByNow) continue
 
-        if (sup.last_notified_at && (nowUnix - sup.last_notified_at) / 60 < supNag) continue
+        // Jedna dawka = jedno powiadomienie: pomijamy, jeśli ostatnie wyszło już
+        // po godzinie ostatniej wymagalnej dawki dzisiaj. Kolejna godzina z
+        // rozkładu wyzwoli następne.
+        const lastDueMin = Math.max(...times
+          .map((t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m })
+          .filter((m) => m <= nowMin))
+        if (sup.last_notified_at) {
+          const at = new Date(sup.last_notified_at * 1000)
+          if (localDateKey(tz, at) === todayKey && localMinutes(tz, at) >= lastDueMin) continue
+        }
 
         batch.push({
           payload: {
@@ -436,8 +454,10 @@ export default {
         if (!ch.active) continue
         const { due } = choreDue(ch, choreCtx)
         if (!due) continue
-        const choreNag = Math.max(ch.nag_minutes, intervalMin)
-        if (ch.last_notified_at && (nowUnix - ch.last_notified_at) / 60 < choreNag) continue
+        // Raz na dzień wymagalności — obowiązek i tak przestaje być wymagalny
+        // po odhaczeniu, więc powtórki tylko dzwoniłyby do skutku.
+        if (ch.last_notified_at
+          && localDateKey(tz, new Date(ch.last_notified_at * 1000)) === todayKey) continue
         batch.push({
           payload: {
             title: ch.name,

@@ -210,8 +210,11 @@ function CustomFood({ date }: { date: string }) {
     <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
       <h2 className="mb-1 font-semibold text-gray-900 dark:text-gray-100">🍽 {pl.today.addOwnFood}</h2>
       <p className="mb-3 text-xs text-gray-400">{pl.today.ownFoodHint}</p>
-      <div className="flex gap-2">
-        <div className="relative flex-1">
+      {/* Podpowiedzi wiszą pod CAŁYM wierszem, nie pod samym polem: obok pola
+          siedzi przycisk, więc lista przyklejona do inputu robiła się na
+          telefonie tak wąska, że z nazwy zostawało kilka liter. */}
+      <div className="relative">
+        <div className="flex gap-2">
           <input
             value={desc}
             onChange={(e) => { setDesc(e.target.value); setShowSug(true); setActiveIdx(-1) }}
@@ -219,51 +222,53 @@ function CustomFood({ date }: { date: string }) {
             onKeyDown={onKeyDown}
             placeholder={pl.today.ownFoodPlaceholder}
             disabled={busy}
-            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-primary-400 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+            className="min-w-0 flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-primary-400 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
           />
-          {showSug && (suggestions.length > 0 || desc.trim().length > 0) && (
-            // Keep focus in the input so blur doesn't race the click.
-            <div onMouseDown={(e) => e.preventDefault()}>
-              {suggestions.length === 0 ? (
-                <p className="absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs text-gray-400 shadow-lg dark:border-gray-700 dark:bg-gray-900">
-                  {pl.today.sugEmpty}
-                </p>
-              ) : (
-                <ul className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
-                  {suggestions.map((s, i) => (
-                    <li key={`${s.source}-${s.recipe_id ?? s.label}`}>
-                      <button
-                        type="button"
-                        onClick={() => pick(s)}
-                        onMouseEnter={() => setActiveIdx(i)}
-                        className={`flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm ${
-                          i === activeIdx ? 'bg-gray-50 dark:bg-gray-800' : ''
-                        }`}
-                      >
-                        <span className="flex min-w-0 items-center gap-2">
-                          <span aria-hidden>{s.source === 'recipe' ? '🍲' : '🕘'}</span>
-                          <span className="truncate text-gray-900 dark:text-gray-100">{s.label}</span>
-                        </span>
-                        <span className="whitespace-nowrap text-xs text-gray-400">
-                          {s.kcal != null ? `${Math.round(s.kcal)} kcal` : pl.today.sugNoMacros}
-                          {' · '}
-                          {s.source === 'recipe' ? pl.today.sugFromRecipe : pl.today.sugFromLog}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+          <button
+            onClick={submit}
+            disabled={busy || !desc.trim()}
+            className="shrink-0 whitespace-nowrap rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {estimateMutation.isPending ? pl.today.estimating : pickMutation.isPending ? pl.today.sugAdding : pl.today.estimateAdd}
+          </button>
         </div>
-        <button
-          onClick={submit}
-          disabled={busy || !desc.trim()}
-          className="whitespace-nowrap rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
-        >
-          {estimateMutation.isPending ? pl.today.estimating : pickMutation.isPending ? pl.today.sugAdding : pl.today.estimateAdd}
-        </button>
+        {showSug && (suggestions.length > 0 || desc.trim().length > 0) && (
+          // Keep focus in the input so blur doesn't race the click.
+          <div onMouseDown={(e) => e.preventDefault()}>
+            {suggestions.length === 0 ? (
+              <p className="absolute left-0 right-0 top-full z-20 mt-1 rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs text-gray-400 shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                {pl.today.sugEmpty}
+              </p>
+            ) : (
+              <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                {suggestions.map((s, i) => (
+                  <li key={`${s.source}-${s.recipe_id ?? s.label}`}>
+                    <button
+                      type="button"
+                      onClick={() => pick(s)}
+                      onMouseEnter={() => setActiveIdx(i)}
+                      className={`w-full px-4 py-2 text-left text-sm ${
+                        i === activeIdx ? 'bg-gray-50 dark:bg-gray-800' : ''
+                      }`}
+                    >
+                      {/* Nazwa dostaje cały wiersz, kcal/źródło schodzą niżej —
+                          inaczej na telefonie to metadane zjadały nazwę. */}
+                      <span className="flex items-baseline gap-2">
+                        <span aria-hidden>{s.source === 'recipe' ? '🍲' : '🕘'}</span>
+                        <span className="min-w-0 flex-1 truncate text-gray-900 dark:text-gray-100">{s.label}</span>
+                      </span>
+                      <span className="mt-0.5 block pl-7 text-xs text-gray-400">
+                        {s.kcal != null ? `${Math.round(s.kcal)} kcal` : pl.today.sugNoMacros}
+                        {' · '}
+                        {s.source === 'recipe' ? pl.today.sugFromRecipe : pl.today.sugFromLog}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
       {(estimateMutation.isError || pickMutation.isError) && (
         <p className="mt-2 text-xs text-red-500">{pl.today.estimateFailed}</p>
@@ -389,18 +394,18 @@ function ReadyProduct({ date }: { date: string }) {
           className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:border-primary-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
         />
         {showSug && suggestions.length > 0 && (
-          <ul className="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+          <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
             {suggestions.map((p) => (
               <li key={p.id}>
                 <button
                   type="button"
                   onClick={() => pick(p)}
-                  className="flex w-full items-center justify-between gap-2 px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
-                  <span className="truncate text-gray-900 dark:text-gray-100">{p.name}</span>
-                  <span className="whitespace-nowrap text-xs text-gray-400">
-                    {p.kcal != null ? `${Math.round(p.kcal)} kcal/100g` : ''}
-                  </span>
+                  <span className="block truncate text-gray-900 dark:text-gray-100">{p.name}</span>
+                  {p.kcal != null && (
+                    <span className="mt-0.5 block text-xs text-gray-400">{Math.round(p.kcal)} kcal/100g</span>
+                  )}
                 </button>
               </li>
             ))}

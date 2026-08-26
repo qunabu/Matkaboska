@@ -25,7 +25,6 @@ function AddChoreForm() {
   const [intervalDays, setIntervalDays] = useState('4')
   const [weekdays, setWeekdays] = useState<number[]>([3])
   const [time, setTime] = useState('20:00')
-  const [nag, setNag] = useState('60')
 
   const create = useMutation({
     mutationFn: () => choresApi.create({
@@ -33,7 +32,6 @@ function AddChoreForm() {
       interval_days: mode === 'interval' ? Number(intervalDays) || 1 : null,
       weekdays: mode === 'weekly' ? weekdays : null,
       time,
-      nag_minutes: Number(nag) || 60,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['chores'] }); setName('') },
   })
@@ -86,11 +84,6 @@ function AddChoreForm() {
             <input type="time" value={time} onChange={(e) => setTime(e.target.value)}
               className="rounded-lg border border-gray-200 px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100" />
           </label>
-          <label className="flex items-center gap-2">{pl.chores.nag}:
-            <input type="number" min="5" step="5" value={nag} onChange={(e) => setNag(e.target.value)}
-              className="w-20 rounded-lg border border-gray-200 px-2 py-1 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100" />
-            min
-          </label>
         </div>
 
         <button
@@ -123,7 +116,7 @@ function ChoreRow({ chore }: { chore: Chore }) {
           <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
             {chore.due && '🔔 '}{chore.name}
           </p>
-          <p className="mt-0.5 text-xs text-gray-400">{recurrenceLabel(chore)} · {pl.chores.nagEvery} {chore.nag_minutes} min</p>
+          <p className="mt-0.5 text-xs text-gray-400">{recurrenceLabel(chore)} · {pl.chores.notifyOnce}</p>
           <p className="text-xs text-gray-400">
             {chore.done_today ? `✓ ${pl.chores.doneToday}` : lastDoneLabel(chore)}
           </p>
