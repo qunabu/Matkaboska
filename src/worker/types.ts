@@ -40,6 +40,10 @@ export type Env = {
 
 export type AppVariables = {
   userId: string
+  // How the caller proved who they are. Device tokens (the Android blocker) are
+  // deliberately weaker than a browser session: they may read rules and check
+  // habits in, but not mint or revoke other device tokens.
+  authKind: 'session' | 'device' | 'none'
 }
 
 export type AppEnv = {

@@ -283,6 +283,24 @@ export interface Chore {
   done_today: boolean            // computed
 }
 
+/** A blocking rule for the phone. daily_limit_minutes 0 = always blocked. */
+export interface BlockRule {
+  id: number
+  pattern: string
+  daily_limit_minutes: number
+  active: boolean
+  created_at: number
+}
+
+/** A phone authorised to sync rules. The token itself is only ever returned once. */
+export interface BlockDevice {
+  id: number
+  name: string
+  hint: string
+  last_seen_at: number | null
+  created_at: number
+}
+
 export interface Habit {
   id: number
   name: string

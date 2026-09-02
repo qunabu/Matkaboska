@@ -220,6 +220,34 @@ export const habit_checkins = sqliteTable('habit_checkins', {
   habit_checkin_uidx: uniqueIndex('habit_checkin_uidx').on(t.habit_id, t.date),
 }))
 
+export const block_rules = sqliteTable('block_rules', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  user_id: text('user_id').notNull().default(''),
+  // Host ("reddit.com"), bare name ("facebook") or an app package name.
+  pattern: text('pattern').notNull(),
+  // 0 = always blocked; >0 = daily budget in minutes.
+  daily_limit_minutes: integer('daily_limit_minutes').notNull().default(0),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
+  created_at: integer('created_at').notNull().default(unixNow),
+}, (t) => ({
+  block_rules_user_pattern_uidx: uniqueIndex('block_rules_user_pattern_uidx').on(t.user_id, t.pattern),
+  block_rules_user_idx: index('block_rules_user_idx').on(t.user_id),
+}))
+
+// The phone can't complete the Google OAuth flow, so it carries a long-lived
+// bearer token instead. Deleting the row revokes that device immediately.
+export const block_devices = sqliteTable('block_devices', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  user_id: text('user_id').notNull().default(''),
+  name: text('name').notNull(),
+  token: text('token').notNull(),
+  last_seen_at: integer('last_seen_at'),
+  created_at: integer('created_at').notNull().default(unixNow),
+}, (t) => ({
+  block_devices_token_uidx: uniqueIndex('block_devices_token_uidx').on(t.token),
+  block_devices_user_idx: index('block_devices_user_idx').on(t.user_id),
+}))
+
 export const pantry_items = sqliteTable('pantry_items', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   user_id: text('user_id').notNull().default(''),

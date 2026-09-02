@@ -24,6 +24,7 @@ import { ideasRouter } from './routes/ideas'
 import { voiceNotesRouter } from './routes/voice-notes'
 import { pantryRouter } from './routes/pantry'
 import { habitsRouter, getHabitState, localDateKey } from './routes/habits'
+import { blocksRouter } from './routes/blocks'
 import { choresRouter, choreDue } from './routes/chores'
 import { budzetRouter } from './routes/budzet'
 import { Store as BudzetStore } from './budzet/store'
@@ -78,6 +79,7 @@ api.route('/api/ideas', ideasRouter)
 api.route('/api/voice-notes', voiceNotesRouter)
 api.route('/api/pantry', pantryRouter)
 api.route('/api/habits', habitsRouter)
+api.route('/api/blocks', blocksRouter)
 api.route('/api/chores', choresRouter)
 api.route('/api/budzet', budzetRouter)
 

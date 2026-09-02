@@ -2,7 +2,7 @@ import type {
   Recipe, RecipeWithNotes, MealPlanEntry, MealPlanEntryFull, FoodLogEntry, DailySummary,
   WaterLog, SupplementWithStatus, SupplementLog, ShoppingList, ShoppingItem,
   Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote, PantryItem, Habit, Chore,
-  PushStatus,
+  PushStatus, BlockRule, BlockDevice,
   FoodSuggestion, FoodLogAverages,
 } from '../../shared/types'
 
@@ -235,6 +235,22 @@ export const habitsApi = {
   update: (id: number, data: { name?: string; active?: boolean; remind_at?: string | null }) =>
     req<{ id: number }>(`/habits/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (id: number) => req<ApiOk>(`/habits/${id}`, { method: 'DELETE' }),
+}
+
+// ── Blokady (phone site/app blocker) ─────────────────────────────────────────
+
+export const blocksApi = {
+  list: () => req<ApiList<BlockRule>>('/blocks'),
+  create: (pattern: string, daily_limit_minutes: number) =>
+    req<BlockRule>('/blocks', { method: 'POST', body: JSON.stringify({ pattern, daily_limit_minutes }) }),
+  update: (id: number, data: { pattern?: string; daily_limit_minutes?: number; active?: boolean }) =>
+    req<BlockRule>(`/blocks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: number) => req<ApiOk>(`/blocks/${id}`, { method: 'DELETE' }),
+
+  devices: () => req<ApiList<BlockDevice>>('/blocks/devices'),
+  createDevice: (name: string) =>
+    req<{ id: number; name: string; token: string }>('/blocks/devices', { method: 'POST', body: JSON.stringify({ name }) }),
+  deleteDevice: (id: number) => req<ApiOk>(`/blocks/devices/${id}`, { method: 'DELETE' }),
 }
 
 // ── Chores (recurring tasks) ────────────────────────────────────────────────
