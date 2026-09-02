@@ -19,6 +19,14 @@ management ("Tęczowa Madonna"). Multi-tenant, runs entirely on Cloudflare.
 | Auth | Self-hosted Google OAuth (OIDC), D1 sessions — *not* Cloudflare Access |
 | Deploy | Cloudflare Workers Builds (git push) + Wrangler |
 
+## Repozytorium
+
+| Ścieżka | Co to |
+|---|---|
+| `src/` | Worker (Hono) + klient (React) — PWA |
+| `migrations/` | Migracje D1 |
+| `android/` | **SiteLimit** — androidowy bloker stron i aplikacji, sparowany z modułem Blokady. Osobny projekt Gradle, własne README. |
+
 ## Features
 
 - **Recipes** — CRUD, categories, macros per serving incl. **iron (Fe)**; AI macro

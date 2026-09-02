@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- ── Dziś ─────────────────────────────────────────────────────── -->
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Czas przed ekranem dziś"
+            android:textSize="15sp"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/heroTime"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="46sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/heroDelta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:paddingBottom="16dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:baselineAligned="false">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:orientation="vertical"
+                android:background="@drawable/card_bg"
+                android:padding="14dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Zablokowane dziś"
+                    android:textSize="13sp" />
+                <TextView
+                    android:id="@+id/statBlocks"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="26sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:orientation="vertical"
+                android:background="@drawable/card_bg"
+                android:padding="14dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Odblokowania"
+                    android:textSize="13sp" />
+                <TextView
+                    android:id="@+id/statUnlocks"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="26sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/statScreen"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:gravity="center"
+            android:paddingTop="8dp" />
+
+        <!-- ── Gdzie ucieka uwaga ───────────────────────────────────────── -->
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="24dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Gdzie ucieka uwaga?"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnRange"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/spendTotal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:paddingBottom="4dp" />
+
+        <LinearLayout
+            android:id="@+id/spendContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="4dp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="20dp"
+            android:background="?android:attr/listDivider" />
+
+        <!-- ── Ustawienia ───────────────────────────────────────────────── -->
+
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:paddingBottom="10dp" />
+
+        <Button
+            android:id="@+id/btnAccessibility"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ustawienia dostępności" />
+
+        <Button
+            android:id="@+id/btnOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Wyświetlanie nad innymi aplikacjami" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Matka Boska"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Reguły ustawiasz w Matce Boskiej → Blokady. Telefon je tylko pobiera."
+            android:textSize="12sp"
+            android:paddingBottom="8dp" />
+
+        <EditText
+            android:id="@+id/inputServerUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="https://meal-planner.qunabu.workers.dev"
+            android:inputType="textUri"
+            android:importantForAutofill="no"
+            android:maxLines="1" />
+
+        <EditText
+            android:id="@+id/inputToken"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="token urządzenia"
+            android:inputType="textVisiblePassword"
+            android:importantForAutofill="no"
+            android:maxLines="1" />
+
+        <Button
+            android:id="@+id/btnSaveServer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Zapisz i połącz" />
+
+        <Button
+            android:id="@+id/btnSync"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Synchronizuj teraz" />
+
+        <TextView
+            android:id="@+id/syncStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:paddingTop="6dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Blokady"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/rulesContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="8dp" />
+
+        <Button
+            android:id="@+id/btnClearStats"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Wyczyść statystyki" />
+
+    </LinearLayout>
+</ScrollView>

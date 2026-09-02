@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: lets the app talk to a `wrangler dev` server on the
+     laptop over `adb reverse tcp:8788 tcp:8788`. Release builds keep the
+     platform default, which is HTTPS-only. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

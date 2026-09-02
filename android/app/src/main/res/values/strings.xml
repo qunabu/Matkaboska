@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">SiteLimit</string>
+    <string name="service_label">SiteLimit blocker</string>
+    <string name="accessibility_description">Reads the address bar of your browser so SiteLimit can block the sites you listed and count how long you spend on the ones you gave a daily time budget.</string>
+</resources>
