@@ -248,6 +248,29 @@ export const block_devices = sqliteTable('block_devices', {
   block_devices_user_idx: index('block_devices_user_idx').on(t.user_id),
 }))
 
+// Screen stats pushed up from the phone. The phone owns the numbers and
+// re-sends the whole day on each sync, so writes are upserts and a repeated
+// push is a no-op rather than double counting.
+export const block_usage = sqliteTable('block_usage', {
+  user_id: text('user_id').notNull().default(''),
+  date: text('date').notNull(),
+  target: text('target').notNull(),
+  seconds: integer('seconds').notNull().default(0),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.user_id, t.date, t.target] }),
+  block_usage_user_date_idx: index('block_usage_user_date_idx').on(t.user_id, t.date),
+}))
+
+export const block_stats = sqliteTable('block_stats', {
+  user_id: text('user_id').notNull().default(''),
+  date: text('date').notNull(),
+  blocks: integer('blocks').notNull().default(0),
+  unlocks: integer('unlocks').notNull().default(0),
+  screen_unlocks: integer('screen_unlocks').notNull().default(0),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.user_id, t.date] }),
+}))
+
 export const pantry_items = sqliteTable('pantry_items', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   user_id: text('user_id').notNull().default(''),

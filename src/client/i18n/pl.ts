@@ -483,6 +483,18 @@ const pl = {
 
   blocks: {
     title: 'Blokady',
+    screenToday: 'Czas przed ekranem dziś',
+    noYesterday: 'brak danych z wczoraj',
+    lessThanYesterday: 'mniej niż wczoraj',
+    moreThanYesterday: 'więcej niż wczoraj',
+    sameAsYesterday: 'tyle samo co wczoraj',
+    blockedToday: 'Zablokowane dziś',
+    unlocks: 'Odblokowania',
+    screenUnlocks: 'Telefon odblokowany',
+    attention: 'Gdzie ucieka uwaga?',
+    noUsage: 'Telefon jeszcze nic nie przysłał. Połącz go w SiteLimit i poczekaj kilka minut.',
+    today: 'Dziś',
+    week: '7 dni',
     hint: 'Strony i aplikacje blokowane na telefonie. Telefon pobiera tę listę co kilka minut i trzyma ją lokalnie, więc blokowanie działa też bez internetu.',
     patternPlaceholder: 'np. facebook, reddit.com, com.instagram.android',
     minutesPlaceholder: 'minut dziennie (puste = zawsze blokuj)',

@@ -2,7 +2,7 @@ import type {
   Recipe, RecipeWithNotes, MealPlanEntry, MealPlanEntryFull, FoodLogEntry, DailySummary,
   WaterLog, SupplementWithStatus, SupplementLog, ShoppingList, ShoppingItem,
   Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote, PantryItem, Habit, Chore,
-  PushStatus, BlockRule, BlockDevice,
+  PushStatus, BlockRule, BlockDevice, BlockUsageRow, BlockStatsRow,
   FoodSuggestion, FoodLogAverages,
 } from '../../shared/types'
 
@@ -246,6 +246,9 @@ export const blocksApi = {
   update: (id: number, data: { pattern?: string; daily_limit_minutes?: number; active?: boolean }) =>
     req<BlockRule>(`/blocks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (id: number) => req<ApiOk>(`/blocks/${id}`, { method: 'DELETE' }),
+
+  usage: (days: number) =>
+    req<{ from: string; usage: BlockUsageRow[]; stats: BlockStatsRow[] }>(`/blocks/usage?days=${days}`),
 
   devices: () => req<ApiList<BlockDevice>>('/blocks/devices'),
   createDevice: (name: string) =>

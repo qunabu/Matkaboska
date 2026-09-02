@@ -40,6 +40,8 @@ function isPublic(path: string): boolean {
 function deviceAllowed(method: string, path: string): boolean {
   if (method === 'GET' && (path === '/api/blocks' || path === '/api/habits')) return true
   if (method === 'POST' && /^\/api\/habits\/\d+\/checkin$/.test(path)) return true
+  // The phone is the only source of screen stats, so it may read and write them.
+  if (path === '/api/blocks/usage' && (method === 'GET' || method === 'POST')) return true
   return false
 }
 

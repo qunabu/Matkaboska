@@ -292,6 +292,21 @@ export interface BlockRule {
   created_at: number
 }
 
+/** One day of time on one host or app, as measured by the phone. */
+export interface BlockUsageRow {
+  date: string
+  target: string
+  seconds: number
+}
+
+/** Per-day counters from the phone. */
+export interface BlockStatsRow {
+  date: string
+  blocks: number
+  unlocks: number
+  screen_unlocks: number
+}
+
 /** A phone authorised to sync rules. The token itself is only ever returned once. */
 export interface BlockDevice {
   id: number

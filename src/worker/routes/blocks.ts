@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, gte } from 'drizzle-orm'
 import { z } from 'zod'
-import { getDb, block_rules, block_devices } from '../db/index'
+import { getDb, block_rules, block_devices, block_usage, block_stats } from '../db/index'
 import type { AppEnv } from '../types'
 
 const app = new Hono<AppEnv>()
@@ -79,6 +79,66 @@ app.delete('/devices/:id', async (c) => {
   await db.delete(block_devices)
     .where(and(eq(block_devices.id, id), eq(block_devices.user_id, c.var.userId)))
   return c.json({ ok: true })
+})
+
+// ── Screen stats ────────────────────────────────────────────────────────────
+// Registered before /:id for the same reason as /devices.
+
+const dayKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+
+// GET /api/blocks/usage?days=7
+app.get('/usage', async (c) => {
+  const days = Math.min(Math.max(Number(c.req.query('days') ?? 7), 1), 90)
+  const from = new Date(Date.now() - (days - 1) * 86_400_000).toISOString().slice(0, 10)
+  const db = getDb(c.env.DB)
+  const [usage, stats] = await Promise.all([
+    db.select().from(block_usage)
+      .where(and(eq(block_usage.user_id, c.var.userId), gte(block_usage.date, from))),
+    db.select().from(block_stats)
+      .where(and(eq(block_stats.user_id, c.var.userId), gte(block_stats.date, from))),
+  ])
+  return c.json({ from, usage, stats })
+})
+
+/**
+ * POST /api/blocks/usage — the phone pushes one whole day at a time.
+ *
+ * The phone owns these numbers, so a day is replaced rather than merged: a
+ * re-send after a dropped response is then a no-op instead of double counting.
+ */
+app.post('/usage', async (c) => {
+  const parsed = z.object({
+    date: dayKey,
+    totals: z.record(z.string(), z.number().int().min(0)),
+    blocks: z.number().int().min(0).default(0),
+    unlocks: z.number().int().min(0).default(0),
+    screen_unlocks: z.number().int().min(0).default(0),
+  }).safeParse(await c.req.json())
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
+
+  const { date, totals, blocks, unlocks, screen_unlocks } = parsed.data
+  const userId = c.var.userId
+  const db = getDb(c.env.DB)
+
+  await db.delete(block_usage)
+    .where(and(eq(block_usage.user_id, userId), eq(block_usage.date, date)))
+
+  const rows = Object.entries(totals)
+    .filter(([target, seconds]) => target.length > 0 && target.length <= 200 && seconds > 0)
+    .map(([target, seconds]) => ({ user_id: userId, date, target, seconds }))
+  // D1 caps how many parameters one statement may bind; chunk to stay clear of it.
+  for (let i = 0; i < rows.length; i += 50) {
+    await db.insert(block_usage).values(rows.slice(i, i + 50))
+  }
+
+  await db.insert(block_stats)
+    .values({ user_id: userId, date, blocks, unlocks, screen_unlocks })
+    .onConflictDoUpdate({
+      target: [block_stats.user_id, block_stats.date],
+      set: { blocks, unlocks, screen_unlocks },
+    })
+
+  return c.json({ ok: true, targets: rows.length })
 })
 
 // ── Rules ───────────────────────────────────────────────────────────────────

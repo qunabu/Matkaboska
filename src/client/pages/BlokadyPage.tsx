@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { blocksApi } from '../lib/api'
 import pl from '../i18n/pl'
+import ScreenTimeCard from '../components/ScreenTimeCard'
 
 const card = 'rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700'
 const input = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-primary-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100'
@@ -65,6 +66,8 @@ export default function BlokadyPage() {
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🚫 {pl.blocks.title}</h1>
       <p className="text-xs text-gray-400">{pl.blocks.hint}</p>
       <p className="text-xs text-gray-400">{pl.blocks.unlockHint}</p>
+
+      <ScreenTimeCard />
 
       <div className={`${card} space-y-2`}>
         <input
