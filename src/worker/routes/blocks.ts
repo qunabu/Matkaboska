@@ -122,23 +122,37 @@ app.post('/usage', async (c) => {
   const userId = c.var.userId
   const db = getDb(c.env.DB)
 
-  await db.delete(block_usage)
-    .where(and(eq(block_usage.user_id, userId), eq(block_usage.date, date)))
-
   const rows = Object.entries(totals)
     .filter(([target, seconds]) => target.length > 0 && target.length <= 200 && seconds > 0)
     .map(([target, seconds]) => ({ user_id: userId, date, target, seconds }))
-  // D1 caps how many parameters one statement may bind; chunk to stay clear of it.
-  for (let i = 0; i < rows.length; i += 50) {
-    await db.insert(block_usage).values(rows.slice(i, i + 50))
-  }
 
-  await db.insert(block_stats)
-    .values({ user_id: userId, date, blocks, unlocks, screen_unlocks, emergency })
-    .onConflictDoUpdate({
-      target: [block_stats.user_id, block_stats.date],
-      set: { blocks, unlocks, screen_unlocks, emergency },
-    })
+  // Only the phone calls this, and an opaque 500 here is useless — a schema
+  // drift on D1 is exactly the kind of thing worth reading in the response.
+  let stage = 'delete usage'
+  try {
+    await db.delete(block_usage)
+      .where(and(eq(block_usage.user_id, userId), eq(block_usage.date, date)))
+
+    stage = 'insert usage'
+    // D1 caps how many parameters one statement may bind; chunk to stay clear of it.
+    for (let i = 0; i < rows.length; i += 50) {
+      await db.insert(block_usage).values(rows.slice(i, i + 50))
+    }
+
+    stage = 'upsert stats'
+    await db.insert(block_stats)
+      .values({ user_id: userId, date, blocks, unlocks, screen_unlocks, emergency })
+      .onConflictDoUpdate({
+        target: [block_stats.user_id, block_stats.date],
+        set: { blocks, unlocks, screen_unlocks, emergency },
+      })
+  } catch (e) {
+    const schema = await c.env.DB
+      .prepare("SELECT name, sql FROM sqlite_master WHERE name IN ('block_stats','block_usage')")
+      .all()
+      .catch(() => null)
+    return c.json({ error: String(e), stage, schema: schema?.results ?? null }, 500)
+  }
 
   return c.json({ ok: true, targets: rows.length })
 })
