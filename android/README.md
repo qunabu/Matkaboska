@@ -6,6 +6,7 @@ A minimal site/app blocker for Android, paired with the Matka Boska PWA.
 - **Budget** a site or app: N minutes per day, then it's blocked until midnight.
 - **Time spent** per site and app, today or over the last 7 days.
 - **Earn 5 minutes** by ticking off a habit from Nawyki on the block screen.
+- **Emergency access** on rules that opt in — 5 minutes with no habit required.
 - **Dashboard** — today's screen time vs yesterday, blocks/unlocks counters, and
   a ranked "where does your attention go" list. The same view appears in the PWA.
 
@@ -26,6 +27,21 @@ The token is deliberately weaker than a browser session: the API only lets it
 read `/api/blocks`, read `/api/habits`, and POST a habit check-in. A lost phone
 can't reach the budget or anything else on the account. Deleting the device row
 in the PWA revokes it immediately.
+
+## Emergency access
+
+Some things you occasionally need right now, and "go do your mobility first"
+isn't an answer — mail, mostly. A rule can carry `allow_emergency` (the 🆘
+toggle in Blokady), and the block screen then shows a **Dostęp awaryjny**
+button alongside the habits.
+
+It's off by default and set per rule, so enabling it for mail doesn't soften
+everything else. The button sits behind a confirmation and its uses are counted
+**separately** from habit unlocks, shown on both dashboards — the point is that
+it leaves a trace rather than becoming a reflex.
+
+It is not capped. If the counter starts creeping up daily, that's the signal to
+add one — `Store.PASS_MINUTES` and the counter are the places to look.
 
 ## Earning time back
 

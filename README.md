@@ -42,6 +42,16 @@ management ("Tęczowa Madonna"). Multi-tenant, runs entirely on Cloudflare.
 - **Diary / tracking** — daily food log, water, macro donut & week charts, copy an
   entry to any day (default today), ready-product picker.
 - **Supplements, chores, habits, reminders** — recurring push nags via cron.
+- **Blokady** — phone site/app blocker. Rules live here and the Android app
+  (`android/`) pulls them every few minutes and caches them, so blocking works
+  offline. The block screen offers today's unticked **habits**: ticking one
+  records a real check-in and buys 5 minutes, so the number of habits caps the
+  unlocks available in a day. Rules can opt into **dostęp awaryjny** — a
+  confirmed, separately-counted 5-minute unlock with no habit, for things like
+  mail. Dashboard mirrors the phone: screen time vs yesterday, blocks/unlocks
+  counters, and where the time went. Devices authenticate with a long-lived
+  token that may only read rules and check habits in — never the rest of the
+  account.
 - **Notifications center** — bell with unread badge, Facebook-style read/unread list,
   chime sound; every push is also recorded in-app.
 - **Onboarding** — empty accounts get ≥10-dish + kcal/protein setup that builds recipe
