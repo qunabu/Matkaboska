@@ -88,6 +88,11 @@ app.delete('/devices/:id', async (c) => {
 
 const dayKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
+/** D1 rejects a statement binding more than this many variables. */
+const D1_MAX_BINDINGS = 100
+/** user_id, date, target, seconds — keep in step with the block_usage table. */
+const BLOCK_USAGE_COLUMNS = 4
+
 /**
  * Nothing in this project's deploy path runs D1 migrations — Workers Builds
  * does `wrangler deploy` and stops there — so a column added in a migration
@@ -157,9 +162,13 @@ app.post('/usage', async (c) => {
       .where(and(eq(block_usage.user_id, userId), eq(block_usage.date, date)))
 
     stage = 'insert usage'
-    // D1 caps how many parameters one statement may bind; chunk to stay clear of it.
-    for (let i = 0; i < rows.length; i += 50) {
-      await db.insert(block_usage).values(rows.slice(i, i + 50))
+    // D1 binds at most 100 variables per statement and each row costs one per
+    // column, so the chunk size follows from the column count rather than a
+    // guessed constant. Measured: 25 rows pass, 26 fail with
+    // "too many SQL variables".
+    const chunk = Math.floor(D1_MAX_BINDINGS / BLOCK_USAGE_COLUMNS)
+    for (let i = 0; i < rows.length; i += chunk) {
+      await db.insert(block_usage).values(rows.slice(i, i + chunk))
     }
 
     stage = 'upsert stats'
