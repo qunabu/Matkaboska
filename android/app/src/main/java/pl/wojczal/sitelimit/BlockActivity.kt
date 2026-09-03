@@ -14,6 +14,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -33,6 +34,7 @@ class BlockActivity : AppCompatActivity() {
         const val EXTRA_TARGET = "target"
         const val EXTRA_LIMIT_MINUTES = "limit_minutes"
         const val EXTRA_RULE = "rule"
+        const val EXTRA_EMERGENCY = "emergency"
     }
 
     private val io = Executors.newSingleThreadExecutor()
@@ -41,6 +43,7 @@ class BlockActivity : AppCompatActivity() {
     private lateinit var target: String
     private lateinit var rule: String
     private lateinit var habitsBox: LinearLayout
+    private var allowEmergency = false
     private var pad = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,6 +52,7 @@ class BlockActivity : AppCompatActivity() {
         target = intent.getStringExtra(EXTRA_TARGET) ?: "Ta strona"
         rule = intent.getStringExtra(EXTRA_RULE) ?: target
         val limit = intent.getIntExtra(EXTRA_LIMIT_MINUTES, 0)
+        allowEmergency = intent.getBooleanExtra(EXTRA_EMERGENCY, false)
 
         pad = (24 * resources.displayMetrics.density).toInt()
         val root = LinearLayout(this).apply {
@@ -80,6 +84,11 @@ class BlockActivity : AppCompatActivity() {
             gravity = Gravity.CENTER_HORIZONTAL
         }
         root.addView(habitsBox)
+
+        if (allowEmergency) root.addView(Button(this).apply {
+            text = "Dostęp awaryjny (${Store.PASS_MINUTES} min)"
+            setOnClickListener { confirmEmergency() }
+        })
 
         root.addView(Button(this).apply {
             text = "OK"
@@ -176,6 +185,33 @@ class BlockActivity : AppCompatActivity() {
                 finish()
             }
         }
+    }
+
+    /**
+     * The way back in without a habit, for rules that opt into it. Deliberately
+     * behind a confirmation and counted separately, so it stays a decision
+     * rather than a reflex.
+     */
+    private fun confirmEmergency() {
+        AlertDialog.Builder(this)
+            .setTitle("Dostęp awaryjny")
+            .setMessage(
+                "Odblokuje $target na ${Store.PASS_MINUTES} minut bez odhaczania nawyku.\n\n" +
+                    "Użycie zostanie zapisane i widać je w statystykach."
+            )
+            .setNegativeButton("Anuluj", null)
+            .setPositiveButton("Odblokuj") { _, _ ->
+                Store.grantPass(this, rule)
+                Store.bumpStat(this, "emergency")
+                Toast.makeText(
+                    this,
+                    "Dostęp awaryjny — ${Store.PASS_MINUTES} minut.",
+                    Toast.LENGTH_SHORT,
+                ).show()
+                reopenTarget()
+                finish()
+            }
+            .show()
     }
 
     /** Put the user back where they were, rather than making them retype the address. */

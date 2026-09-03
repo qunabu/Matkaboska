@@ -164,7 +164,10 @@ class MainActivity : AppCompatActivity() {
         val stats = Store.statsFor(this, Store.today())
         statBlocks.text = stats.blocks.toString()
         statUnlocks.text = stats.unlocks.toString()
-        statScreen.text = "Telefon odblokowany ${stats.screenUnlocks}× dziś"
+        statScreen.text = buildString {
+            append("Telefon odblokowany ${stats.screenUnlocks}× dziś")
+            if (stats.emergency > 0) append(" · dostęp awaryjny ${stats.emergency}×")
+        }
     }
 
     private fun renderStatus() {

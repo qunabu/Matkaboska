@@ -78,10 +78,11 @@ export default function ScreenTimeCard() {
         <p className={`text-sm ${deltaClass}`}>{deltaText}</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { label: pl.blocks.blockedToday, value: stats?.blocks ?? 0 },
           { label: pl.blocks.unlocks, value: stats?.unlocks ?? 0 },
+          { label: pl.blocks.emergencyCount, value: stats?.emergency ?? 0 },
           { label: pl.blocks.screenUnlocks, value: stats?.screen_unlocks ?? 0 },
         ].map((s) => (
           <div key={s.label} className={card}>

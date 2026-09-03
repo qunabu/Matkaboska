@@ -26,6 +26,7 @@ export function normalisePattern(raw: string): string {
 const ruleSchema = z.object({
   pattern: z.string().min(1),
   daily_limit_minutes: z.number().int().min(0).max(24 * 60).optional(),
+  allow_emergency: z.boolean().optional(),
   active: z.boolean().optional(),
 })
 
@@ -113,10 +114,11 @@ app.post('/usage', async (c) => {
     blocks: z.number().int().min(0).default(0),
     unlocks: z.number().int().min(0).default(0),
     screen_unlocks: z.number().int().min(0).default(0),
+    emergency: z.number().int().min(0).default(0),
   }).safeParse(await c.req.json())
   if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
 
-  const { date, totals, blocks, unlocks, screen_unlocks } = parsed.data
+  const { date, totals, blocks, unlocks, screen_unlocks, emergency } = parsed.data
   const userId = c.var.userId
   const db = getDb(c.env.DB)
 
@@ -132,10 +134,10 @@ app.post('/usage', async (c) => {
   }
 
   await db.insert(block_stats)
-    .values({ user_id: userId, date, blocks, unlocks, screen_unlocks })
+    .values({ user_id: userId, date, blocks, unlocks, screen_unlocks, emergency })
     .onConflictDoUpdate({
       target: [block_stats.user_id, block_stats.date],
-      set: { blocks, unlocks, screen_unlocks },
+      set: { blocks, unlocks, screen_unlocks, emergency },
     })
 
   return c.json({ ok: true, targets: rows.length })
@@ -166,10 +168,15 @@ app.post('/', async (c) => {
       user_id: c.var.userId,
       pattern,
       daily_limit_minutes: parsed.data.daily_limit_minutes ?? 0,
+      allow_emergency: parsed.data.allow_emergency ?? false,
     })
     .onConflictDoUpdate({
       target: [block_rules.user_id, block_rules.pattern],
-      set: { daily_limit_minutes: parsed.data.daily_limit_minutes ?? 0, active: true },
+      set: {
+        daily_limit_minutes: parsed.data.daily_limit_minutes ?? 0,
+        allow_emergency: parsed.data.allow_emergency ?? false,
+        active: true,
+      },
     })
     .returning()
   return c.json(row, 201)

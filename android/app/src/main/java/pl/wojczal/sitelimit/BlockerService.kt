@@ -259,6 +259,7 @@ class BlockerService : AccessibilityService() {
             putExtra(BlockActivity.EXTRA_TARGET, target)
             putExtra(BlockActivity.EXTRA_LIMIT_MINUTES, rule.dailyLimitMinutes)
             putExtra(BlockActivity.EXTRA_RULE, rule.pattern)
+            putExtra(BlockActivity.EXTRA_EMERGENCY, rule.allowEmergency)
         }
         startActivity(intent)
     }

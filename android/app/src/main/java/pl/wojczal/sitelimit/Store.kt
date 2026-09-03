@@ -16,7 +16,12 @@ import java.util.Locale
  * [dailyLimitMinutes] of 0 means "always blocked"; anything higher is a
  * per-day time budget.
  */
-data class Rule(val pattern: String, val dailyLimitMinutes: Int) {
+data class Rule(
+    val pattern: String,
+    val dailyLimitMinutes: Int,
+    /** Block screen may offer a no-habit unlock for this rule (e.g. mail). */
+    val allowEmergency: Boolean = false,
+) {
     val isAlwaysBlocked: Boolean get() = dailyLimitMinutes <= 0
 }
 
@@ -80,7 +85,7 @@ object Store {
             val arr = JSONArray(raw)
             (0 until arr.length()).map { i ->
                 val o = arr.getJSONObject(i)
-                Rule(o.getString("p"), o.optInt("m", 0))
+                Rule(o.getString("p"), o.optInt("m", 0), o.optBoolean("e", false))
             }
         } catch (e: Exception) {
             emptyList()
@@ -90,7 +95,12 @@ object Store {
     fun setRules(c: Context, rules: List<Rule>) {
         val arr = JSONArray()
         for (r in rules) {
-            arr.put(JSONObject().put("p", r.pattern).put("m", r.dailyLimitMinutes))
+            arr.put(
+                JSONObject()
+                    .put("p", r.pattern)
+                    .put("m", r.dailyLimitMinutes)
+                    .put("e", r.allowEmergency)
+            )
         }
         prefs(c).edit().putString(KEY_RULES, arr.toString()).apply()
     }
@@ -217,7 +227,12 @@ object Store {
     }
 
     /** Per-day counters the dashboard shows next to the screen-time total. */
-    data class DayStats(val blocks: Int, val unlocks: Int, val screenUnlocks: Int)
+    data class DayStats(
+        val blocks: Int,
+        val unlocks: Int,
+        val screenUnlocks: Int,
+        val emergency: Int,
+    )
 
     private fun allStats(c: Context): JSONObject = try {
         JSONObject(prefs(c).getString(KEY_STATS, "{}") ?: "{}")
@@ -237,8 +252,13 @@ object Store {
     }
 
     fun statsFor(c: Context, day: String): DayStats {
-        val o = allStats(c).optJSONObject(day) ?: return DayStats(0, 0, 0)
-        return DayStats(o.optInt("blocks", 0), o.optInt("unlocks", 0), o.optInt("screen", 0))
+        val o = allStats(c).optJSONObject(day) ?: return DayStats(0, 0, 0, 0)
+        return DayStats(
+            o.optInt("blocks", 0),
+            o.optInt("unlocks", 0),
+            o.optInt("screen", 0),
+            o.optInt("emergency", 0),
+        )
     }
 
     /** Everything tracked on one day, biggest first. */

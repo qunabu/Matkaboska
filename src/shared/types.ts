@@ -288,6 +288,8 @@ export interface BlockRule {
   id: number
   pattern: string
   daily_limit_minutes: number
+  /** Block screen may offer a no-habit 5 minute unlock for this rule. */
+  allow_emergency: boolean
   active: boolean
   created_at: number
 }
@@ -305,6 +307,7 @@ export interface BlockStatsRow {
   blocks: number
   unlocks: number
   screen_unlocks: number
+  emergency: number
 }
 
 /** A phone authorised to sync rules. The token itself is only ever returned once. */

@@ -227,6 +227,9 @@ export const block_rules = sqliteTable('block_rules', {
   pattern: text('pattern').notNull(),
   // 0 = always blocked; >0 = daily budget in minutes.
   daily_limit_minutes: integer('daily_limit_minutes').notNull().default(0),
+  // Lets the block screen offer a no-questions-asked 5 minute unlock. Off by
+  // default; meant for things you may genuinely need in a hurry, like mail.
+  allow_emergency: integer('allow_emergency', { mode: 'boolean' }).notNull().default(false),
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
   created_at: integer('created_at').notNull().default(unixNow),
 }, (t) => ({
@@ -267,6 +270,7 @@ export const block_stats = sqliteTable('block_stats', {
   blocks: integer('blocks').notNull().default(0),
   unlocks: integer('unlocks').notNull().default(0),
   screen_unlocks: integer('screen_unlocks').notNull().default(0),
+  emergency: integer('emergency').notNull().default(0),
 }, (t) => ({
   pk: primaryKey({ columns: [t.user_id, t.date] }),
 }))

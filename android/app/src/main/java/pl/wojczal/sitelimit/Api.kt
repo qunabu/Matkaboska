@@ -67,7 +67,11 @@ object Api {
                 val o = items.getJSONObject(i)
                 // The server can park a rule without deleting it; treat that as gone.
                 if (!o.optBoolean("active", true)) null
-                else Rule(o.getString("pattern"), o.optInt("daily_limit_minutes", 0))
+                else Rule(
+                    o.getString("pattern"),
+                    o.optInt("daily_limit_minutes", 0),
+                    o.optBoolean("allow_emergency", false),
+                )
             }
         } catch (e: Exception) {
             Log.w(TAG, "bad /api/blocks payload: ${e.message}")
@@ -121,6 +125,7 @@ object Api {
             .put("blocks", stats.blocks)
             .put("unlocks", stats.unlocks)
             .put("screen_unlocks", stats.screenUnlocks)
+            .put("emergency", stats.emergency)
             .toString()
         return request(c, "/api/blocks/usage", "POST", payload) != null
     }

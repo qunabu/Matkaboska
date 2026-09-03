@@ -40,6 +40,11 @@ export default function BlokadyPage() {
     mutationFn: ({ id, active }: { id: number; active: boolean }) => blocksApi.update(id, { active }),
     onSuccess: invalidateRules,
   })
+  const toggleEmergency = useMutation({
+    mutationFn: ({ id, allow_emergency }: { id: number; allow_emergency: boolean }) =>
+      blocksApi.update(id, { allow_emergency }),
+    onSuccess: invalidateRules,
+  })
   const removeRule = useMutation({
     mutationFn: (id: number) => blocksApi.delete(id),
     onSuccess: invalidateRules,
@@ -66,6 +71,7 @@ export default function BlokadyPage() {
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🚫 {pl.blocks.title}</h1>
       <p className="text-xs text-gray-400">{pl.blocks.hint}</p>
       <p className="text-xs text-gray-400">{pl.blocks.unlockHint}</p>
+      <p className="text-xs text-gray-400">{pl.blocks.emergencyHint}</p>
 
       <ScreenTimeCard />
 
@@ -112,9 +118,18 @@ export default function BlokadyPage() {
                   {r.daily_limit_minutes > 0
                     ? `${r.daily_limit_minutes} ${pl.blocks.perDay}`
                     : pl.blocks.always}
+                  {r.allow_emergency && ` · 🆘 ${pl.blocks.emergency}`}
                   {!r.active && ` · ${pl.blocks.inactive}`}
                 </div>
               </div>
+              <button
+                onClick={() => toggleEmergency.mutate({ id: r.id, allow_emergency: !r.allow_emergency })}
+                className={`shrink-0 text-lg ${r.allow_emergency ? '' : 'opacity-25 grayscale'}`}
+                title={r.allow_emergency ? pl.blocks.emergencyOn : pl.blocks.emergencyOff}
+                aria-label={r.allow_emergency ? pl.blocks.emergencyOn : pl.blocks.emergencyOff}
+              >
+                🆘
+              </button>
               <button
                 onClick={() => toggleRule.mutate({ id: r.id, active: !r.active })}
                 className="shrink-0 text-lg"

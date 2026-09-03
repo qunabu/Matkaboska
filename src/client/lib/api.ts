@@ -241,9 +241,12 @@ export const habitsApi = {
 
 export const blocksApi = {
   list: () => req<ApiList<BlockRule>>('/blocks'),
-  create: (pattern: string, daily_limit_minutes: number) =>
-    req<BlockRule>('/blocks', { method: 'POST', body: JSON.stringify({ pattern, daily_limit_minutes }) }),
-  update: (id: number, data: { pattern?: string; daily_limit_minutes?: number; active?: boolean }) =>
+  create: (pattern: string, daily_limit_minutes: number, allow_emergency = false) =>
+    req<BlockRule>('/blocks', {
+      method: 'POST',
+      body: JSON.stringify({ pattern, daily_limit_minutes, allow_emergency }),
+    }),
+  update: (id: number, data: { pattern?: string; daily_limit_minutes?: number; allow_emergency?: boolean; active?: boolean }) =>
     req<BlockRule>(`/blocks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: (id: number) => req<ApiOk>(`/blocks/${id}`, { method: 'DELETE' }),
 
