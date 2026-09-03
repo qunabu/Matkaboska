@@ -4,6 +4,7 @@ import { eq, and, gte } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, block_rules, block_devices, block_usage, block_stats } from '../db/index'
 import type { AppEnv } from '../types'
+import type { D1Database } from '@cloudflare/workers-types'
 
 const app = new Hono<AppEnv>()
 
@@ -87,6 +88,28 @@ app.delete('/devices/:id', async (c) => {
 
 const dayKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
+/**
+ * Nothing in this project's deploy path runs D1 migrations — Workers Builds
+ * does `wrangler deploy` and stops there — so a column added in a migration
+ * file can simply be absent in production, as `emergency` was. Add it on
+ * demand: additive, defaulted, idempotent, and a no-op once present.
+ *
+ * `migrations/0024_emergency_access.sql` remains the source of truth. Delete
+ * this once the deploy command applies migrations (`npm run deploy` already
+ * does; the Workers Builds setting is what needs changing).
+ */
+async function addEmergencyColumn(env: { DB: D1Database }): Promise<boolean> {
+  try {
+    await env.DB
+      .prepare('ALTER TABLE block_stats ADD COLUMN emergency INTEGER NOT NULL DEFAULT 0')
+      .run()
+    return true
+  } catch (e) {
+    // A concurrent request may have won the race; that's still success.
+    return /duplicate column/i.test(String(e))
+  }
+}
+
 // GET /api/blocks/usage?days=7
 app.get('/usage', async (c) => {
   const days = Math.min(Math.max(Number(c.req.query('days') ?? 7), 1), 90)
@@ -147,11 +170,19 @@ app.post('/usage', async (c) => {
         set: { blocks, unlocks, screen_unlocks, emergency },
       })
   } catch (e) {
-    const schema = await c.env.DB
-      .prepare("SELECT name, sql FROM sqlite_master WHERE name IN ('block_stats','block_usage')")
-      .all()
-      .catch(() => null)
-    return c.json({ error: String(e), stage, schema: schema?.results ?? null }, 500)
+    // The one failure we know how to repair rather than just report.
+    if (stage === 'upsert stats' && /no column named emergency/i.test(String(e))) {
+      if (await addEmergencyColumn(c.env)) {
+        await db.insert(block_stats)
+          .values({ user_id: userId, date, blocks, unlocks, screen_unlocks, emergency })
+          .onConflictDoUpdate({
+            target: [block_stats.user_id, block_stats.date],
+            set: { blocks, unlocks, screen_unlocks, emergency },
+          })
+        return c.json({ ok: true, targets: rows.length, repaired: 'block_stats.emergency' })
+      }
+    }
+    return c.json({ error: String(e), stage }, 500)
   }
 
   return c.json({ ok: true, targets: rows.length })
