@@ -47,6 +47,10 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   // obowiązuje sztywno, bo to zobowiązanie, a nie wypadkowa wydatków.
   household_fixed: '',
   household_adhoc_fixed: '',
+  // Stała kwota przelewu na subkonto podatkowe. Puste = prowizja wyliczona za
+  // dany miesiąc. Wpisana kwota jest decyzją o tempie odkładania (np. rozłożenie
+  // zobowiązania na więcej miesięcy, niż wynika z terminu) i ma pierwszeństwo.
+  subkonto_fixed: '',
   // Cykliczne przypomnienia: dzień miesiąca (0 = wyłączone) i godzina lokalna.
   reminder_payout_day: '5',      // faktura zwykle wpływa 3.–7.
   reminder_review_day: '25',     // przegląd przed kwartalnym VAT-em

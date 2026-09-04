@@ -796,6 +796,7 @@ export async function payoutPlan(s: Store, o: {
   /** Jednorazowa premia podana NETTO — doliczamy VAT, bo wchodzi na fakturę. */
   bonusNet?: number
 } = {}) {
+  const cfgAll = await getSettings(s)
   const base = await payoutDefaults(s)
   const d = { ...base, ...(o.overrides ?? {}) }
   const invoice = Number(o.amount) || 0
@@ -814,12 +815,19 @@ export async function payoutPlan(s: Store, o: {
 
   const provision = round(vat * (1 - inputShare) + pit + d.zus_monthly + d.subkonto_other_monthly
     + accrualMonthly + resFor('tax'))
-  // Cel: subkonto ma pokrywać dokładnie należne zobowiązania — ani mniej, ani
-  // więcej. Gdy znamy saldo, przelewamy różnicę do wymaganej rezerwy; pełną
-  // prowizję miesięczną bierzemy tylko wtedy, gdy salda nie znamy. Bez tego
-  // nadwyżka narosła w poprzednich miesiącach leżałaby bezczynnie.
+  // Dwie różne liczby, które łatwo pomylić:
+  //  * `provision` — podatki narosłe w TYM miesiącu, czyli ile trzeba odkładać,
+  //    żeby płacić w terminach i nic nie zostawać dłużnym;
+  //  * `res.transfer` — ile musiałoby wejść, żeby subkonto już dziś pokrywało
+  //    całe naliczone zobowiązanie (pełne przedpłacenie rezerwy).
+  // Drugie było kiedyś kwotą do przelania i straszyło czterdziestką w miesiącu,
+  // w którym realnie wystarczy prowizja. Zostaje jako informacja.
   const catchUp = res.transfer == null ? 0 : round(Math.max(0, res.transfer - provision))
-  const toSubkonto = res.transfer == null ? provision : res.transfer
+  // Sztywna kwota wygrywa z wyliczeniem — to decyzja o tempie odkładania
+  // (np. rozłożenie zobowiązania na więcej miesięcy niż do terminu), nie
+  // wypadkowa historii. Tak samo działa `household_fixed`.
+  const fixedSub = cfgAll.subkonto_fixed !== '' ? num(cfgAll.subkonto_fixed, 0) : null
+  const toSubkonto = fixedSub ?? provision
 
   const keepCompany = round(d.company_costs_monthly + resFor('business'))
   const toPrivate = round(gross - toSubkonto - keepCompany)
@@ -864,7 +872,6 @@ export async function payoutPlan(s: Store, o: {
   const pkoOutflow = round(pkoSpend + dopłatyDoMbank + avgTravel)
   const realSavings = round(savingsSteady - pkoSpend - dopłatyDoMbank)
 
-  const cfgAll = await getSettings(s)
   // Struktura zaczyna obowiązywać od wpływu faktury w danym miesiącu, nie od 1.
   // dnia — do tego czasu pieniądze rozchodzą się jeszcze po staremu.
   const sf = cfgAll.structure_from || ''
@@ -875,8 +882,17 @@ export async function payoutPlan(s: Store, o: {
         WHERE user_id = ? AND category_id = 'przychod_firmowy' AND month = ?`, s.userId, sf)
     structureStart = { month: sf, date: first?.d ?? null }
   }
+  // Same kwoty nie mówią, gdzie kliknąć w banku — dokładamy nazwy rachunków.
+  const accRows = await s.all<{ id: string; name: string }>(
+    'SELECT id, name FROM budzet_accounts WHERE user_id = ?', s.userId)
+  const accName = (id: string) => accRows.find((a) => a.id === id)?.name ?? ''
   return {
     structure_from: structureStart,
+    accounts: {
+      business: accName(cfgAll.account_business), tax: accName(cfgAll.account_tax),
+      daily: accName(cfgAll.account_daily), hub: accName(cfgAll.account_hub),
+      household: cfgAll.household_label || cfgAll.household_iban || '',
+    },
     input: {
       gross: round(gross), netto: round(netto), vat: round(vat),
       invoice: round(invoice), bonus_net: round(bonusNet), bonus_gross: bonusGross,
@@ -884,6 +900,16 @@ export async function payoutPlan(s: Store, o: {
     params: d, reserve: res, reserves: rp,
     subkonto: {
       total: round(toSubkonto), provision, provision_steady: steadyProvision, catch_up: catchUp,
+      /** Skąd wzięła się kwota: sztywne ustawienie czy prowizja za ten miesiąc. */
+      mode: fixedSub == null ? 'provision' : 'fixed',
+      fixed: fixedSub,
+      /** Ile musiałoby wejść, żeby subkonto pokrywało całe naliczone zobowiązanie. */
+      required_transfer: res.transfer,
+      /** Różnica względem prowizji: minus = świadomie odkładasz wolniej. */
+      vs_provision: round(toSubkonto - provision),
+      /** Czego po tym przelewie nadal brakuje do pełnej rezerwy. */
+      gap_after: res.balance == null ? null
+        : round(Math.max(0, res.required - res.balance - toSubkonto)),
       lines: [
         { label: 'VAT od tej faktury (po odliczeniu naliczonego)', value: round(vat * (1 - inputShare)) },
         { label: 'PIT-28 (ryczałt)', value: round(pit) },
@@ -908,6 +934,9 @@ export async function payoutPlan(s: Store, o: {
     warnings: {
       avg_adjusted_surplus: round(avgAdj), savings_negative: savings < 0, catch_up: catchUp,
       plan_vs_actual: round(plannedSpend - avgSpendNoTravel),
+      // Gdy stała kwota jest niższa od narosłych podatków, `savings` jest zawyżone
+      // o tę różnicę: te pieniądze zostały na koncie, ale są już komuś należne.
+      subkonto_underfunded: round(Math.max(0, provision - toSubkonto)),
     },
   }
 }

@@ -46,6 +46,8 @@ export default function PlanWyplaty({ months }: any) {
 
   if (!base) return <Empty>Ładowanie…</Empty>;
   const p = plan;
+  // Nazwa rachunku z danych banku; fallback, gdy rola konta nie jest ustawiona.
+  const A = (k: string, fallback: string) => p?.accounts?.[k] || fallback;
   const monthOpts = [...(months || [])].slice(-3).concat([nextMonth((months || []).slice(-1)[0] || '2026-08')]);
 
   const Step = ({ n, title, amount: a, tone, children }: any) => (
@@ -112,7 +114,9 @@ export default function PlanWyplaty({ months }: any) {
           <div className="grid g4" style={{ marginBottom: 12 }}>
             <Tile label="Zostaje na PKO w tym miesiącu" tone={p.private.savings >= 0 ? 'pos' : 'neg'}
                   value={pln(p.private.savings)}
-                  sub={p.subkonto.catch_up > 0 ? `w tym efekt nadrobienia zaległości` : 'po stałych przelewach'} />
+                  sub={p.warnings.subkonto_underfunded > 0
+                    ? `w tym ${pln(p.warnings.subkonto_underfunded)} odroczonego podatku — nie oszczędność`
+                    : 'po stałych przelewach'} />
             <Tile label="Docelowo co miesiąc" value={pln(p.steady.savings)}
                   sub="gdy rezerwa podatkowa jest dokładnie opłacona" />
             <Tile label="Średni odpływ z PKO" value={pln(p.steady.pko_outflow)}
@@ -162,27 +166,38 @@ export default function PlanWyplaty({ months }: any) {
 
           <div className="grid g2" style={{ marginBottom: 12 }}>
             <Card title="Kolejność przelewów">
-              <Step n="1" title="Konto firmowe → subkonto podatkowe" amount={p.subkonto.total} tone="warnc">
-                Po tym przelewie subkonto pokrywa dokładnie to, co jesteś winien: VAT za {p.reserve.quarter},
-                PIT-28 i ZUS za ten miesiąc oraz {pln(p.reserve.accrued_liabilities)} niezafakturowanych zobowiązań.
+              <Step n="1" title={`${A('business', 'Konto firmowe')} → ${A('tax', 'subkonto podatkowe')}`}
+                    amount={p.subkonto.total} tone="warnc">
+                {p.subkonto.mode === 'fixed' ? (
+                  <>Twoja stała kwota z ustawień. Podatki narosłe w tym miesiącu to {pln2(p.subkonto.provision)}
+                    {p.subkonto.vs_provision < 0
+                      ? <> — odkładasz o {pln2(-p.subkonto.vs_provision)} mniej, czyli świadomie wolniej.</>
+                      : p.subkonto.vs_provision > 0
+                        ? <> — odkładasz o {pln2(p.subkonto.vs_provision)} więcej, niż narosło.</>
+                        : <> — dokładnie tyle.</>}
+                  </>
+                ) : (
+                  <>Podatki narosłe w tym miesiącu: VAT od tej faktury, PIT-28, ZUS
+                    i rata na zobowiązania z terminem.</>
+                )}
               </Step>
-              <Step n="2" title="Zostaw na koncie firmowym" amount={p.company.keep}>
+              <Step n="2" title={`Zostaw na ${A('business', 'koncie firmowym')}`} amount={p.company.keep}>
                 Mediana kosztów firmowych opłacanych bezpośrednio z rachunku bieżącego (paliwo, narzędzia, usługi).
                 Docelowy bufor: {pln(p.company.buffer_target)}.
               </Step>
-              <Step n="3" title="Konto firmowe → PKO prywatne" amount={p.private.total}>
+              <Step n="3" title={`${A('business', 'Konto firmowe')} → ${A('hub', 'PKO prywatne')}`} amount={p.private.total}>
                 Cała reszta. PKO jest hubem prywatnym — stąd zasilasz ING i mBank i tu trzymasz zapas.
               </Step>
-              <Step n="4" title="PKO → ING (gospodarstwo)" amount={p.private.ing}>
+              <Step n="4" title={`${A('hub', 'PKO')} → ${A('household', 'ING')} (gospodarstwo)`} amount={p.private.ing}>
                 Bieżące życie, gaz, prąd i rata hipoteki dla żony.
               </Step>
               <Step n="5" title="Konto główne → gospodarstwo (doraźne)" amount={p.private.adhoc}>
                 Nieregularne — w danych pojawiły się w 6 z 12 miesięcy. Kwota to średnia rozłożona na wszystkie miesiące.
               </Step>
-              <Step n="6" title="PKO → mBank (codzienne wydatki)" amount={p.private.mbank}>
+              <Step n="6" title={`${A('hub', 'PKO')} → ${A('daily', 'mBank')} (codzienne wydatki)`} amount={p.private.mbank}>
                 Suma kategorii przypisanych do mBanku w zakładce <strong>Struktura kont</strong> — bez wyjazdów, te idą z oszczędności.
               </Step>
-              <Step n="7" title="Zostaw na PKO na własne wydatki" amount={p.private.pko_spend}>
+              <Step n="7" title={`Zostaw na ${A('hub', 'PKO')} na własne wydatki`} amount={p.private.pko_spend}>
                 Suma kategorii przypisanych do PKO: przedszkole, zdrowie, ubrania, dom, ubezpieczenia.
               </Step>
               <Step n="8" title="Zostaje jako oszczędności" amount={p.private.savings}
@@ -199,12 +214,28 @@ export default function PlanWyplaty({ months }: any) {
                   {p.subkonto.lines.map((l: any) => (
                     <tr key={l.label}><td>{l.label}</td><td className="num">{pln2(l.value)}</td></tr>
                   ))}
-                  <tr><td><strong>Prowizja powtarzalna</strong></td><td className="num"><strong>{pln2(p.subkonto.provision)}</strong></td></tr>
-                  {p.subkonto.catch_up > 0 && (
-                    <tr><td className="warnc">Nadrobienie zaległości (jednorazowo)</td><td className="num warnc">{pln2(p.subkonto.catch_up)}</td></tr>
+                  <tr style={{ borderTop: '2px solid var(--border-strong)' }}>
+                    <td><strong>Narosło w tym miesiącu</strong></td>
+                    <td className="num"><strong>{pln2(p.subkonto.provision)}</strong></td></tr>
+                  {p.subkonto.mode === 'fixed' && (
+                    <tr><td><strong>Przelewasz (stała kwota)</strong></td>
+                      <td className="num"><strong className="warnc">{pln2(p.subkonto.total)}</strong></td></tr>
                   )}
-                  <tr><td><strong>Razem do przelania</strong></td><td className="num"><strong>{pln2(p.subkonto.total)}</strong></td></tr>
                 </tbody></table>
+                <p className="muted" style={{ fontSize: 12, margin: '10px 0 0' }}>
+                  To kwota, która pokrywa terminy. Żeby subkonto pokrywało dziś <em>całe</em> naliczone
+                  zobowiązanie, musiałoby wejść {p.subkonto.required_transfer == null
+                    ? '—' : pln2(p.subkonto.required_transfer)}
+                  {p.subkonto.gap_after > 0 && <> — po tym przelewie brakuje jeszcze {pln2(p.subkonto.gap_after)}</>}.
+                  Ta różnica nie jest długiem wobec urzędu, tylko miarą tego, jak wcześnie odkładasz.
+                </p>
+                {p.warnings.subkonto_underfunded > 0 && (
+                  <p className="warnc" style={{ fontSize: 12.5, margin: '8px 0 0' }}>
+                    W tym miesiącu odkładasz o {pln2(p.warnings.subkonto_underfunded)} mniej,
+                    niż narosło podatków. Ta kwota zostaje na koncie firmowym, ale jest już należna —
+                    nie licz jej jako oszczędności.
+                  </p>
+                )}
               </Card>
 
               <Card title="Ile z tego naprawdę zostaje">
