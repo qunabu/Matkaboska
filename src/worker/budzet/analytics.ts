@@ -667,7 +667,7 @@ export async function payoutDefaults(s: Store) {
 
   const daily = await needForTarget(s, 'daily')
   // Średnia bywa wyższa od mediany przez drogie miesiące — tę różnicę dopłacasz
-  // z PKO, więc plan musi ją pokazywać jako odpływ z oszczędności, nie ukrywać.
+  // z huba, więc plan musi ją pokazywać jako odpływ z oszczędności, nie ukrywać.
   const dailyMean = await needForTarget(s, 'daily', true)
   const hub = await needForTarget(s, 'hub')
   const savingsGoal = await needForTarget(s, 'savings', true)
@@ -835,7 +835,7 @@ export async function payoutPlan(s: Store, o: {
   const toHouseholdAdhoc = round(d.household_adhoc_monthly || 0)
   const toMbank = round(d.mbank_monthly + resFor('daily'))
   const pkoSpend = round(d.pko_monthly + resFor('hub'))
-  // Na PKO zostaje wszystko, czego nie wysłano dalej. Wydatki własne PKO (większe,
+  // Na hubie zostaje wszystko, czego nie wysłano dalej. Jego własne wydatki (większe,
   // losowe, wakacje) NIE są przelewem — schodzą z tego samego salda później, więc
   // odejmowanie ich tutaj rozjeżdżało sumę i zaniżało „ile mam odłożone".
   const savings = round(toPrivate - toIng - toHouseholdAdhoc - toMbank)
@@ -864,9 +864,9 @@ export async function payoutPlan(s: Store, o: {
   const avgSpendNoTravel = w.length ? w.reduce((a, b) => a + (spendNoTravel[b.month] ?? 0), 0) / w.length : 0
   const avgTravel = d.travel_goal_monthly ?? 0
   const plannedSpend = keepCompany + toMbank + pkoSpend + toHouseholdAdhoc + toIng
-  // Z salda PKO schodzą jeszcze większe/losowe wydatki i wyjazdy — dopiero po nich
+  // Z salda huba schodzą jeszcze większe/losowe wydatki i wyjazdy — dopiero po nich
   // widać, o ile oszczędności realnie rosną.
-  // Z PKO nie płacisz bezpośrednio — zasilasz mBank, gdy w drogim miesiącu
+  // Z huba nie płacisz bezpośrednio — zasilasz konto codzienne, gdy w drogim miesiącu
   // brakuje, i finansujesz wyjazdy. To są jedyne odpływy z oszczędności.
   const dopłatyDoMbank = round(Math.max(0, (d.mbank_mean_monthly ?? toMbank) - toMbank))
   const pkoOutflow = round(pkoSpend + dopłatyDoMbank + avgTravel)

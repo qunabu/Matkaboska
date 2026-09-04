@@ -68,7 +68,7 @@ export default function PlanWyplaty({ months }: any) {
     <>
       <div className="page-head">
         <div><h1>Plan wypłaty</h1>
-          <p>Wpisz kwotę, która wpłynęła na konto firmowe. Aplikacja rozpisze, ile przelać na subkonto podatkowe, ile zostawić w firmie i jak podzielić resztę między ING, mBank i oszczędności na PKO.</p></div>
+          <p>Wpisz kwotę, która wpłynęła na konto firmowe. Aplikacja rozpisze, ile przelać na subkonto podatkowe, ile zostawić w firmie i jak podzielić resztę między gospodarstwo, konto codzienne i oszczędności.</p></div>
       </div>
 
       <Card style={{ marginBottom: 14 }}>
@@ -112,17 +112,17 @@ export default function PlanWyplaty({ months }: any) {
           <Przeplyw p={p} />
 
           <div className="grid g4" style={{ marginBottom: 12 }}>
-            <Tile label="Zostaje na PKO w tym miesiącu" tone={p.private.savings >= 0 ? 'pos' : 'neg'}
+            <Tile label={`Zostaje na ${A('hub', 'koncie prywatnym')} w tym miesiącu`} tone={p.private.savings >= 0 ? 'pos' : 'neg'}
                   value={pln(p.private.savings)}
                   sub={p.warnings.subkonto_underfunded > 0
                     ? `w tym ${pln(p.warnings.subkonto_underfunded)} odroczonego podatku — nie oszczędność`
                     : 'po stałych przelewach'} />
             <Tile label="Docelowo co miesiąc" value={pln(p.steady.savings)}
                   sub="gdy rezerwa podatkowa jest dokładnie opłacona" />
-            <Tile label="Średni odpływ z PKO" value={pln(p.steady.pko_outflow)}
+            <Tile label="Średni odpływ z oszczędności" value={pln(p.steady.pko_outflow)}
                   sub={`dopłaty do mBanku ${pln(p.steady.mbank_topups)} + wyjazdy ${pln(p.steady.travel_monthly)}`} />
             <Tile label="Realny przyrost oszczędności" tone={p.steady.net_accumulation >= 0 ? 'pos' : 'neg'}
-                  value={pln(p.steady.net_accumulation)} sub="docelowo, po odjęciu odpływu z PKO" />
+                  value={pln(p.steady.net_accumulation)} sub="docelowo, po odjęciu odpływu z oszczędności" />
           </div>
 
           {p.reserves?.items?.length > 0 && (
@@ -185,20 +185,22 @@ export default function PlanWyplaty({ months }: any) {
                 Mediana kosztów firmowych opłacanych bezpośrednio z rachunku bieżącego (paliwo, narzędzia, usługi).
                 Docelowy bufor: {pln(p.company.buffer_target)}.
               </Step>
-              <Step n="3" title={`${A('business', 'Konto firmowe')} → ${A('hub', 'PKO prywatne')}`} amount={p.private.total}>
-                Cała reszta. PKO jest hubem prywatnym — stąd zasilasz ING i mBank i tu trzymasz zapas.
+              <Step n="3" title={`${A('business', 'Konto firmowe')} → ${A('hub', 'konto prywatne')}`} amount={p.private.total}>
+                Cała reszta. To konto jest hubem prywatnym — stąd zasilasz gospodarstwo i konto
+                codzienne, i tu trzymasz zapas. Nic nie płacisz z niego wprost.
               </Step>
-              <Step n="4" title={`${A('hub', 'PKO')} → ${A('household', 'ING')} (gospodarstwo)`} amount={p.private.ing}>
+              <Step n="4" title={`${A('hub', 'konto prywatne')} → ${A('household', 'ING')} (gospodarstwo)`} amount={p.private.ing}>
                 Bieżące życie, gaz, prąd i rata hipoteki dla żony.
               </Step>
-              <Step n="5" title="Konto główne → gospodarstwo (doraźne)" amount={p.private.adhoc}>
+              <Step n="5" title={`${A('hub', 'Konto prywatne')} → ${A('household', 'gospodarstwo')} (doraźne)`}
+                    amount={p.private.adhoc}>
                 Nieregularne — w danych pojawiły się w 6 z 12 miesięcy. Kwota to średnia rozłożona na wszystkie miesiące.
               </Step>
-              <Step n="6" title={`${A('hub', 'PKO')} → ${A('daily', 'mBank')} (codzienne wydatki)`} amount={p.private.mbank}>
+              <Step n="6" title={`${A('hub', 'konto prywatne')} → ${A('daily', 'mBank')} (codzienne wydatki)`} amount={p.private.mbank}>
                 Suma kategorii przypisanych do mBanku w zakładce <strong>Struktura kont</strong> — bez wyjazdów, te idą z oszczędności.
               </Step>
-              <Step n="7" title={`Zostaw na ${A('hub', 'PKO')} na własne wydatki`} amount={p.private.pko_spend}>
-                Suma kategorii przypisanych do PKO: przedszkole, zdrowie, ubrania, dom, ubezpieczenia.
+              <Step n="7" title={`Zostaw na ${A('hub', 'konto prywatne')} na własne wydatki`} amount={p.private.pko_spend}>
+                Suma kategorii przypisanych do tego konta w zakładce <strong>Struktura kont</strong>.
               </Step>
               <Step n="8" title="Zostaje jako oszczędności" amount={p.private.savings}
                     tone={p.private.savings >= 0 ? 'pos' : 'neg'}>
@@ -240,11 +242,11 @@ export default function PlanWyplaty({ months }: any) {
 
               <Card title="Ile z tego naprawdę zostaje">
                 <p className="muted" style={{ marginTop: 0, fontSize: 12.5 }}>
-                  Na PKO zostaje wszystko, czego nie wysłałeś dalej — i to jest Twój stan oszczędności.
+                  Na {A('hub', 'koncie prywatnym')} zostaje wszystko, czego nie wysłałeś dalej — i to jest Twój stan oszczędności.
                   Z tego samego salda schodzą jednak większe, nieregularne wydatki i wyjazdy.
                 </p>
                 <table><tbody>
-                  <tr><td>Zostaje na PKO docelowo / mies.</td><td className="num">{pln2(p.steady.savings)}</td></tr>
+                  <tr><td>Zostaje docelowo / mies.</td><td className="num">{pln2(p.steady.savings)}</td></tr>
                   <tr><td className="muted" style={{ paddingLeft: 16 }}>dopłaty do mBanku w drogich miesiącach</td>
                       <td className="num neg">−{pln2(p.steady.mbank_topups)}</td></tr>
                   <tr><td className="muted" style={{ paddingLeft: 16 }}>wyjazdy</td>
@@ -256,7 +258,7 @@ export default function PlanWyplaty({ months }: any) {
                 </tbody></table>
                 {p.steady.net_accumulation < 0 && (
                   <p className="warnc" style={{ fontSize: 12.5, marginBottom: 0 }}>
-                    Saldo PKO będzie się kurczyć o {pln(Math.abs(p.steady.net_accumulation))} miesięcznie.
+                    Saldo {A('hub', 'konta prywatnego')} będzie się kurczyć o {pln(Math.abs(p.steady.net_accumulation))} miesięcznie.
                     Żeby rosło, wyjazdy musiałyby zejść poniżej {pln(Math.max(0, p.steady.savings - p.steady.mbank_topups))}/mies.
                   </p>
                 )}

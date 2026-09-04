@@ -215,7 +215,7 @@ export default {
           const przypomnienia = [
             { typ: 'wyplata', dzien: Number(cfg.reminder_payout_day ?? 5),
               title: 'Faktura powinna być na koncie',
-              body: 'Rozpisz przelewy: subkonto, ING, mBank, reszta na PKO.',
+              body: 'Rozpisz przelewy: subkonto, gospodarstwo, konto codzienne, reszta na oszczędności.',
               url: '/budzet#budzet/plan' },
             { typ: 'przeglad', dzien: Number(cfg.reminder_review_day ?? 25),
               title: 'Przegląd budżetu',

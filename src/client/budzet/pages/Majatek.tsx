@@ -35,7 +35,7 @@ export default function Majatek({ onChanged }: any) {
     load(); onChanged?.();
   };
   const TARGET_NAMES: Record<string, string> = {
-    pekao_prywatne: 'PKO prywatne', mbank_intensive: 'mBank',
+    pekao_prywatne: 'Pekao — prywatne', mbank_intensive: 'mBank',
     pekao_firmowe: 'Konto firmowe', pekao_subkonto: 'Subkonto',
   };
 

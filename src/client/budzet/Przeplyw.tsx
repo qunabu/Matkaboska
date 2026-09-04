@@ -4,7 +4,12 @@ import { pln } from './api'
  * Diagram przepływu z góry na dół — jednocześnie wyliczenie na dany miesiąc
  * i trwałe przypomnienie przyjętej struktury: co ile dostaje i za co odpowiada.
  * Zasada jest jedna: kwoty na subkonto, ING i mBank są przewidywalne, a wszystko,
- * co zostaje, ląduje na PKO. Saldo PKO to oszczędności — bez zgadywania.
+ * co zostaje, ląduje na koncie prywatnym (hub). Jego saldo to oszczędności —
+ * bez zgadywania.
+ *
+ * Nazwy rachunków bierzemy z `p.accounts`, nie z kodu: hubem jest „Pekao —
+ * prywatne", a wpisane na sztywno „PKO" (inny bank!) myliło przy odczytywaniu
+ * przelewów z panelu.
  */
 
 type Node = {
@@ -31,6 +36,9 @@ export default function Przeplyw({ p }: { p: any }) {
   if (!p) return null
   const inp = p.input
   const bonus = inp.bonus_gross > 0
+  const hub = p.accounts?.hub || 'konto prywatne'
+  const ing = p.accounts?.household || 'ING'
+  const daily = p.accounts?.daily || 'mBank'
 
   const poziom1: Node[] = [
     {
@@ -44,8 +52,8 @@ export default function Przeplyw({ p }: { p: any }) {
       note: `bufor docelowy ${pln(p.company.buffer_target)}`,
     },
     {
-      key: 'hub', title: 'PKO prywatne', amount: p.private.total, color: 'var(--series-1)',
-      covers: ['tylko przelewy i oszczędności', 'stąd zasilasz ING i mBank', 'nic nie płacisz stąd wprost'],
+      key: 'hub', title: hub, amount: p.private.total, color: 'var(--series-1)',
+      covers: ['tylko przelewy i oszczędności', 'stąd zasilasz gospodarstwo i codzienne', 'nic nie płacisz stąd wprost'],
       note: p.structure_from
         ? (p.structure_from.date
             ? `konto przelotowe i skarbonka — od ${p.structure_from.date}`
@@ -56,21 +64,21 @@ export default function Przeplyw({ p }: { p: any }) {
 
   const poziom2: Node[] = [
     {
-      key: 'ing', title: 'ING — gospodarstwo', amount: p.private.ing + p.private.adhoc, color: 'var(--series-7)',
+      key: 'ing', title: `${ing} — gospodarstwo`, amount: p.private.ing + p.private.adhoc, color: 'var(--series-7)',
       covers: ['bieżące życie domu', 'gaz i prąd', 'rata hipoteki'],
       note: p.private.adhoc > 0 ? `w tym ${pln(p.private.adhoc)} doraźnych` : undefined,
     },
     {
-      key: 'daily', title: 'mBank — wszystkie wydatki', amount: p.private.mbank, color: 'var(--series-3)',
+      key: 'daily', title: `${daily} — wszystkie wydatki`, amount: p.private.mbank, color: 'var(--series-3)',
       covers: ['jedzenie, zakupy, dzieci', 'zdrowie, ubrania, dom', 'wszystko niefirmowe'],
       note: p.steady.mbank_topups > 0
-        ? `w drogim miesiącu dopłacasz z PKO, średnio ${pln(p.steady.mbank_topups)}`
+        ? `w drogim miesiącu dopłacasz z ${hub}, średnio ${pln(p.steady.mbank_topups)}`
         : undefined,
     },
     {
-      key: 'save', title: 'ZOSTAJE NA PKO', amount: p.private.savings, color: 'var(--series-6)',
+      key: 'save', title: `Zostaje na ${hub}`, amount: p.private.savings, color: 'var(--series-6)',
       covers: ['to są Twoje oszczędności', 'z tego idą wakacje', 'i większe losowe wydatki'],
-      note: `saldo PKO = ile masz odłożone · średnio ${pln(p.steady.pko_outflow)}/mies. schodzi na dopłaty i wyjazdy`,
+      note: `saldo tego konta = ile masz odłożone · średnio ${pln(p.steady.pko_outflow)}/mies. schodzi na dopłaty i wyjazdy`,
     },
   ]
 
@@ -90,7 +98,7 @@ export default function Przeplyw({ p }: { p: any }) {
       <div className="bdz-row">{poziom1.map((n) => <Box key={n.key} n={n} />)}</div>
 
       <div className="bdz-arrow bdz-arrow-right" />
-      <div className="bdz-sub">z konta PKO dzielisz dalej</div>
+      <div className="bdz-sub">z {hub} dzielisz dalej</div>
       <div className="bdz-row">{poziom2.map((n) => <Box key={n.key} n={n} />)}</div>
 
       {p.structure_from && (
@@ -98,18 +106,18 @@ export default function Przeplyw({ p }: { p: any }) {
           {p.structure_from.date ? (
             <>Struktura obowiązuje od <strong>{p.structure_from.date}</strong> — dnia, w którym
             wpłynęła faktura. Wcześniejsze wydatki bywały płacone z różnych rachunków, więc saldo
-            PKO odpowiada stanowi oszczędności dopiero od tego momentu.</>
+            {' '}{hub} odpowiada stanowi oszczędności dopiero od tego momentu.</>
           ) : (
             <>Struktura zacznie obowiązywać <strong>od przelewu z faktury</strong> (spodziewany
             na początku {p.structure_from.month}) — nie od 1. dnia miesiąca. Do tego czasu
-            pieniądze rozchodzą się jeszcze po staremu, a saldo PKO nie jest miarą oszczędności.</>
+            pieniądze rozchodzą się jeszcze po staremu, a saldo {hub} nie jest miarą oszczędności.</>
           )}
         </div>
       )}
 
       {p.private.savings < 0 && (
         <div className="note" style={{ borderLeftColor: 'var(--bad)', marginTop: 14 }}>
-          Przy tej fakturze na PKO nie zostaje nic — brakuje {pln(Math.abs(p.private.savings))}.
+          Przy tej fakturze na {hub} nie zostaje nic — brakuje {pln(Math.abs(p.private.savings))}.
           Trzeba sięgnąć do zapasu albo obniżyć któryś ze stałych przelewów.
         </div>
       )}

@@ -28,7 +28,7 @@ const DEFAULTS: Record<string, string> = {
   dzieci_przedszkole: 'daily', dzieci_zajecia: 'daily', dzieci_inne: 'daily',
   zdrowie_leki: 'daily',
 
-  // PKO prywatne: większe, planowane, stałe zobowiązania
+  // Hub prywatny: większe, planowane, stałe zobowiązania
   zdrowie_opieka: 'daily',
   ubrania: 'daily', elektronika: 'daily', edukacja: 'daily',
   dom_remont: 'daily', dom_wyposazenie: 'daily', dom_media: 'daily',
@@ -57,7 +57,7 @@ const DEFAULTS: Record<string, string> = {
 
 export const DEFAULT_TARGETS: Record<string, string> = DEFAULTS
 
-/** Domyślnie wydatek trafia na konto codzienne — PKO nie jest kontem wydatkowym,
+/** Domyślnie wydatek trafia na konto codzienne — hub nie jest kontem wydatkowym,
  *  służy wyłącznie do przelewów między własnymi rachunkami i do oszczędzania. */
 export function defaultTargetFor(categoryId: string): string {
   return DEFAULTS[categoryId] || 'daily'
