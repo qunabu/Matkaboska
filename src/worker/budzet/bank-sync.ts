@@ -218,14 +218,15 @@ export async function syncConnections(
           if (isCard) {
             const booked = val(bookedT), avail = val(availT)
             // Dla karty „booked" to przyznany limit, a „available" pozostała jego
-            // część — zadłużeniem jest różnica. Zapis któregokolwiek wprost
-            // wyglądałby jak kilkanaście tysięcy oszczędności.
-            if (booked != null && avail != null && booked >= avail) {
-              amount = -(booked - avail)
+            // część — zadłużeniem jest różnica. Bez dostępnej części NIE ma z czego
+            // policzyć długu, a zapis samego limitu wchodził do majątku jako
+            // kilkanaście tysięcy oszczędności (po spłacie karty mBank przestał
+            // podawać ITAV i saldo skoczyło z −921,41 na +11 000). Lepiej zostawić
+            // poprzednią wartość z widoczną datą „na dzień" niż fikcyjny plus.
+            if (booked != null && avail != null) {
+              // Po pełnej spłacie avail == booked, więc różnica to czyste zero.
+              amount = -Math.max(0, booked - avail)
               label = `${bookedT?.balance_type ?? '?'}-${availT?.balance_type ?? '?'} (zadłużenie)`
-            } else if (booked != null) {
-              amount = booked
-              label = bookedT?.balance_type ?? null
             }
           } else {
             const pick = bookedT ?? availT ?? b.balances?.[0] ?? null
