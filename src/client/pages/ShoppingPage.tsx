@@ -7,6 +7,7 @@ import pl from '../i18n/pl'
 import type { ShoppingItem, ShoppingList, ShopCategory, ApiList } from '../../shared/types'
 import FriscoSearchModal from '../components/FriscoSearchModal'
 import RecipeModal from '../components/RecipeModal'
+import PasteListModal from '../components/PasteListModal'
 
 const CAT_LABELS: Record<ShopCategory, string> = {
   produce: pl.shopping.categories.produce,
@@ -22,6 +23,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
   const qc = useQueryClient()
   const [newItem, setNewItem] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [showPaste, setShowPaste] = useState(false)
   const [showShare, setShowShare] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
   const [orderResult, setOrderResult] = useState<FriscoOrderResult | null>(null)
@@ -221,6 +223,12 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
             className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
           >
             🛒 {orderMutation.isPending ? pl.shopping.friscoServerBusy : pl.shopping.frisco}
+          </button>
+          <button
+            onClick={() => setShowPaste(true)}
+            className="rounded-lg bg-primary-100 px-3 py-2 text-sm font-medium text-primary-700 dark:bg-primary-900/40 dark:text-primary-300"
+          >
+            📋 {pl.shopping.pasteBtn}
           </button>
           <button
             onClick={() => setShowAdd(!showAdd)}
@@ -467,6 +475,17 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
       )}
       {recipeModal && (
         <RecipeModal recipes={recipeModal} onClose={() => setRecipeModal(null)} />
+      )}
+      {showPaste && (
+        <PasteListModal
+          listId={listId}
+          onClose={() => setShowPaste(false)}
+          onAdded={() => {
+            setShowPaste(false)
+            qc.invalidateQueries({ queryKey: ['shopping-list', listId] })
+            qc.invalidateQueries({ queryKey: ['shopping-lists'] })
+          }}
+        />
       )}
     </div>
   )

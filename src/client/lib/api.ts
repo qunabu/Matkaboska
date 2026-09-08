@@ -1,6 +1,6 @@
 import type {
   Recipe, RecipeWithNotes, MealPlanEntry, MealPlanEntryFull, FoodLogEntry, DailySummary,
-  WaterLog, SupplementWithStatus, SupplementLog, ShoppingList, ShoppingItem,
+  WaterLog, SupplementWithStatus, SupplementLog, ShoppingList, ShoppingItem, ParsedShoppingItem,
   Reminder, AppSettings, ApiList, ApiOk, Product, Todo, Idea, VoiceNote, PantryItem, Habit, Chore,
   PushStatus, BlockRule, BlockDevice, BlockUsageRow, BlockStatsRow,
   FoodSuggestion, FoodLogAverages,
@@ -126,6 +126,15 @@ export const shoppingApi = {
   generateList: (from: string, to: string, name?: string) =>
     req<ShoppingList & { items: ShoppingItem[] }>('/shopping-lists/generate', { method: 'POST', body: JSON.stringify({ from, to, name }) }),
   addItem: (data: object) => req<ShoppingItem>('/shopping-lists/items', { method: 'POST', body: JSON.stringify(data) }),
+  // Paste a blob of text → recognised items (nothing is saved yet).
+  parseText: (listId: number, text: string) =>
+    req<{ items: ParsedShoppingItem[]; parsed_by: 'llm' | 'split'; total: number }>(`/shopping-lists/${listId}/parse-text`, {
+      method: 'POST', body: JSON.stringify({ text }),
+    }),
+  addItemsBulk: (listId: number, items: Omit<ParsedShoppingItem, 'duplicate'>[]) =>
+    req<{ items: ShoppingItem[]; added: number }>('/shopping-lists/items/bulk', {
+      method: 'POST', body: JSON.stringify({ list_id: listId, items }),
+    }),
   updateItem: (id: number, data: object) => req<ShoppingItem>(`/shopping-lists/items/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteItem: (id: number) => req<ApiOk>(`/shopping-lists/items/${id}`, { method: 'DELETE' }),
   // "Mam w domu": move item to pantry, drop from Frisco cart, remove from list.

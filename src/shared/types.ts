@@ -239,6 +239,15 @@ export interface ShoppingItem {
   sort_order: number
 }
 
+// One item recognised out of a pasted blob of text, before it is saved.
+export interface ParsedShoppingItem {
+  name: string
+  quantity: number | null
+  unit: string | null
+  category: ShopCategory
+  duplicate?: boolean
+}
+
 export interface Reminder {
   id: number
   type: 'supplement' | 'cook' | 'prep' | 'water' | 'custom'

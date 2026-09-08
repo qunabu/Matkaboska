@@ -2,9 +2,10 @@ import { Hono } from 'hono'
 import { eq, and, between } from 'drizzle-orm'
 import { z } from 'zod'
 import { getDb, shopping_lists, shopping_items, meal_plan_entries, recipes, pantry_items, products } from '../db/index'
-import type { AppEnv } from '../types'
-import type { ShoppingList, ShoppingItem, Ingredient, ShopCategory } from '../../shared/types'
+import type { AppEnv, Env } from '../types'
+import type { ShoppingList, ShoppingItem, Ingredient, ShopCategory, ParsedShoppingItem } from '../../shared/types'
 import { removeProductFromCart } from './frisco'
+import { resolveAnthropicKey } from './settings'
 import { canonicalIngredientName } from '../lib/ingredient-names'
 
 const app = new Hono<AppEnv>()
@@ -418,6 +419,192 @@ app.post('/items/:id/have-at-home', async (c) => {
   await db.delete(shopping_items).where(eq(shopping_items.id, id))
 
   return c.json({ ok: true, pantry: item.name, removedFromCart })
+})
+
+// ─── Wklejony tekst → pozycje listy ───────────────────────────────────────────
+// Two steps on purpose: `parse-text` only *reads* the blob (so the user can fix
+// what the model misread), `items/bulk` writes what they confirmed.
+
+const PARSE_UNITS = new Set([
+  'kg', 'g', 'dag', 'l', 'ml', 'szt', 'szt.', 'sztuki', 'sztuk', 'opak', 'opak.', 'opakowanie',
+  'puszka', 'puszki', 'pęczek', 'pęczki', 'butelka', 'butelki', 'słoik', 'słoiki', 'kostka',
+  'łyżka', 'łyżki', 'łyżeczka', 'łyżeczki', 'plaster', 'plastry', 'paczka', 'paczki', 'karton',
+])
+
+// Drop the bullet/checkbox/numbering noise a pasted list carries.
+function stripBullet(line: string): string {
+  return line
+    .replace(/^\s*[-–—*•·▪]\s*/, '')
+    .replace(/^\s*\[[\sxX✓]?\]\s*/, '')
+    .replace(/^\s*\d+[.)]\s+/, '')
+    .trim()
+}
+
+function normUnit(raw: string): string | null {
+  const u = raw.toLowerCase().replace(/\.$/, '')
+  return PARSE_UNITS.has(u) || PARSE_UNITS.has(`${u}.`) ? u : null
+}
+
+// Fallback for when the LLM is unavailable: split on lines and commas, then pull
+// a leading ("2 kg mąki") or trailing ("mąka 2 kg") quantity off each piece.
+function parseTextHeuristic(text: string): ParsedShoppingItem[] {
+  const pieces = text
+    // Commas separate items ("mleko, jajka") except inside a number ("1,5 kg").
+    .split(/[\n\r;]+|,(?!\d)/)
+    .map((p) => stripBullet(p))
+    // A piece ending in ":" is a heading ("Zakupy na weekend:"), not a product.
+    .filter((p) => p.length > 1 && /\p{L}/u.test(p) && !p.endsWith(':'))
+
+  const out: ParsedShoppingItem[] = []
+  const seen = new Set<string>()
+  for (const piece of pieces) {
+    let name = piece
+    let quantity: number | null = null
+    let unit: string | null = null
+
+    const lead = piece.match(/^(\d+(?:[.,]\d+)?)\s*(\p{L}+\.?)?\s+(.+)$/u)
+    const trail = piece.match(/^(.+?)\s*[-–x×]?\s*(\d+(?:[.,]\d+)?)\s*(\p{L}+\.?)?$/u)
+    if (lead) {
+      quantity = parseFloat(lead[1].replace(',', '.'))
+      const u = lead[2] ? normUnit(lead[2]) : null
+      unit = u
+      name = (u ? lead[3] : [lead[2], lead[3]].filter(Boolean).join(' ')).trim()
+    } else if (trail) {
+      quantity = parseFloat(trail[2].replace(',', '.'))
+      unit = trail[3] ? normUnit(trail[3]) : null
+      name = trail[1].trim()
+    }
+    if (name.length < 2) continue
+    const key = name.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({ name, quantity, unit, category: guessCategory(name) })
+  }
+  return out
+}
+
+async function parseTextWithLLM(env: Env, apiKey: string, text: string): Promise<ParsedShoppingItem[] | null> {
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
+        max_tokens: 4000,
+        system: 'Zamieniasz wklejony tekst na listę zakupów. Zwracasz WYŁĄCZNIE poprawny JSON, bez prozy i bez bloków kodu.',
+        messages: [{
+          role: 'user',
+          content: `Rozbij ten tekst na osobne pozycje listy zakupów.\n\nZasady:\n- jedna pozycja = jeden produkt do kupienia\n- nazwy po polsku, mianownik, bez ilości w nazwie (np. "mąka pszenna", nie "2 kg mąki pszennej")\n- ilość i jednostkę wyciągnij osobno; brak ilości = null\n- jednostki skracaj do: kg, g, l, ml, szt, opak, pęczek, puszka, słoik, butelka, paczka\n- pomijaj nagłówki, komentarze, przepisy i wszystko, co nie jest produktem\n- scal duplikaty (sumuj ilości, jeśli ta sama jednostka)\n- category: produce (warzywa, owoce, zioła), dairy (nabiał, jajka), pantry (sypkie, konserwy, przyprawy, napoje, pieczywo), frozen (mrożonki), other (reszta, np. chemia)\n\nTekst:\n"""\n${text}\n"""\n\nZwróć dokładnie taki JSON:\n{"items":[{"name":"mąka pszenna","quantity":2,"unit":"kg","category":"pantry"}]}`,
+        }],
+      }),
+    })
+    if (!response.ok) return null
+    const data = await response.json() as { content: Array<{ text: string }> }
+    const raw = (data.content?.[0]?.text ?? '').replace(/```json|```/g, '').trim()
+    const R = z.object({
+      items: z.array(z.object({
+        name: z.string().min(1).max(120),
+        quantity: z.number().positive().nullable().catch(null),
+        unit: z.string().max(20).nullable().catch(null),
+        category: z.enum(['produce', 'dairy', 'pantry', 'frozen', 'other']).catch('other'),
+      })),
+    })
+    const parsed = R.safeParse(JSON.parse(raw))
+    if (!parsed.success) return null
+
+    const seen = new Set<string>()
+    const items: ParsedShoppingItem[] = []
+    for (const it of parsed.data.items) {
+      const name = it.name.trim()
+      const key = name.toLowerCase()
+      if (!name || seen.has(key)) continue
+      seen.add(key)
+      items.push({
+        name,
+        quantity: it.quantity ?? null,
+        unit: it.unit?.trim() || null,
+        category: it.category,
+      })
+    }
+    return items
+  } catch {
+    return null
+  }
+}
+
+// POST /api/shopping-lists/:id/parse-text — dry run: returns what it recognised
+// plus which names the list already has, so the UI can pre-uncheck them.
+app.post('/:id/parse-text', async (c) => {
+  const listId = Number(c.req.param('id'))
+  const userId = c.var.userId
+  if (!Number.isFinite(listId)) return c.json({ error: 'invalid_id' }, 400)
+  const parsed = z.object({ text: z.string().min(1).max(20000) }).safeParse(await c.req.json())
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
+
+  const db = getDb(c.env.DB)
+  const [list] = await db.select({ id: shopping_lists.id }).from(shopping_lists)
+    .where(and(eq(shopping_lists.id, listId), eq(shopping_lists.user_id, userId)))
+  if (!list) return c.json({ error: 'Not found' }, 404)
+
+  const apiKey = await resolveAnthropicKey(c.env, userId)
+  let items = apiKey ? await parseTextWithLLM(c.env, apiKey, parsed.data.text) : null
+  const parsedBy: 'llm' | 'split' = items ? 'llm' : 'split'
+  if (!items || items.length === 0) items = parseTextHeuristic(parsed.data.text)
+
+  const existing = await db.select({ name: shopping_items.name }).from(shopping_items)
+    .where(eq(shopping_items.list_id, listId))
+  const existingKeys = new Set(existing.map((e) => normalizeName(e.name)?.toLowerCase() ?? e.name.toLowerCase()))
+  const withDupes = items.map((it) => ({
+    ...it,
+    duplicate: existingKeys.has(normalizeName(it.name)?.toLowerCase() ?? it.name.toLowerCase()),
+  }))
+
+  return c.json({ items: withDupes, parsed_by: parsedBy, total: withDupes.length })
+})
+
+// POST /api/shopping-lists/items/bulk — insert the confirmed pozycje in one go.
+app.post('/items/bulk', async (c) => {
+  const userId = c.var.userId
+  const parsed = z.object({
+    list_id: z.number().int(),
+    items: z.array(z.object({
+      name: z.string().min(1).max(120),
+      quantity: z.number().nullable().optional(),
+      unit: z.string().nullable().optional(),
+      category: z.enum(['produce', 'dairy', 'pantry', 'frozen', 'other']).optional(),
+    })).min(1).max(200),
+  }).safeParse(await c.req.json())
+  if (!parsed.success) return c.json({ error: parsed.error.flatten() }, 400)
+
+  const db = getDb(c.env.DB)
+  const [list] = await db.select({ id: shopping_lists.id }).from(shopping_lists)
+    .where(and(eq(shopping_lists.id, parsed.data.list_id), eq(shopping_lists.user_id, userId)))
+  if (!list) return c.json({ error: 'Not found' }, 404)
+
+  const existing = await db.select({ sort_order: shopping_items.sort_order }).from(shopping_items)
+    .where(eq(shopping_items.list_id, list.id))
+  let sortOrder = existing.reduce((max, r) => Math.max(max, r.sort_order ?? 0), 0) + 1
+
+  const rows = parsed.data.items.map((it) => ({
+    list_id: list.id,
+    name: it.name.trim(),
+    quantity: it.quantity ?? null,
+    unit: it.unit ?? null,
+    category: it.category ?? guessCategory(it.name),
+    source: 'manual' as const,
+    sort_order: sortOrder++,
+  }))
+
+  const inserted: typeof shopping_items.$inferSelect[] = []
+  const CHUNK = 10
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    inserted.push(...await db.insert(shopping_items).values(rows.slice(i, i + CHUNK)).returning())
+  }
+  return c.json({ items: inserted, added: inserted.length }, 201)
 })
 
 export { app as shoppingRouter }
