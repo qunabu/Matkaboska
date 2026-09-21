@@ -166,6 +166,9 @@ export interface DailySummary {
 // Averages over a window of logged days. `days` counts days that have at least
 // one food entry (today excluded — it is still in progress), `water_days` the
 // days with any water logged, so a missing water day never drags kcal down.
+// Each macro is averaged only over the days that actually carry that number
+// (`metric_days`): a day logged as "kawa" with no macros filled in says nothing
+// about protein, so it must not count as a zero-protein day.
 export interface AverageWindow {
   days: number
   water_days: number
@@ -177,6 +180,16 @@ export interface AverageWindow {
   glasses: number
   entries: number
   first_date: string | null
+  metric_days: MetricDays
+}
+
+export interface MetricDays {
+  kcal: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
+  iron_mg: number
+  glasses: number
 }
 
 export interface FoodLogAverages {
