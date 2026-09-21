@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { foodLogApi, waterApi, recipesApi, settingsApi, addDays } from '../lib/api'
-import type { FoodLogEntry, AverageWindow } from '../../shared/types'
+import type { FoodLogEntry, AverageWindow, MetricDays } from '../../shared/types'
 import pl from '../i18n/pl'
 
 function todayDate() {
@@ -171,7 +171,7 @@ function AveragesSummary({ kcalTarget, proteinTarget, ironTarget, waterTarget }:
     staleTime: 60_000,
   })
 
-  const rows: Array<{ label: string; key: keyof AverageWindow; unit: string; target: number }> = [
+  const rows: Array<{ label: string; key: keyof MetricDays; unit: string; target: number }> = [
     { label: pl.tracking.kcal, key: 'kcal', unit: '', target: kcalTarget },
     { label: pl.tracking.protein, key: 'protein_g', unit: ' g', target: proteinTarget },
     { label: pl.tracking.carbs, key: 'carbs_g', unit: ' g', target: 250 },
@@ -189,13 +189,13 @@ function AveragesSummary({ kcalTarget, proteinTarget, ironTarget, waterTarget }:
     },
   ]
 
-  const fmt = (w: AverageWindow | undefined, key: keyof AverageWindow, unit: string) => {
+  const fmt = (w: AverageWindow | undefined, key: keyof MetricDays, unit: string) => {
     const n = w ? Number(w[key]) : 0
     return `${Math.round(n * 10) / 10}${unit}`
   }
   // A green number means the average hit the goal; kcal is a ceiling, not a floor,
   // so it counts as met when it stays at or below the target.
-  const hit = (key: keyof AverageWindow, value: number, target: number) =>
+  const hit = (key: keyof MetricDays, value: number, target: number) =>
     key === 'kcal' ? value > 0 && value <= target : value >= target
 
   return (
@@ -228,9 +228,15 @@ function AveragesSummary({ kcalTarget, proteinTarget, ironTarget, waterTarget }:
                     <td className="py-1.5 pr-2 text-gray-600 dark:text-gray-300">{r.label}</td>
                     {windows.map((c) => {
                       const value = c.w ? Number(c.w[r.key]) : 0
+                      // How many days actually carry this number. Fewer than the
+                      // window's logged days means the rest had nothing written
+                      // down for it — those days are out of this average, and
+                      // saying so keeps a thin number from looking solid.
+                      const n = c.w ? c.w.metric_days[r.key] : 0
                       return (
                         <td
                           key={c.title}
+                          title={c.w ? `${pl.tracking.avgFrom} ${n} ${pl.tracking.avgDaysShort}` : undefined}
                           className={`py-1.5 text-right font-medium tabular-nums ${
                             c.w && hit(r.key, value, r.target)
                               ? 'text-green-600 dark:text-green-400'
@@ -238,6 +244,11 @@ function AveragesSummary({ kcalTarget, proteinTarget, ironTarget, waterTarget }:
                           }`}
                         >
                           {c.w ? fmt(c.w, r.key, r.unit) : '…'}
+                          {c.w && n < c.w.days && (
+                            <span className="block text-[10px] font-normal text-gray-400">
+                              {n} {pl.tracking.avgDaysShort}
+                            </span>
+                          )}
                         </td>
                       )
                     })}

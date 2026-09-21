@@ -41,13 +41,18 @@ app.get('/summary', async (c) => {
 // GET /api/food-log/averages?today=YYYY-MM-DD
 // Daily averages over two windows: last 30 days and everything ever logged.
 // Days without a single entry are skipped (they would fake a "bad" average) and
-// so is today, because a half-eaten day makes every number look worse.
+// so is today, because a half-eaten day makes every number look worse. The same
+// goes per number: a day logged without macros (a note like "kawa u mamy") is no
+// evidence of a zero-protein day, so it only counts towards the numbers it
+// actually carries.
 app.get('/averages', async (c) => {
   const userId = c.var.userId
   const today = c.req.query('today') ?? todayDate()
   const monthStart = addDays(today, -30) // 30 full days: today-30 … today-1
   const db = getDb(c.env.DB)
 
+  // count(col) counts non-null values only — that is what tells a filled-in zero
+  // apart from a missing number.
   const foodDays = await db.select({
     date: food_log.date,
     kcal: sql<number>`sum(coalesce(${food_log.kcal}, 0))`,
@@ -55,6 +60,11 @@ app.get('/averages', async (c) => {
     carbs_g: sql<number>`sum(coalesce(${food_log.carbs_g}, 0))`,
     fat_g: sql<number>`sum(coalesce(${food_log.fat_g}, 0))`,
     iron_mg: sql<number>`sum(coalesce(${food_log.iron_mg}, 0))`,
+    n_kcal: sql<number>`count(${food_log.kcal})`,
+    n_protein_g: sql<number>`count(${food_log.protein_g})`,
+    n_carbs_g: sql<number>`count(${food_log.carbs_g})`,
+    n_fat_g: sql<number>`count(${food_log.fat_g})`,
+    n_iron_mg: sql<number>`count(${food_log.iron_mg})`,
     entries: sql<number>`count(*)`,
   }).from(food_log)
     .where(and(eq(food_log.user_id, userId), lt(food_log.date, today)))
@@ -64,23 +74,47 @@ app.get('/averages', async (c) => {
     .from(water_log)
     .where(and(eq(water_log.user_id, userId), lt(water_log.date, today)))
 
+  type FoodDay = typeof foodDays[number]
+
   const window = (from?: string): AverageWindow => {
     const fd = from ? foodDays.filter((d) => d.date >= from) : foodDays
     const wd = (from ? waterDays.filter((d) => d.date >= from) : waterDays).filter((d) => d.glasses > 0)
-    const mean = (total: number, n: number, dp = 1) =>
-      n > 0 ? Math.round((total / n) * 10 ** dp) / 10 ** dp : 0
-    const total = (key: keyof typeof fd[number]) => fd.reduce((a, d) => a + (Number(d[key]) || 0), 0)
+    const round = (n: number, dp: number) => Math.round(n * 10 ** dp) / 10 ** dp
+
+    // Mean of one macro over the days that have it logged, plus how many days
+    // that was — the UI shows it, so a number never hides how thin it is.
+    const macro = (key: keyof FoodDay, count: keyof FoodDay, dp = 1) => {
+      const days = fd.filter((d) => Number(d[count]) > 0)
+      const total = days.reduce((a, d) => a + (Number(d[key]) || 0), 0)
+      return { value: days.length ? round(total / days.length, dp) : 0, days: days.length }
+    }
+
+    const kcal = macro('kcal', 'n_kcal', 0)
+    const protein_g = macro('protein_g', 'n_protein_g')
+    const carbs_g = macro('carbs_g', 'n_carbs_g')
+    const fat_g = macro('fat_g', 'n_fat_g')
+    const iron_mg = macro('iron_mg', 'n_iron_mg')
+    const glasses = wd.length ? round(wd.reduce((a, d) => a + d.glasses, 0) / wd.length, 1) : 0
+
     return {
       days: fd.length,
       water_days: wd.length,
-      kcal: Math.round(mean(total('kcal'), fd.length, 0)),
-      protein_g: mean(total('protein_g'), fd.length),
-      carbs_g: mean(total('carbs_g'), fd.length),
-      fat_g: mean(total('fat_g'), fd.length),
-      iron_mg: mean(total('iron_mg'), fd.length),
-      glasses: mean(wd.reduce((a, d) => a + d.glasses, 0), wd.length),
-      entries: total('entries'),
+      kcal: kcal.value,
+      protein_g: protein_g.value,
+      carbs_g: carbs_g.value,
+      fat_g: fat_g.value,
+      iron_mg: iron_mg.value,
+      glasses,
+      entries: fd.reduce((a, d) => a + (Number(d.entries) || 0), 0),
       first_date: fd.reduce<string | null>((min, d) => (min == null || d.date < min ? d.date : min), null),
+      metric_days: {
+        kcal: kcal.days,
+        protein_g: protein_g.days,
+        carbs_g: carbs_g.days,
+        fat_g: fat_g.days,
+        iron_mg: iron_mg.days,
+        glasses: wd.length,
+      },
     }
   }
 
