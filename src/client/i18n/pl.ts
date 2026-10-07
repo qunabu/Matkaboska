@@ -82,11 +82,11 @@ const pl = {
   notifications: {
     title: 'Powiadomienia',
     empty: 'Brak powiadomień',
-    markAllRead: 'Oznacz wszystkie jako przeczytane',
+    markAllRead: 'Odczytaj wszystkie',
     now: 'teraz',
     min: (n: number) => `${n} min temu`,
-    hour: (n: number) => `${n} godz temu`,
-    day: (n: number) => `${n} dni temu`,
+    hour: (n: number) => `${n} godz. temu`,
+    day: (n: number) => (n === 1 ? 'wczoraj' : `${n} dni temu`),
   },
 
   theme: {

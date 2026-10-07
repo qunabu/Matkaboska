@@ -10,9 +10,9 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {}
   } catch (e) {
-    data = { title: 'Matka Boska 🌈', body: event.data ? event.data.text() : '' }
+    data = { title: 'Matka Boska', body: event.data ? event.data.text() : '' }
   }
-  const title = data.title || 'Matka Boska 🌈'
+  const title = data.title || 'Matka Boska'
   const actions = Array.isArray(data.actions)
     ? data.actions.slice(0, 2).map((a) => ({ action: a.action, title: a.title }))
     : []
@@ -67,7 +67,7 @@ async function submitAction(action, data, tag, url) {
 
   if (!ok) {
     // Nothing was saved — keep it visible and make tapping it open the app.
-    return self.registration.showNotification('Nie udało się zapisać 😕', {
+    return self.registration.showNotification('Nie udało się zapisać', {
       body: 'Otwórz aplikację i odhacz to ręcznie.',
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
@@ -78,7 +78,7 @@ async function submitAction(action, data, tag, url) {
 
   const label = action === 'no' ? 'Zapisane ✓' : action === 'read' ? 'Odhaczone ✓' : 'Zrobione ✓'
   await self.registration.showNotification(label, {
-    body: 'Zapisane w Matce Boskiej 🌈',
+    body: 'Zapisane w Matce Boskiej',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
     data: { url },

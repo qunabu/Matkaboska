@@ -366,15 +366,15 @@ export default {
         batch.push({
           payload: {
             title: reminder.label,
-            body: isWater ? 'Pamiętaj o wypiciu wody 💧'
-              : reminder.type === 'supplement' ? 'Czas na suplementy 💊'
-              : reminder.type === 'cook' ? 'Czas gotować 🍲'
-              : reminder.type === 'prep' ? 'Przygotuj jedzenie na jutro 🥘'
-              : 'Przypomnienie 🌈',
+            body: isWater ? 'Pamiętaj o wypiciu wody'
+              : reminder.type === 'supplement' ? 'Czas na suplementy'
+              : reminder.type === 'cook' ? 'Czas gotować'
+              : reminder.type === 'prep' ? 'Przygotuj jedzenie na jutro'
+              : 'Przypomnienie',
             url: '/',
             tag: `rem-${reminder.id}`,
             actions: isWater
-              ? [{ action: 'done', title: '💧 +1 szklanka' }]
+              ? [{ action: 'done', title: '+1 szklanka' }]
               : [{ action: 'read', title: '✓ OK' }],
             act: isWater ? { kind: 'water', id: 0 } : undefined,
           },
@@ -421,11 +421,11 @@ export default {
           payload: {
             title: sup.name,
             body: sup.kind === 'medication'
-              ? 'Czas na lek 💊 — potwierdź przyciskiem poniżej'
-              : 'Czas na suplement 💊 — potwierdź przyciskiem poniżej',
+              ? 'Czas na lek — potwierdź przyciskiem poniżej'
+              : 'Czas na suplement — potwierdź przyciskiem poniżej',
             url: '/supplements',
             tag: `sup-${sup.id}`,
-            actions: [{ action: 'done', title: '💊 Przyjąłem' }],
+            actions: [{ action: 'done', title: 'Przyjąłem' }],
             act: { kind: 'supplement', id: sup.id },
           },
           commit: async () => {
@@ -461,7 +461,7 @@ export default {
           continue
         }
         const body = st.streak > 0
-          ? `Już ${st.streak} ${st.streak === 1 ? 'dzień' : 'dni'} 🔥 — czy dziś też się udało?`
+          ? `Już ${st.streak} ${st.streak === 1 ? 'dzień' : 'dni'} — czy dziś też się udało?`
           : 'Czy dziś się udało? Odpowiedz przyciskiem poniżej.'
         batch.push({
           payload: {
@@ -470,8 +470,8 @@ export default {
             url: '/habits',
             tag: `habit-${h.id}`,
             actions: [
-              { action: 'yes', title: '✅ Tak' },
-              { action: 'no', title: '❌ Nie' },
+              { action: 'yes', title: 'Tak' },
+              { action: 'no', title: 'Nie' },
             ],
             act: { kind: 'habit', id: h.id },
           },
@@ -494,10 +494,10 @@ export default {
         batch.push({
           payload: {
             title: ch.name,
-            body: 'Czas na to zadanie ✅ — potwierdź przyciskiem poniżej',
+            body: 'Czas na to zadanie — potwierdź przyciskiem poniżej',
             url: '/chores',
             tag: `chore-${ch.id}`,
-            actions: [{ action: 'done', title: '✅ Zrobione' }],
+            actions: [{ action: 'done', title: 'Zrobione' }],
             act: { kind: 'chore', id: ch.id },
           },
           commit: async () => {
@@ -519,7 +519,7 @@ export default {
       if (overflow > 0) {
         await notify(env, userId, subs, {
           title: `…i jeszcze ${overflow}`,
-          body: 'Otwórz aplikację, żeby zobaczyć resztę 🌈',
+          body: 'Otwórz aplikację, żeby zobaczyć resztę',
           url: '/',
           tag: 'mbl-overflow',
           actions: [{ action: 'read', title: '✓ OK' }],

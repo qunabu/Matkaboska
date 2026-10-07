@@ -1,10 +1,15 @@
 import Icon from './Icon'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsApi, type AppNotification } from '../lib/api'
 import { playChime } from '../lib/sound'
 import pl from '../i18n/pl'
+
+// Older notifications were stored with emoji in their text; the SpaceX look has none.
+const EMOJI = /(?:[\u{1F300}-\u{1FAFF}\u{2600}-\u{2712}\u{2714}-\u{27BF}\u{2B50}]\u{FE0F}?)+/gu
+const clean = (s: string | null | undefined) => (s ?? '').replace(EMOJI, '').replace(/\s{2,}/g, ' ').trim()
 
 function relTime(unix: number): string {
   const diff = Math.max(0, Math.floor(Date.now() / 1000) - unix)
@@ -21,6 +26,7 @@ export default function NotificationBell() {
   const [shake, setShake] = useState(false)
   const prevUnread = useRef<number | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  const sheetRef = useRef<HTMLDivElement>(null)
 
   const { data } = useQuery({
     queryKey: ['notifications'],
@@ -48,7 +54,9 @@ export default function NotificationBell() {
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (rootRef.current?.contains(t) || sheetRef.current?.contains(t)) return
+      setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', onDown)
@@ -75,7 +83,7 @@ export default function NotificationBell() {
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label={pl.notifications.title}
-        className="relative flex h-10 w-10 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-100"
+        className="sx-iconbtn relative h-10 w-10"
       >
         <span className={`inline-block leading-none ${shake ? 'animate-bell-shake' : ''}`} aria-hidden="true"><Icon name="bell" size={18} /></span>
         {unread > 0 && (
@@ -91,38 +99,40 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-1.5rem))] origin-top-right animate-scale-in overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-white/10 dark:bg-ink-700">
-          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-white/10">
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{pl.notifications.title}</h3>
+        // Desktop: anchored under the bell.
+        <div className="sx-panel absolute right-0 top-12 z-50 hidden w-[24rem] animate-fade-in border border-[var(--sx-line-2)] bg-[var(--sx-ground)] md:block">
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--sx-line)] px-4 py-3">
+            <span className="hud-label text-[var(--sx-ink-2)]">
+              {pl.notifications.title}{unread > 0 && <span className="ml-2 text-[var(--sx-bad)]">{unread}</span>}
+            </span>
             {unread > 0 && (
-              <button
-                onClick={() => readAll.mutate()}
-                className="text-xs font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400"
-              >
+              <button onClick={() => readAll.mutate()} className="hud-label text-[10px] text-[var(--sx-ink-3)] hover:text-[var(--sx-ink)]">
                 {pl.notifications.markAllRead}
               </button>
             )}
           </div>
-          <div className="max-h-[70vh] overflow-y-auto">
+          <div className="max-h-[min(70vh,34rem)] overflow-y-auto overscroll-contain">
             {items.length === 0 ? (
-              <p className="px-4 py-10 text-center text-sm text-gray-400">{pl.notifications.empty}</p>
+              <p className="hud-label px-4 py-10 text-center text-[var(--sx-ink-3)]">{pl.notifications.empty}</p>
             ) : (
-              <ul className="divide-y divide-gray-50 dark:divide-white/5">
+              <ul>
                 {items.map((n) => {
                   const unreadItem = n.read_at == null
                   return (
-                    <li key={n.id}>
+                    <li key={n.id} className="border-b border-[var(--sx-line)] last:border-b-0">
                       <button
                         onClick={() => openItem(n)}
-                        className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-white/5 ${unreadItem ? 'bg-[var(--sx-wash)]' : ''}`}
+                        className="relative flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-[var(--sx-wash)]"
                       >
-                        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${unreadItem ? 'bg-[var(--sx-bad)]' : 'bg-transparent'}`} />
+                        {unreadItem && <span className="absolute inset-y-0 left-0 w-px bg-[var(--sx-bad)]" aria-hidden="true" />}
                         <span className="min-w-0 flex-1">
-                          <span className={`block truncate text-sm ${unreadItem ? 'font-semibold text-gray-900 dark:text-gray-100' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
-                            {n.title}
+                          <span className="flex items-baseline justify-between gap-3">
+                            <span className={`min-w-0 text-sm leading-snug ${unreadItem ? 'font-medium text-[var(--sx-ink)]' : 'text-[var(--sx-ink-2)]'}`}>
+                              {clean(n.title)}
+                            </span>
+                            <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sx-ink-3)]">{relTime(n.created_at)}</span>
                           </span>
-                          <span className="mt-0.5 block text-xs text-gray-500 line-clamp-2 dark:text-gray-400">{n.body}</span>
-                          <span className="mt-1 block text-[11px] text-gray-400">{relTime(n.created_at)}</span>
+                          {n.body && <span className="mt-1 block text-xs leading-relaxed text-[var(--sx-ink-3)]">{clean(n.body)}</span>}
                         </span>
                       </button>
                     </li>
@@ -132,6 +142,59 @@ export default function NotificationBell() {
             )}
           </div>
         </div>
+      )}
+      {open && createPortal(
+        // Phones: a full-width sheet under the top bar, rendered into <body>.
+        // Inside the header it would be trapped: the bar's backdrop-filter makes
+        // it the containing block for `position: fixed`, so the scrim covered
+        // only the bar and the sheet ran off the right edge.
+        <div className="md:hidden">
+          <div className="fixed inset-0 z-40 animate-fade-in bg-black/60 backdrop-blur-[2px]"
+            onClick={() => setOpen(false)} aria-hidden="true" />
+          <div ref={sheetRef} className="sx-panel fixed inset-x-3 top-[calc(env(safe-area-inset-top,0px)+3.75rem)] z-50 animate-fade-in border border-[var(--sx-line-2)] bg-[var(--sx-ground)]">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--sx-line)] px-4 py-3">
+              <span className="hud-label text-[var(--sx-ink-2)]">
+                {pl.notifications.title}{unread > 0 && <span className="ml-2 text-[var(--sx-bad)]">{unread}</span>}
+              </span>
+              {unread > 0 && (
+                <button onClick={() => readAll.mutate()} className="hud-label text-[10px] text-[var(--sx-ink-3)] hover:text-[var(--sx-ink)]">
+                  {pl.notifications.markAllRead}
+                </button>
+              )}
+            </div>
+            <div className="max-h-[min(70vh,34rem)] overflow-y-auto overscroll-contain">
+              {items.length === 0 ? (
+                <p className="hud-label px-4 py-10 text-center text-[var(--sx-ink-3)]">{pl.notifications.empty}</p>
+              ) : (
+                <ul>
+                  {items.map((n) => {
+                    const unreadItem = n.read_at == null
+                    return (
+                      <li key={n.id} className="border-b border-[var(--sx-line)] last:border-b-0">
+                        <button
+                          onClick={() => openItem(n)}
+                          className="relative flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-[var(--sx-wash)]"
+                        >
+                          {unreadItem && <span className="absolute inset-y-0 left-0 w-px bg-[var(--sx-bad)]" aria-hidden="true" />}
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-baseline justify-between gap-3">
+                              <span className={`min-w-0 text-sm leading-snug ${unreadItem ? 'font-medium text-[var(--sx-ink)]' : 'text-[var(--sx-ink-2)]'}`}>
+                                {clean(n.title)}
+                              </span>
+                              <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--sx-ink-3)]">{relTime(n.created_at)}</span>
+                            </span>
+                            {n.body && <span className="mt-1 block text-xs leading-relaxed text-[var(--sx-ink-3)]">{clean(n.body)}</span>}
+                          </span>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

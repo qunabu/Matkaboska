@@ -88,8 +88,8 @@ app.post('/test', async (c) => {
   if (subs.length === 0) return c.json({ error: 'No subscriptions' }, 400)
 
   const payload: PushPayload = {
-    title: 'Matka Boska 🌈',
-    body: 'Powiadomienia działają! 🙏 Sprawdź przycisk poniżej.',
+    title: 'Matka Boska',
+    body: 'Powiadomienia działają! Sprawdź przycisk poniżej.',
     url: '/',
     actions: [{ action: 'read', title: '✓ Przeczytane' }],
   }

@@ -184,8 +184,8 @@ app.post('/:id/remind-now', async (c) => {
   const subs = await db.select().from(push_subscriptions).where(eq(push_subscriptions.user_id, userId))
   if (subs.length === 0) return c.json({ error: 'No subscriptions', sent: 0, total: 0 }, 400)
   const body = sup.kind === 'medication'
-    ? 'Czas na lek 💊 — kliknij „Przyjmij", gdy weźmiesz'
-    : 'Czas na suplement 💊 — kliknij „Przyjmij", gdy weźmiesz'
+    ? 'Czas na lek — kliknij „Przyjmij", gdy weźmiesz'
+    : 'Czas na suplement — kliknij „Przyjmij", gdy weźmiesz'
   await db.insert(notifications).values({ user_id: userId, title: sup.name, body, url: '/supplements', read_at: null }).catch(() => {})
   const results = await Promise.allSettled(
     subs.map((s) => sendPushNotification(c.env, s.endpoint, s.p256dh, s.auth, {
