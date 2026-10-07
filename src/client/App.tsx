@@ -167,7 +167,7 @@ function SideNav() {
   return (
     <aside className="glass hidden w-60 shrink-0 border-r md:flex md:flex-col">
       <div className="flex items-center gap-3 border-b border-[var(--sx-line)] px-5 py-5">
-        <img src="/icons/icon-192.png" alt="" className="sx-logo h-9 w-9" />
+        <img src="/icons/logo-mark.png" alt="" className="sx-logo h-10 w-10" />
         <div>
           <span className="sx-brand block">{pl.nav.appName}</span>
           <span className="hud-label mt-1.5 block text-[9px] text-[var(--sx-ink-3)]">{pl.nav.appTagline}</span>
@@ -202,7 +202,7 @@ function TopBar() {
   return (
     <header className="glass sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b px-3 md:px-5">
       <div className="flex items-center gap-2 md:hidden">
-        <img src="/icons/icon-192.png" alt="" className="sx-logo h-7 w-7" />
+        <img src="/icons/logo-mark.png" alt="" className="sx-logo h-9 w-9" />
         <span className="sx-brand">{pl.nav.appName}</span>
       </div>
       <div className="hud-label hidden text-[var(--sx-ink-3)] md:flex md:items-center md:gap-2.5">
@@ -369,7 +369,7 @@ function LoginGate({ children }: { children: ReactNode }) {
   const err = new URLSearchParams(window.location.search).get('error')
   return (
     <div className="flex h-dvh flex-col items-center justify-center gap-5 p-6">
-      <img src="/icons/icon-512.png" alt="" className="sx-logo h-28 w-28" />
+      <img src="/icons/logo-mark.png" alt="" className="sx-logo h-28 w-28" />
       <h1 className="text-3xl">{pl.auth.title}</h1>
       <p className="max-w-xs text-center text-sm text-[var(--sx-ink-2)]">{pl.auth.googleHint}</p>
       {err && <p className="max-w-xs text-center text-sm text-[var(--sx-bad)]">{err}</p>}

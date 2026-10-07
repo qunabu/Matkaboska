@@ -81,9 +81,9 @@ export default function NotificationBell() {
         {unread > 0 && (
           <>
             <span className="absolute right-1 top-1 flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping-slow rounded-full bg-primary-500/70" />
+              <span className="absolute inline-flex h-full w-full animate-ping-slow rounded-full bg-[var(--sx-bad)] opacity-70" />
             </span>
-            <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] animate-pop items-center justify-center rounded-full bg-primary-600 px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-ink-800">
+            <span className="sx-badge absolute right-0 top-0.5 animate-pop">
               {unread > 99 ? '99+' : unread}
             </span>
           </>
@@ -114,9 +114,9 @@ export default function NotificationBell() {
                     <li key={n.id}>
                       <button
                         onClick={() => openItem(n)}
-                        className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-white/5 ${unreadItem ? 'bg-primary-50/60 dark:bg-primary-500/5' : ''}`}
+                        className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50 dark:hover:bg-white/5 ${unreadItem ? 'bg-[var(--sx-wash)]' : ''}`}
                       >
-                        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${unreadItem ? 'bg-primary-500' : 'bg-transparent'}`} />
+                        <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${unreadItem ? 'bg-[var(--sx-bad)]' : 'bg-transparent'}`} />
                         <span className="min-w-0 flex-1">
                           <span className={`block truncate text-sm ${unreadItem ? 'font-semibold text-gray-900 dark:text-gray-100' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
                             {n.title}

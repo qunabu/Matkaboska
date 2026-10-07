@@ -109,9 +109,19 @@ html.dark {
     color: var(--sx-ink);
     white-space: nowrap;
   }
-  /* The logo is a black tile in both themes: on white it reads as a framed
-     badge, on black the hairline keeps its edge. */
-  .sx-logo { border-radius: 2px; background: #000; box-shadow: 0 0 0 1px var(--sx-line-2); }
+  /* In-app logo: the mark alone (transparent, tightly cropped) — the app icon
+     carries a launcher margin that makes it look lost at 36px. White lines
+     need a dark ground, so on the light theme it sits on a black tile. */
+  .sx-logo { object-fit: contain; flex: none; }
+  html:not(.dark) .sx-logo { background: #000; border-radius: 2px; padding: 3px; }
+
+  /* Count badge: a small square in the live-signal red, monospace digits. */
+  .sx-badge {
+    display: flex; align-items: center; justify-content: center;
+    min-width: 16px; height: 16px; padding: 0 4px; border-radius: 1px;
+    background: var(--sx-bad); color: #fff;
+    font: 500 9.5px/1 theme('fontFamily.mono'); letter-spacing: 0.02em;
+  }
 
   .sx-live {
     width: 6px; height: 6px; border-radius: 50%; background: var(--sx-bad);
