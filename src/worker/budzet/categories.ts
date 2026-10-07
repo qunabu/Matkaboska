@@ -16,6 +16,7 @@ export const CATEGORIES: Category[] = [
   { id: 'zus',                 name: 'ZUS',                       group: 'Podatki',     nature: 'tax' },
   { id: 'ksiegowosc',          name: 'Księgowość i doradztwo',    group: 'Firma',       nature: 'fixed' },
   { id: 'uslugi_firmowe',      name: 'Usługi i narzędzia firmowe',group: 'Firma',       nature: 'variable' },
+  { id: 'biuro',               name: 'Wynajem biura',             group: 'Firma',       nature: 'fixed' },
   { id: 'refaktura',           name: 'Refaktury (odzyskiwane)',   group: 'Firma',       nature: 'passthrough' },
   { id: 'oplaty_bankowe',      name: 'Opłaty bankowe',            group: 'Firma',       nature: 'fixed' },
   // --- dom ---

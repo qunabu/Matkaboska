@@ -44,7 +44,7 @@ const DEFAULTS: Record<string, string> = {
   oplaty_bankowe: 'business', refaktura: 'business',
 
   // Subkonto
-  podatek_vat: 'tax', podatek_pit: 'tax', zus: 'tax',
+  podatek_vat: 'tax', podatek_pit: 'tax', zus: 'tax', biuro: 'tax',
 
   // Gospodarstwo i oszczędności
   transfer_gospod: 'household', zwrot_gospod: 'skip',

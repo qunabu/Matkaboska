@@ -109,18 +109,26 @@ export async function accruals(s: Store) {
     const n = Math.max(0, monthDiff(startMonth, until) + 1)
     const gross = Number(a.amount_net) * (1 + Number(a.vat_rate))
     const dueMonth = a.due_month ? String(a.due_month) : null
-    const accrueUntil = dueMonth && dueMonth > until ? monthAdd(dueMonth, -1) : until
+    // Koszt narasta do terminu zapłaty, ale nie dłużej niż do `end_month` —
+    // zamknięty okres (np. zaległe faktury) nie rośnie już z każdym miesiącem.
+    let accrueUntil = dueMonth && dueMonth > until ? monthAdd(dueMonth, -1) : until
+    if (endMonth && endMonth < accrueUntil) accrueUntil = endMonth
     const nAtDue = Math.max(n, monthDiff(startMonth, accrueUntil) + 1)
     const totalAtDue = gross * nAtDue
     const saveFrom = a.save_from ? String(a.save_from) : lastMonth
     const instalments = dueMonth ? Math.max(1, monthDiff(saveFrom, dueMonth) + 1) : null
+    // Raty spłacające (pays_down) to zapłaty: każda zaksięgowana zmniejsza dług.
+    // Ratę bieżącego miesiąca uznajemy za zapłaconą — idzie razem z fakturą bieżącą.
+    const paysDown = Number(a.pays_down ?? 0) === 1 && instalments != null
+    const paidCount = paysDown ? Math.min(instalments!, Math.max(0, monthDiff(saveFrom, lastMonth) + 1)) : 0
+    const paidGross = paysDown ? Math.min(gross * n, (totalAtDue / instalments!) * paidCount) : 0
     return {
       id: Number(a.id), name: String(a.name), category_id: String(a.category_id),
       amount_net: Number(a.amount_net), vat_rate: Number(a.vat_rate),
       vat_deductible: Number(a.vat_deductible), is_business: Number(a.is_business),
       note: a.note == null ? null : String(a.note), settled_on: a.settled_on == null ? null : String(a.settled_on),
       settled, start_month: startMonth, end_month: endMonth, due_month: dueMonth,
-      save_from: saveFrom,
+      save_from: saveFrom, pays_down: paysDown ? 1 : 0,
       monthly_net: round(Number(a.amount_net)), monthly_gross: round(gross),
       months_accrued: n, until,
       total_net: round(Number(a.amount_net) * n),
@@ -129,6 +137,10 @@ export async function accruals(s: Store) {
       real_cost: round((Number(a.vat_deductible) ? Number(a.amount_net) : gross) * n),
       months_at_due: nAtDue, total_at_due: round(totalAtDue),
       instalments, instalment: instalments ? round(totalAtDue / instalments) : null,
+      instalments_paid: paidCount, paid_gross: round(paidGross),
+      outstanding_gross: round(gross * n - paidGross),
+      /** Ile najstarszych miesięcy jest już spłaconych — tych nie liczymy jako długu. */
+      months_paid: gross > 0 ? Math.floor(paidGross / gross + 1e-9) : 0,
     }
   })
 }
@@ -137,7 +149,7 @@ async function accrualByMonth(s: Store): Promise<Record<string, number>> {
   const out: Record<string, number> = {}
   for (const a of await accruals(s)) {
     if (a.settled) continue
-    for (let i = 0; i < a.months_accrued; i++) {
+    for (let i = a.months_paid; i < a.months_accrued; i++) {
       const m = monthAdd(a.start_month, i)
       out[m] = round((out[m] ?? 0) + a.monthly_gross)
     }
@@ -151,7 +163,7 @@ export async function outstandingAccruals(s: Store) {
   let inRange = 0, beforeData = 0
   for (const a of await accruals(s)) {
     if (a.settled) continue
-    for (let i = 0; i < a.months_accrued; i++) {
+    for (let i = a.months_paid; i < a.months_accrued; i++) {
       const m = monthAdd(a.start_month, i)
       if (firstMonth && m < firstMonth) beforeData += a.monthly_gross
       else inRange += a.monthly_gross
@@ -173,10 +185,11 @@ export async function accrualSchedule(s: Store, month: string) {
       continue
     }
     const done = Math.min(a.instalments!, Math.max(0, monthDiff(a.save_from, month) + 1))
-    const req = a.instalment! * done
-    if (month <= a.due_month) { requiredSoFar += req; monthlyInstalment += a.instalment! }
+    // Rata spłacająca wychodzi z subkonta od razu, więc nic nie musi tam na nią leżeć.
+    const req = a.pays_down ? 0 : a.instalment! * done
+    if (month <= a.due_month && month >= a.save_from) { requiredSoFar += req; monthlyInstalment += a.instalment! }
     items.push({ name: a.name, due_month: a.due_month, instalment: round(a.instalment!),
-      instalments: a.instalments, instalments_done: done,
+      instalments: a.instalments, instalments_done: done, pays_down: a.pays_down,
       required_so_far: round(req), total_at_due: round(a.total_at_due) })
   }
   return { month, required_so_far: round(requiredSoFar), monthly_instalment: round(monthlyInstalment), items }
@@ -571,8 +584,12 @@ export async function netWorth(s: Store) {
     .concat(manual.filter((m) => m.kind === 'liability').map((m) => ({ ...m, source: 'manual' })))
   for (const a of await accruals(s)) {
     if (a.settled) continue
-    liabilities.push({ kind: 'liability', name: `${a.name} (niezafakturowane, ${a.months_accrued} mies.)`,
-      category: 'Zobowiązania memoriałowe', amount: a.total_gross, source: 'accrual' })
+    if (a.outstanding_gross <= 0) continue
+    const label = a.pays_down
+      ? `${a.name} (spłacane ratami, ${a.instalments_paid}/${a.instalments})`
+      : `${a.name} (niezafakturowane, ${a.months_accrued} mies.)`
+    liabilities.push({ kind: 'liability', name: label,
+      category: 'Zobowiązania memoriałowe', amount: a.outstanding_gross, source: 'accrual' })
   }
   const ta = assets.reduce((x, a) => x + Number(a.amount), 0)
   const tl = liabilities.reduce((x, a) => x + Number(a.amount), 0)
@@ -693,8 +710,14 @@ export async function payoutDefaults(s: Store) {
   const subkontoOther = cfg.account_tax
     ? await medianMonthlySpend(s,
         `SELECT month, -SUM(amount) t FROM budzet_transactions
-          WHERE user_id = ? AND account_id = ? AND amount < 0
+          WHERE user_id = ?1 AND account_id = ?2 AND amount < 0
             AND category_id NOT IN ('podatek_vat','podatek_pit','zus','transfer_wlasny')
+            -- Te kategorie są już w planie jawnie (rezerwa subkonta lub rata
+            -- zobowiązania) — mediana z historii liczyłaby je drugi raz.
+            AND category_id NOT IN (SELECT category_id FROM budzet_reserves
+                                     WHERE user_id = ?1 AND active = 1 AND target = 'tax')
+            AND category_id NOT IN (SELECT category_id FROM budzet_accruals
+                                     WHERE user_id = ?1 AND settled = 0 AND pays_down = 1)
           GROUP BY month`, [s.userId, cfg.account_tax])
     : 0
 

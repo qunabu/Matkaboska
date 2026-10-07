@@ -91,7 +91,8 @@ export default function Majatek({ onChanged }: any) {
                 <td className="muted">{MONTH_LABEL(a.start_month)} → {a.end_month ? MONTH_LABEL(a.end_month) : 'nadal'}</td>
                 <td className="num">{a.months_accrued}</td>
                 <td className="num">{pln(a.monthly_net)}<div className="muted" style={{ fontSize: 11 }}>brutto {pln(a.monthly_gross)}</div></td>
-                <td className="num"><strong className={a.settled ? '' : 'warnc'}>{pln(a.total_gross)}</strong></td>
+                <td className="num"><strong className={a.settled ? '' : 'warnc'}>{pln(a.pays_down ? a.outstanding_gross : a.total_gross)}</strong>
+                  {a.pays_down ? <div className="muted" style={{ fontSize: 11 }}>z {pln(a.total_gross)} · spłacone {a.instalments_paid}/{a.instalments}</div> : null}</td>
                 <td className="num muted">{pln(a.total_vat)}</td>
                 <td className="num">{pln(a.real_cost)}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>

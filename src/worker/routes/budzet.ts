@@ -291,12 +291,12 @@ app.post('/accruals', async (c) => {
   const b = await c.req.json<Record<string, unknown>>()
   const r = await s.run(
     `INSERT INTO budzet_accruals(user_id, name, category_id, start_month, end_month, amount_net, vat_rate,
-       vat_deductible, is_business, due_month, save_from, note)
-     VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,
+       vat_deductible, is_business, due_month, save_from, note, pays_down)
+     VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     c.var.userId, b.name, b.category_id ?? 'uslugi_firmowe', b.start_month, b.end_month ?? null,
     Number(b.amount_net), b.vat_rate == null ? 0.23 : Number(b.vat_rate),
     b.vat_deductible === false ? 0 : 1, b.is_business === false ? 0 : 1,
-    b.due_month ?? null, b.save_from ?? null, b.note ?? null)
+    b.due_month ?? null, b.save_from ?? null, b.note ?? null, b.pays_down ? 1 : 0)
   return c.json({ id: (r.meta as { last_row_id?: number })?.last_row_id })
 })
 
@@ -309,7 +309,7 @@ app.patch('/accruals/:id', async (c) => {
   const pick = <T,>(k: string, fallback: T) => (b[k] === undefined ? fallback : b[k])
   await s.run(
     `UPDATE budzet_accruals SET name=?, category_id=?, start_month=?, end_month=?, amount_net=?, vat_rate=?,
-       vat_deductible=?, is_business=?, settled=?, settled_on=?, due_month=?, save_from=?, note=?
+       vat_deductible=?, is_business=?, settled=?, settled_on=?, due_month=?, save_from=?, note=?, pays_down=?
      WHERE id=? AND user_id=?`,
     pick('name', cur.name), pick('category_id', cur.category_id), pick('start_month', cur.start_month),
     pick('end_month', cur.end_month), Number(pick('amount_net', cur.amount_net)), Number(pick('vat_rate', cur.vat_rate)),
@@ -318,6 +318,7 @@ app.patch('/accruals/:id', async (c) => {
     b.settled === undefined ? cur.settled : (b.settled ? 1 : 0),
     b.settled ? (b.settled_on ?? new Date().toISOString().slice(0, 10)) : null,
     pick('due_month', cur.due_month), pick('save_from', cur.save_from), pick('note', cur.note),
+    b.pays_down === undefined ? cur.pays_down : (b.pays_down ? 1 : 0),
     id, c.var.userId)
   return c.json(await s.first('SELECT * FROM budzet_accruals WHERE id=? AND user_id=?', id, c.var.userId))
 })

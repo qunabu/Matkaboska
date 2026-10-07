@@ -153,13 +153,14 @@ export default function PlanWyplaty({ months }: any) {
                     <td className="num">{pln2(i.total_at_due)}</td>
                     <td className="num"><strong>{i.instalment ? pln2(i.instalment) : '—'}</strong></td>
                     <td className="num muted">{i.instalments ? `${i.instalments_done} / ${i.instalments}` : '—'}</td>
-                    <td className="num warnc">{pln2(i.required_so_far)}</td>
+                    <td className="num warnc">{i.pays_down ? <span className="muted">spłacane na bieżąco</span> : pln2(i.required_so_far)}</td>
                   </tr>
                 ))}</tbody>
               </table></div>
               <p className="muted" style={{ fontSize: 12, marginBottom: 0 }}>
                 Zobowiązanie rośnie aż do miesiąca zapłaty, więc „do uzbierania” jest wyższe niż to, co narosło do dziś.
                 Rata to ta kwota rozłożona równo na miesiące od rozpoczęcia odkładania do terminu.
+                Przy zaległościach spłacanych ratami rata wychodzi z subkonta co miesiąc, więc nic nie musi na nią czekać.
               </p>
             </Card>
           )}
