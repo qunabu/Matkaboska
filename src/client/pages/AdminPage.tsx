@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminApi, authApi } from '../lib/api'
 import pl from '../i18n/pl'
@@ -84,7 +85,7 @@ export default function AdminPage() {
                         disabled={del.isPending}
                         className="rounded-lg bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-40 dark:bg-red-900/20 dark:text-red-400"
                       >
-                        🗑 {pl.admin.delete}
+                        <Icon name="trash" size={12} className="inline-block align-[-2px]" /> {pl.admin.delete}
                       </button>
                     </td>
                   </tr>

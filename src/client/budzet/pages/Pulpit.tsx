@@ -66,7 +66,7 @@ export default function Pulpit({ data }: any) {
                 <YAxis {...axis} tickFormatter={(v) => `${Math.round(v / 1000)}k`} tickLine={false} axisLine={false} width={44} />
                 <RT content={<Tooltip />} cursor={{ fill: 'var(--surface-2)' }} />
                 <RBar dataKey="base" stackId="a" fill="transparent" />
-                <RBar dataKey="span" stackId="a" radius={[4, 4, 0, 0]} name="Kwota">
+                <RBar dataKey="span" stackId="a" radius={0} name="Kwota">
                   {wf.map((s: any, i: number) => (
                     <Cell key={i} fill={s.kind === 'in' ? 'var(--series-1)' : s.kind === 'end'
                       ? (s.v >= 0 ? 'var(--series-3)' : 'var(--series-8)') : 'var(--series-2)'} />
@@ -87,7 +87,7 @@ export default function Pulpit({ data }: any) {
                 <YAxis {...axis} tickFormatter={(v) => `${Math.round(v / 1000)}k`} tickLine={false} axisLine={false} width={44} />
                 <RT content={<Tooltip />} cursor={{ fill: 'var(--surface-2)' }} />
                 <ReferenceLine y={0} stroke="var(--border-strong)" />
-                <RBar dataKey="nadwyzka" name="Nadwyżka" radius={[4, 4, 0, 0]}>
+                <RBar dataKey="nadwyzka" name="Nadwyżka" radius={0}>
                   {surplus.map((s: any, i: number) => (
                     <Cell key={i} fill={s.partial ? 'var(--border-strong)' : s.nadwyzka >= 0 ? 'var(--series-3)' : 'var(--series-8)'} />
                   ))}

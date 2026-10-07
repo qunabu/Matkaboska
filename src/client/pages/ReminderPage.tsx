@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { remindersApi } from '../lib/api'
@@ -110,7 +111,7 @@ export default function ReminderPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🔔 {pl.reminders.title}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.reminders.title}</h1>
       <p className="text-xs text-gray-400">{pl.reminders.pushHint}</p>
 
       {isLoading ? (
@@ -147,7 +148,7 @@ export default function ReminderPage() {
                 className="shrink-0 text-gray-300 hover:text-red-400"
                 aria-label={pl.common.delete}
               >
-                🗑
+                <Icon name="trash" size={16} />
               </button>
             </div>
           ))}

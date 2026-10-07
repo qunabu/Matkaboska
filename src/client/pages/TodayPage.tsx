@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { planApi, waterApi, foodLogApi, settingsApi, productsApi, todayDate, addDays } from '../lib/api'
@@ -48,7 +49,7 @@ function WaterTracker() {
   return (
     <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
       <h2 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">
-        💧 {pl.today.waterTitle}
+        {pl.today.waterTitle}
       </h2>
       <div className="flex items-center gap-4">
         <button
@@ -114,7 +115,7 @@ function DayPicker({ date, onChange }: { date: string; onChange: (d: string) => 
       </div>
       {date !== today && (
         <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400">
-          ⏪ {date === yesterday ? pl.today.yesterdayNotice : `${pl.today.dayLabel} ${date}`}
+          <Icon name="arrowLeft" size={12} className="inline-block align-[-2px]" /> {date === yesterday ? pl.today.yesterdayNotice : `${pl.today.dayLabel} ${date}`}
         </p>
       )}
     </div>
@@ -208,7 +209,7 @@ function CustomFood({ date }: { date: string }) {
 
   return (
     <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
-      <h2 className="mb-1 font-semibold text-gray-900 dark:text-gray-100">🍽 {pl.today.addOwnFood}</h2>
+      <h2 className="mb-1 font-semibold text-gray-900 dark:text-gray-100">{pl.today.addOwnFood}</h2>
       <p className="mb-3 text-xs text-gray-400">{pl.today.ownFoodHint}</p>
       {/* Podpowiedzi wiszą pod CAŁYM wierszem, nie pod samym polem: obok pola
           siedzi przycisk, więc lista przyklejona do inputu robiła się na
@@ -254,7 +255,7 @@ function CustomFood({ date }: { date: string }) {
                       {/* Nazwa dostaje cały wiersz, kcal/źródło schodzą niżej —
                           inaczej na telefonie to metadane zjadały nazwę. */}
                       <span className="flex items-baseline gap-2">
-                        <span aria-hidden>{s.source === 'recipe' ? '🍲' : '🕘'}</span>
+                        <span aria-hidden className="self-center"><Icon name={s.source === 'recipe' ? 'recipes' : 'clock'} size={14} /></span>
                         <span className="min-w-0 flex-1 truncate text-gray-900 dark:text-gray-100">{s.label}</span>
                       </span>
                       <span className="mt-0.5 block pl-7 text-xs text-gray-400">
@@ -382,7 +383,7 @@ function ReadyProduct({ date }: { date: string }) {
 
   return (
     <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
-      <h2 className="mb-1 font-semibold text-gray-900 dark:text-gray-100">🛒 {pl.today.readyProduct}</h2>
+      <h2 className="mb-1 font-semibold text-gray-900 dark:text-gray-100">{pl.today.readyProduct}</h2>
       <p className="mb-3 text-xs text-gray-400">{pl.today.readyPickHint}</p>
 
       <div className="relative">
@@ -477,7 +478,7 @@ function LoggedToday() {
   if (entries.length === 0) return null
   return (
     <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
-      <h2 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">🍽 {pl.today.loggedToday}</h2>
+      <h2 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">{pl.today.loggedToday}</h2>
       <div className="space-y-1.5">
         {entries.map((e) => (
           <div key={e.id} className="flex items-center justify-between gap-2 text-sm">
@@ -569,7 +570,7 @@ export default function TodayPage() {
         onClick={() => { setLogDate(today); setShowAdd(true) }}
         className="w-full rounded-xl border border-dashed border-gray-300 py-3 text-sm font-medium text-primary-600 transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-gray-600 dark:text-primary-400 dark:hover:bg-primary-900/20"
       >
-        ➕ {pl.today.addFoodButton}
+        <Icon name="plus" size={14} className="inline-block align-[-2px]" /> {pl.today.addFoodButton}
       </button>
 
       {/* Water + habits — one box of daily check-offs */}
@@ -598,7 +599,7 @@ export default function TodayPage() {
                           'text-gray-900 dark:text-gray-100'
                         }`}>
                           {entry.product
-                            ? `🛒 ${entry.product.name}`
+                            ? <><Icon name="shopping" size={12} className="inline-block align-[-2px]" /> {entry.product.name}</>
                             : entry.recipe?.title ?? `${pl.today.recipeFallback}${entry.recipe_id}`}
                         </p>
                         {entry.recipe?.macros && (

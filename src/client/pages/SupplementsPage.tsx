@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supplementsApi } from '../lib/api'
@@ -219,7 +220,7 @@ export default function SupplementsPage() {
         </button>
       </div>
 
-      <p className="mb-4 text-xs text-gray-400">🔔 {pl.supplements.repeatHint}</p>
+      <p className="mb-4 text-xs text-gray-400"><Icon name="bell" size={12} className="inline-block align-[-2px]" /> {pl.supplements.repeatHint}</p>
 
       {isLoading && <p className="text-gray-500">{pl.common.loading}</p>}
 
@@ -279,13 +280,13 @@ export default function SupplementsPage() {
                       title={pl.supplements.remindNow}
                       className="rounded-lg bg-gray-100 px-2 py-1.5 text-xs text-gray-500 disabled:opacity-40 dark:bg-gray-700"
                     >
-                      🔔
+                      <Icon name="bell" size={14} />
                     </button>
                     <button
                       onClick={() => { setEditId(supp.id); setShowForm(true) }}
                       className="rounded-lg bg-gray-100 px-2 py-1.5 text-xs text-gray-500 dark:bg-gray-700"
                     >
-                      ✎
+                      <Icon name="edit" size={14} />
                     </button>
                     <button
                       onClick={() => { if (confirm(pl.supplements.deleteConfirm)) deleteMutation.mutate(supp.id) }}

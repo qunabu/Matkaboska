@@ -11,6 +11,7 @@ import WeekPrintView from './components/WeekPrintView'
 import { useTheme } from './lib/theme'
 import { syncPushSubscription } from './lib/push'
 import pl from './i18n/pl'
+import Icon, { type IconName } from './components/Icon'
 import { BUILD_VERSION } from '../shared/build-info'
 
 const queryClient = new QueryClient({
@@ -55,23 +56,23 @@ function PageFallback() {
 // ── Bottom nav ───────────────────────────────────────────────────────────────
 
 const ALL_NAV_ITEMS = [
-  { to: '/',            label: pl.nav.today,       icon: '🏠',  moduleKey: null },
-  { to: '/recipes',     label: pl.nav.recipes,     icon: '📖',  moduleKey: null },
-  { to: '/plan',        label: pl.nav.plan,        icon: '📅',  moduleKey: 'plan' },
-  { to: '/shopping',    label: pl.nav.shopping,    icon: '🛒',  moduleKey: 'shopping' },
-  { to: '/pantry',      label: pl.nav.pantry,      icon: '🥫',  moduleKey: 'shopping' },
-  { to: '/tracking',    label: pl.nav.tracking,    icon: '📊',  moduleKey: 'tracking' },
-  { to: '/budzet',      label: pl.nav.budzet,      icon: '💰',  moduleKey: 'budzet' },
-  { to: '/supplements', label: pl.nav.supplements, icon: '💊',  moduleKey: 'supplements' },
-  { to: '/reminders',   label: pl.nav.reminders,   icon: '🔔',  moduleKey: 'supplements' },
-  { to: '/chores',      label: pl.nav.chores,      icon: '🧹',  moduleKey: null },
-  { to: '/todos',       label: pl.nav.todos,       icon: '✅',  moduleKey: null },
-  { to: '/ideas',       label: pl.nav.ideas,       icon: '💡',  moduleKey: null },
-  { to: '/habits',      label: pl.nav.habits,      icon: '🔁',  moduleKey: null },
-  { to: '/blocks',      label: pl.nav.blocks,      icon: '🚫',  moduleKey: null },
-  { to: '/notes',       label: pl.nav.notes,       icon: '🎙️', moduleKey: null },
-  { to: '/help',        label: pl.nav.help,        icon: '❓',  moduleKey: null },
-  { to: '/settings',    label: pl.nav.settings,    icon: '⚙️',  moduleKey: null },
+  { to: '/',            label: pl.nav.today,       icon: 'today' as IconName, moduleKey: null },
+  { to: '/recipes',     label: pl.nav.recipes,     icon: 'recipes' as IconName, moduleKey: null },
+  { to: '/plan',        label: pl.nav.plan,        icon: 'plan' as IconName, moduleKey: 'plan' },
+  { to: '/shopping',    label: pl.nav.shopping,    icon: 'shopping' as IconName, moduleKey: 'shopping' },
+  { to: '/pantry',      label: pl.nav.pantry,      icon: 'pantry' as IconName, moduleKey: 'shopping' },
+  { to: '/tracking',    label: pl.nav.tracking,    icon: 'tracking' as IconName, moduleKey: 'tracking' },
+  { to: '/budzet',      label: pl.nav.budzet,      icon: 'budzet' as IconName, moduleKey: 'budzet' },
+  { to: '/supplements', label: pl.nav.supplements, icon: 'supplements' as IconName, moduleKey: 'supplements' },
+  { to: '/reminders',   label: pl.nav.reminders,   icon: 'reminders' as IconName, moduleKey: 'supplements' },
+  { to: '/chores',      label: pl.nav.chores,      icon: 'chores' as IconName, moduleKey: null },
+  { to: '/todos',       label: pl.nav.todos,       icon: 'todos' as IconName, moduleKey: null },
+  { to: '/ideas',       label: pl.nav.ideas,       icon: 'ideas' as IconName, moduleKey: null },
+  { to: '/habits',      label: pl.nav.habits,      icon: 'habits' as IconName, moduleKey: null },
+  { to: '/blocks',      label: pl.nav.blocks,      icon: 'blocks' as IconName, moduleKey: null },
+  { to: '/notes',       label: pl.nav.notes,       icon: 'notes' as IconName, moduleKey: null },
+  { to: '/help',        label: pl.nav.help,        icon: 'help' as IconName, moduleKey: null },
+  { to: '/settings',    label: pl.nav.settings,    icon: 'settings' as IconName, moduleKey: null },
 ]
 
 // Which items get a slot in the mobile bottom bar (in this order); the rest go under "więcej".
@@ -106,16 +107,14 @@ function BottomNav() {
   const overflowActive = overflow.some((i) => location.pathname.startsWith(i.to))
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors ${
-      isActive ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400'
-    }`
+    `sx-tab flex flex-1 flex-col items-center gap-1.5 pb-2 pt-2.5 ${isActive ? 'is-active' : ''}`
 
   return (
     <>
       {moreOpen && (
         <div className="fixed inset-0 z-40 animate-fade-in bg-black/50 backdrop-blur-sm md:hidden" onClick={() => setMoreOpen(false)}>
           <div
-            className="glass absolute bottom-16 left-2 right-2 animate-fade-in-up space-y-0.5 rounded-2xl border p-2 shadow-2xl"
+            className="glass sx-panel absolute bottom-16 left-2 right-2 animate-fade-in-up space-y-0.5 border p-2"
             onClick={(e) => e.stopPropagation()}
           >
             {overflow.map((item) => (
@@ -123,15 +122,9 @@ function BottomNav() {
                 key={item.to}
                 to={item.to}
                 onClick={() => setMoreOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium ${
-                    isActive
-                      ? 'bg-primary-600/10 text-primary-700 dark:bg-white/5 dark:text-white dark:ring-1 dark:ring-white/30'
-                      : 'text-gray-700 dark:text-gray-300'
-                  }`
-                }
+                className={({ isActive }) => `sx-nav flex items-center gap-3 px-4 py-3 ${isActive ? 'is-active' : ''}`}
               >
-                <span aria-hidden="true">{item.icon}</span>
+                <Icon name={item.icon} />
                 {item.label}
               </NavLink>
             ))}
@@ -147,20 +140,18 @@ function BottomNav() {
             <NavLink key={item.to} to={item.to} end={item.to === '/'} className={linkClass}>
               {({ isActive }) => (
                 <>
-                  <span className={`text-xl leading-none transition-transform ${isActive ? 'scale-110' : ''}`} aria-hidden="true">{item.icon}</span>
-                  <span>{item.label}</span>
+                  <Icon name={item.icon} size={18} />
+                  <span className="sx-tab-label">{item.label}</span>
                 </>
               )}
             </NavLink>
           ))}
           <button
             onClick={() => setMoreOpen((o) => !o)}
-            className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors ${
-              overflowActive ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400'
-            }`}
+            className={`sx-tab flex flex-1 flex-col items-center gap-1.5 pb-2 pt-2.5 ${overflowActive ? 'is-active' : ''}`}
           >
-            <span className="text-xl leading-none" aria-hidden="true">☰</span>
-            <span>{pl.nav.more}</span>
+            <Icon name="menu" size={18} />
+            <span className="sx-tab-label">{pl.nav.more}</span>
           </button>
         </div>
         <div className="h-safe-area-inset-bottom" />
@@ -175,28 +166,22 @@ function SideNav() {
 
   return (
     <aside className="glass hidden w-60 shrink-0 border-r md:flex md:flex-col">
-      <div className="flex items-center gap-3 px-5 py-5">
-        <img src="/icons/icon-192.png" alt="" className="h-9 w-9 rounded-xl ring-1 ring-black/5 dark:ring-white/10" />
+      <div className="flex items-center gap-3 border-b border-[var(--sx-line)] px-5 py-5">
+        <img src="/icons/icon-192.png" alt="" className="sx-logo h-9 w-9" />
         <div>
-          <span className="block text-sm font-bold tracking-tight text-gray-900 dark:text-gray-100">{pl.nav.appName}</span>
-          <span className="block text-[10px] uppercase tracking-[0.18em] text-gray-400">{pl.nav.appTagline}</span>
+          <span className="sx-brand block">{pl.nav.appName}</span>
+          <span className="hud-label mt-1.5 block text-[9px] text-[var(--sx-ink-3)]">{pl.nav.appTagline}</span>
         </div>
       </div>
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-4">
+      <nav className="flex-1 space-y-px overflow-y-auto py-3">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/'}
-            className={({ isActive }) =>
-              `group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all ${
-                isActive
-                  ? 'bg-primary-600/10 text-primary-700 ring-1 ring-primary-600/20 dark:bg-white/5 dark:text-white dark:ring-white/30'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-100'
-              }`
-            }
+            className={({ isActive }) => `sx-nav flex items-center gap-3 px-5 py-2.5 ${isActive ? 'is-active' : ''}`}
           >
-            <span className="text-base transition-transform group-hover:scale-110" aria-hidden="true">{item.icon}</span>
+            <Icon name={item.icon} />
             {item.label}
           </NavLink>
         ))}
@@ -217,17 +202,19 @@ function TopBar() {
   return (
     <header className="glass sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b px-3 md:px-5">
       <div className="flex items-center gap-2 md:hidden">
-        <img src="/icons/icon-192.png" alt="" className="h-7 w-7 rounded-lg ring-1 ring-black/5 dark:ring-white/10" />
-        <span className="text-sm font-semibold tracking-tight text-gray-900 dark:text-gray-100">{pl.nav.appName}</span>
+        <img src="/icons/icon-192.png" alt="" className="sx-logo h-7 w-7" />
+        <span className="sx-brand">{pl.nav.appName}</span>
       </div>
-      <div className="hidden md:block text-xs font-medium uppercase tracking-[0.2em] text-gray-400">{pl.nav.appTagline}</div>
+      <div className="hud-label hidden text-[var(--sx-ink-3)] md:flex md:items-center md:gap-2.5">
+        <span className="sx-live" aria-hidden="true" />{pl.nav.appTagline}
+      </div>
       <div className="flex items-center gap-0.5">
         <button
           onClick={toggle}
           aria-label={theme === 'dark' ? pl.theme.toLight : pl.theme.toDark}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-100"
+          className="sx-iconbtn"
         >
-          <span className="text-lg leading-none">{theme === 'dark' ? '☀️' : '🌙'}</span>
+          <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
         </button>
         <NotificationBell />
       </div>
@@ -349,16 +336,16 @@ function AppShell() {
         <div className="fixed bottom-20 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 md:bottom-4">
           <button
             onClick={handleInstall}
-            className="rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg"
+            className="sx-btn sx-btn--primary"
           >
-            📲 {pl.common.installApp}
+            <Icon name="install" size={14} /> {pl.common.installApp}
           </button>
           <button
             onClick={() => setInstallDismissed(true)}
             aria-label={pl.common.close}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-800/85 text-white shadow-lg"
+            className="sx-iconbtn sx-iconbtn--boxed"
           >
-            ✕
+            <Icon name="close" size={14} />
           </button>
         </div>
       )}
@@ -381,16 +368,13 @@ function LoginGate({ children }: { children: ReactNode }) {
 
   const err = new URLSearchParams(window.location.search).get('error')
   return (
-    <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-gray-50 p-6 dark:bg-gray-950">
-      <img src="/icons/icon-192.png" alt="" className="h-20 w-20 rounded-2xl" />
-      <h1 className="text-xl font-bold text-primary-600 dark:text-primary-400">{pl.auth.title}</h1>
-      <p className="max-w-xs text-center text-sm text-gray-500 dark:text-gray-400">{pl.auth.googleHint}</p>
-      {err && <p className="max-w-xs text-center text-sm text-red-500">{err}</p>}
-      <a
-        href="/api/auth/google"
-        className="flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-gray-700 shadow ring-1 ring-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-100 dark:ring-gray-700"
-      >
-        <span aria-hidden="true">🔓</span> {pl.auth.google}
+    <div className="flex h-dvh flex-col items-center justify-center gap-5 p-6">
+      <img src="/icons/icon-512.png" alt="" className="sx-logo h-28 w-28" />
+      <h1 className="text-3xl">{pl.auth.title}</h1>
+      <p className="max-w-xs text-center text-sm text-[var(--sx-ink-2)]">{pl.auth.googleHint}</p>
+      {err && <p className="max-w-xs text-center text-sm text-[var(--sx-bad)]">{err}</p>}
+      <a href="/api/auth/google" className="sx-btn sx-btn--primary">
+        <Icon name="lock" size={14} /> {pl.auth.google}
       </a>
     </div>
   )

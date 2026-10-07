@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { blocksApi } from '../lib/api'
@@ -68,7 +69,7 @@ export default function BlokadyPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🚫 {pl.blocks.title}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.blocks.title}</h1>
       <p className="text-xs text-gray-400">{pl.blocks.hint}</p>
       <p className="text-xs text-gray-400">{pl.blocks.unlockHint}</p>
       <p className="text-xs text-gray-400">{pl.blocks.emergencyHint}</p>
@@ -118,7 +119,7 @@ export default function BlokadyPage() {
                   {r.daily_limit_minutes > 0
                     ? `${r.daily_limit_minutes} ${pl.blocks.perDay}`
                     : pl.blocks.always}
-                  {r.allow_emergency && ` · 🆘 ${pl.blocks.emergency}`}
+                  {r.allow_emergency && <> · <Icon name="warning" size={12} className="inline-block align-[-2px]" /> {pl.blocks.emergency}</>}
                   {!r.active && ` · ${pl.blocks.inactive}`}
                 </div>
               </div>
@@ -128,28 +129,28 @@ export default function BlokadyPage() {
                 title={r.allow_emergency ? pl.blocks.emergencyOn : pl.blocks.emergencyOff}
                 aria-label={r.allow_emergency ? pl.blocks.emergencyOn : pl.blocks.emergencyOff}
               >
-                🆘
+                <Icon name="warning" size={18} />
               </button>
               <button
                 onClick={() => toggleRule.mutate({ id: r.id, active: !r.active })}
                 className="shrink-0 text-lg"
                 aria-label={pl.blocks.inactive}
               >
-                {r.active ? '⏸' : '▶️'}
+                <Icon name={r.active ? 'pause' : 'play'} size={18} />
               </button>
               <button
                 onClick={() => { if (confirm(pl.blocks.deleteConfirm)) removeRule.mutate(r.id) }}
                 className="shrink-0 text-gray-300 hover:text-red-400"
                 aria-label={pl.common.delete}
               >
-                🗑
+                <Icon name="trash" size={16} />
               </button>
             </div>
           ))}
         </div>
       )}
 
-      <h2 className="pt-4 text-lg font-bold text-gray-900 dark:text-gray-100">📱 {pl.blocks.devices}</h2>
+      <h2 className="pt-4 text-lg font-bold text-gray-900 dark:text-gray-100">{pl.blocks.devices}</h2>
       <p className="text-xs text-gray-400">{pl.blocks.devicesHint}</p>
 
       {freshToken && (
@@ -201,7 +202,7 @@ export default function BlokadyPage() {
                 className="shrink-0 text-gray-300 hover:text-red-400"
                 aria-label={pl.common.delete}
               >
-                🗑
+                <Icon name="trash" size={16} />
               </button>
             </div>
           ))}

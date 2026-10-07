@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -61,7 +62,7 @@ export default function RecipeDetailPage() {
             <span>{pl.recipes.categories[recipe.category as keyof typeof pl.recipes.categories] ?? recipe.category}</span>
             {recipe.prep_minutes && <span>· {recipe.prep_minutes} {pl.common.minutes}</span>}
             <span>· {recipe.servings} {pl.common.serving}</span>
-            {recipe.is_seafood && <span>🐟</span>}
+            {recipe.is_seafood && <span><Icon name="fish" size={14} className="inline-block align-[-2px]" /></span>}
           </div>
         </div>
         <div className="flex gap-2">

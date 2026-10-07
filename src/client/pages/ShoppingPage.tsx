@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { Routes, Route, Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -87,7 +88,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
     onSettled: () => qc.invalidateQueries({ queryKey: ['shopping-list', listId] }),
   })
 
-  // Toggling the 🛒 checkbox actually adds/removes the product in the Frisco
+  // Toggling the Frisco cart checkbox actually adds/removes the product in the Frisco
   // cart via the API (not just a local flag).
   const friscoToggleMutation = useMutation({
     mutationFn: ({ id, in_frisco }: { id: number; in_frisco: boolean }) =>
@@ -215,20 +216,20 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
             onClick={() => setShowShare(!showShare)}
             className={`rounded-lg px-3 py-2 text-sm font-medium text-white ${data.share_token ? 'bg-amber-500' : 'bg-gray-500'}`}
           >
-            🔗 {pl.shopping.share}
+            <Icon name="share" size={14} className="inline-block align-[-2px]" /> {pl.shopping.share}
           </button>
           <button
             onClick={() => { setOrderResult(null); orderMutation.mutate() }}
             disabled={orderMutation.isPending}
             className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
           >
-            🛒 {orderMutation.isPending ? pl.shopping.friscoServerBusy : pl.shopping.frisco}
+            <Icon name="shopping" size={14} className="inline-block align-[-2px]" /> {orderMutation.isPending ? pl.shopping.friscoServerBusy : pl.shopping.frisco}
           </button>
           <button
             onClick={() => setShowPaste(true)}
             className="rounded-lg bg-primary-100 px-3 py-2 text-sm font-medium text-primary-700 dark:bg-primary-900/40 dark:text-primary-300"
           >
-            📋 {pl.shopping.pasteBtn}
+            <Icon name="copy" size={14} className="inline-block align-[-2px]" /> {pl.shopping.pasteBtn}
           </button>
           <button
             onClick={() => setShowAdd(!showAdd)}
@@ -272,7 +273,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
               disabled={shareMutation.isPending}
               className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
-              {shareMutation.isPending ? '…' : `🔗 ${pl.shopping.share}`}
+              {shareMutation.isPending ? '…' : <><Icon name="share" size={14} className="inline-block align-[-2px]" /> {pl.shopping.share}</>}
             </button>
           )}
         </div>
@@ -288,7 +289,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
           </p>
           {orderResult.notFound.length > 0 && (
             <div>
-              <p className="font-medium text-red-500">❗ {pl.shopping.friscoServerNotFound} ({orderResult.notFound.length}):</p>
+              <p className="font-medium text-red-500"><Icon name="warning" size={12} className="inline-block align-[-2px]" /> {pl.shopping.friscoServerNotFound} ({orderResult.notFound.length}):</p>
               <ul className="ml-4 list-disc text-gray-600 dark:text-gray-300">
                 {orderResult.notFound.map((n, i) => <li key={i}>{n}</li>)}
               </ul>
@@ -296,7 +297,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
           )}
           {orderResult.removedUnavailable.length > 0 && (
             <div>
-              <p className="font-medium text-amber-600 dark:text-amber-400">⚠️ {pl.shopping.friscoServerRemoved} ({orderResult.removedUnavailable.length}):</p>
+              <p className="font-medium text-amber-600 dark:text-amber-400"><Icon name="warning" size={12} className="inline-block align-[-2px]" /> {pl.shopping.friscoServerRemoved} ({orderResult.removedUnavailable.length}):</p>
               <ul className="ml-4 list-disc text-gray-600 dark:text-gray-300">
                 {orderResult.removedUnavailable.map((n, i) => <li key={i}>{n}</li>)}
               </ul>
@@ -304,7 +305,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
           )}
           {orderResult.skipped.length > 0 && (
             <div>
-              <p className="font-medium text-gray-500">🚫 {pl.shopping.friscoServerSkipped} ({orderResult.skipped.length}):</p>
+              <p className="font-medium text-gray-500"><Icon name="blocks" size={12} className="inline-block align-[-2px]" /> {pl.shopping.friscoServerSkipped} ({orderResult.skipped.length}):</p>
               <ul className="ml-4 list-disc text-gray-500 dark:text-gray-400">
                 {orderResult.skipped.map((n, i) => <li key={i}>{n}</li>)}
               </ul>
@@ -346,7 +347,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
       {items.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="flex items-center gap-1 text-xs text-gray-400">
-            🛒 {pl.shopping.inFriscoLegend} — {items.filter((i) => i.in_frisco).length}/{items.length}
+            <Icon name="shopping" size={12} /> {pl.shopping.inFriscoLegend} — {items.filter((i) => i.in_frisco).length}/{items.length}
           </p>
           {items.some((i) => i.in_frisco && !i.checked) && (
             <button
@@ -403,7 +404,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                         title={pl.shopping.showRecipe}
                         className="ml-1.5 align-middle text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
                       >
-                        📖
+                        <Icon name="recipes" size={14} className="inline-block align-[-2px]" />
                       </button>
                     ) : null}
                   </span>
@@ -428,12 +429,12 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                         target="_blank"
                         rel="noopener noreferrer"
                         title={pl.shopping.friscoOpenProduct}
-                        className="hover:opacity-70"
+                        className="flex items-center hover:opacity-70"
                       >
-                        🛒↗
+                        <Icon name="shopping" size={14} />↗
                       </a>
                     ) : (
-                      <span title={pl.shopping.inFriscoLabel}>🛒</span>
+                      <span title={pl.shopping.inFriscoLabel}><Icon name="shopping" size={14} /></span>
                     )}
                   </span>
                   <button
@@ -441,7 +442,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                     title={pl.shopping.friscoSearchTitle}
                     className="shrink-0 rounded-lg bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-primary-100 hover:text-primary-700 dark:bg-gray-700 dark:text-gray-200"
                   >
-                    🔍
+                    <Icon name="search" size={14} />
                   </button>
                   <button
                     onClick={() => haveAtHomeMutation.mutate(item.id)}
@@ -449,7 +450,7 @@ function ListDetail({ listId, onBack }: { listId: number; onBack: () => void }) 
                     title={pl.shopping.haveAtHomeTitle}
                     className="shrink-0 rounded-lg bg-gray-100 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-green-100 hover:text-green-700 disabled:opacity-40 dark:bg-gray-700 dark:text-gray-200"
                   >
-                    🏠 {pl.shopping.haveAtHome}
+                    <Icon name="home" size={12} className="inline-block align-[-2px]" /> {pl.shopping.haveAtHome}
                   </button>
                   <button
                     onClick={() => deleteMutation.mutate(item.id)}
@@ -615,7 +616,7 @@ function ShoppingOverview() {
             onClick={() => setShowGenerate(true)}
             className="rounded-lg bg-green-500 px-3 py-2 text-sm font-medium text-white"
           >
-            🗓 {pl.shopping.generate}
+            <Icon name="calendar" size={14} className="inline-block align-[-2px]" /> {pl.shopping.generate}
           </button>
           <button
             onClick={() => setShowNewForm(!showNewForm)}
@@ -673,7 +674,7 @@ function ShoppingOverview() {
                 onClick={() => { if (confirm(pl.shopping.deleteConfirm)) deleteMutation.mutate(list.id) }}
                 className="shrink-0 text-gray-300 hover:text-red-400"
               >
-                🗑
+                <Icon name="trash" size={16} />
               </button>
             </div>
           )

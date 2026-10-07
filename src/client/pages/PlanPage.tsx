@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -234,7 +235,7 @@ export default function PlanPage() {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.plan.title}</h1>
-          {batchInfo && <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">♻︎ {batchInfo}</p>}
+          {batchInfo && <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400"><Icon name="habits" size={12} className="inline-block align-[-2px]" /> {batchInfo}</p>}
         </div>
         <div className="flex gap-2">
           <button
@@ -243,7 +244,7 @@ export default function PlanPage() {
             title={pl.plan.generateWeek}
             className="rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
           >
-            {generateWeekMutation.isPending ? '✨…' : `✨ ${pl.plan.generateWeek}`}
+            {generateWeekMutation.isPending ? '…' : pl.plan.generateWeek}
           </button>
           <button
             onClick={() => goToWeek(getWeekStart(today))}
@@ -256,7 +257,7 @@ export default function PlanPage() {
             title={pl.plan.printWeek}
             className="rounded-lg bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
           >
-            🖨
+            <Icon name="print" size={16} />
           </button>
         </div>
       </div>
@@ -335,13 +336,13 @@ export default function PlanPage() {
                                   className="block w-full text-left font-medium text-primary-700 line-clamp-2 hover:underline dark:text-primary-300"
                                 >
                                   {entry.is_leftover && (
-                                    <span title={pl.plan.leftoverHint} className="mr-1">♻︎</span>
+                                    <span title={pl.plan.leftoverHint} className="mr-1"><Icon name="habits" size={12} className="inline-block align-[-1px]" /></span>
                                   )}
                                   {entry.recipe?.title ?? `#${entry.recipe_id}`}
                                 </button>
                               ) : entry.product ? (
                                 <span className="font-medium text-gray-800 line-clamp-2 dark:text-gray-200">
-                                  🛒 {entry.product.name}
+                                  <Icon name="shopping" size={12} className="inline-block align-[-2px]" /> {entry.product.name}
                                 </span>
                               ) : (
                                 <span className="font-medium text-gray-800 line-clamp-2 dark:text-gray-200">—</span>

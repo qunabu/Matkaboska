@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -166,7 +167,7 @@ export default function RecipeFormPage() {
               className="h-4 w-4 rounded"
             />
             <label htmlFor="seafood" className="text-sm text-gray-700 dark:text-gray-300">
-              🐟 {pl.recipes.seafoodLabel}
+              <Icon name="fish" size={14} className="inline-block align-[-2px]" /> {pl.recipes.seafoodLabel}
             </label>
           </div>
         </div>

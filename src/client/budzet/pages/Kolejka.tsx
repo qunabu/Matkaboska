@@ -11,7 +11,7 @@ export default function Kolejka({ categories, onChanged }: any) {
   const load = () => get('/api/review-queue').then(setRows);
   useEffect(() => { load(); }, []);
   if (!rows) return <Empty>Ładowanie…</Empty>;
-  if (!rows.length) return (<><div className="page-head"><h1>Do sklasyfikowania</h1></div><Empty>Wszystko sklasyfikowane. 🎉</Empty></>);
+  if (!rows.length) return (<><div className="page-head"><h1>Do sklasyfikowania</h1></div><Empty>Wszystko sklasyfikowane.</Empty></>);
 
   const askAi = async () => {
     setAiMsg('Pytam model — dla nieznanych nazw sprawdza w sieci, to potrwa kilkanaście sekund…');

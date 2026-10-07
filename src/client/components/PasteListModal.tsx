@@ -85,7 +85,7 @@ export default function PasteListModal({ listId, onClose, onAdded }: {
                 disabled={!text.trim() || parseMut.isPending}
                 className="w-full rounded-xl bg-primary-600 py-2.5 text-sm font-medium text-white disabled:opacity-50"
               >
-                {parseMut.isPending ? pl.shopping.pasteParsing : `✨ ${pl.shopping.pasteParse}`}
+                {parseMut.isPending ? pl.shopping.pasteParsing : pl.shopping.pasteParse}
               </button>
             </div>
           </>

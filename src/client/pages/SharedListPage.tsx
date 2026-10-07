@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -67,7 +68,7 @@ export default function SharedListPage() {
 
   if (isError || !data) return (
     <div className="mx-auto max-w-md p-8 text-center">
-      <p className="text-2xl">🔗</p>
+      <Icon name="share" size={32} className="mx-auto" />
       <p className="mt-2 font-semibold text-gray-700 dark:text-gray-300">Link wygasł lub jest nieprawidłowy</p>
     </div>
   )

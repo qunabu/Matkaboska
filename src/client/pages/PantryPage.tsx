@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pantryApi } from '../lib/api'
@@ -21,7 +22,7 @@ export default function PantryPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🥫 {pl.pantry.title}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.pantry.title}</h1>
       <p className="text-xs text-gray-400">{pl.pantry.hint}</p>
 
       <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
@@ -54,13 +55,13 @@ export default function PantryPage() {
               key={it.id}
               className={`flex items-center gap-3 px-4 py-3 ${idx < items.length - 1 ? 'border-b border-gray-50 dark:border-gray-700' : ''}`}
             >
-              <span className="flex-1 text-sm text-gray-900 dark:text-gray-100">🥫 {it.name}</span>
+              <span className="flex-1 text-sm text-gray-900 dark:text-gray-100">{it.name}</span>
               <button
                 onClick={() => { if (confirm(pl.pantry.deleteConfirm)) remove.mutate(it.id) }}
                 className="shrink-0 text-gray-300 hover:text-red-400"
                 aria-label={pl.common.delete}
               >
-                🗑
+                <Icon name="trash" size={16} />
               </button>
             </div>
           ))}

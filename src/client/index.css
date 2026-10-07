@@ -2,31 +2,76 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ══════════════════════════════════════════════════════════════════════════
+   SpaceX style guide — the same system as ~/Desktop/localhost/gravity and
+   ~/Desktop/localhost/poland. Black is the default; light is its exact
+   negative (white ground, black ink, black fills), not a different design.
+
+   Rules: hairline borders instead of grey blocks, 2px corners, one HUD tick
+   on panels, uppercase condensed headings, monospace labels and numbers,
+   primary action = solid ink fill, secondary = transparent with a hairline,
+   hover = a 6% ink wash, progress = a 2px line.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --sx-ground: #ffffff;
+  --sx-panel: #ffffff;
+  --sx-ink: #000000;
+  --sx-ink-2: rgba(0, 0, 0, 0.72);
+  --sx-ink-3: rgba(0, 0, 0, 0.5);
+  --sx-line: rgba(0, 0, 0, 0.12);
+  --sx-line-2: rgba(0, 0, 0, 0.28);
+  --sx-wash: rgba(0, 0, 0, 0.04);
+  --sx-track: rgba(0, 0, 0, 0.1);
+  --sx-grid: rgba(0, 0, 0, 0.07);
+  --sx-fill: #000000;
+  --sx-on-fill: #ffffff;
+  --sx-fill-hover: #2b2b2b;
+  --sx-data: #2a5bd7;
+  --sx-warn: #b86e00;
+  --sx-bad: #d0213a;
+  --sx-good: #138a55;
+  --sx-glow: none;
+}
+html.dark {
+  --sx-ground: #000000;
+  --sx-panel: rgba(0, 0, 0, 0.55);
+  --sx-ink: #ffffff;
+  --sx-ink-2: rgba(255, 255, 255, 0.72);
+  --sx-ink-3: rgba(255, 255, 255, 0.46);
+  --sx-line: rgba(255, 255, 255, 0.14);
+  --sx-line-2: rgba(255, 255, 255, 0.28);
+  --sx-wash: rgba(255, 255, 255, 0.06);
+  --sx-track: rgba(255, 255, 255, 0.12);
+  --sx-grid: rgba(255, 255, 255, 0.08);
+  --sx-fill: #ffffff;
+  --sx-on-fill: #000000;
+  --sx-fill-hover: #d9e2ee;
+  --sx-data: #8fb6ff;
+  --sx-warn: #ffb84a;
+  --sx-bad: #f03a4e;
+  --sx-good: #5fd3a0;
+  --sx-glow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
 @layer base {
-  :root {
-    color-scheme: light dark;
-  }
   html.dark { color-scheme: dark; }
   html:not(.dark) { color-scheme: light; }
-
-  html {
-    -webkit-tap-highlight-color: transparent;
-  }
+  html { -webkit-tap-highlight-color: transparent; }
 
   body {
-    @apply bg-gray-50 font-sans text-gray-900 antialiased dark:text-gray-100;
+    @apply font-sans antialiased;
+    background: var(--sx-ground);
+    color: var(--sx-ink);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-
-  /* SpaceX style (as in gravity / poland): pure black, a faint cold glow. */
+  /* The night side gets the faint cold glow of the poland stage. */
   html.dark body {
-    background-color: #000;
     background-image: radial-gradient(120% 70% at 70% -10%, #070b12 0%, #000 65%);
     background-attachment: fixed;
   }
 
-  /* Headings: condensed, uppercase, slightly tracked. */
   h1, h2, h3 {
     font-family: theme('fontFamily.cond');
     font-weight: 500;
@@ -34,68 +79,280 @@
     letter-spacing: 0.04em;
   }
 
-  /* Telemetry numerals everywhere they line up in columns. */
   .num, .tabular-nums { font-family: theme('fontFamily.mono'); font-variant-numeric: tabular-nums; }
 
-  /* Primary actions: white fill with black text, as in the SpaceX chrome. */
-  html.dark .bg-primary-600 { background-color: #fff; color: #000; }
-  html.dark .bg-primary-600 svg { color: #000; }
-  html.dark .hover\:bg-primary-700:hover, html.dark .bg-primary-700 { background-color: #d9d9d9; color: #000; }
-  html.dark .bg-primary-600:disabled { background-color: rgba(255,255,255,0.28); }
-
-  /* Hairline rings and borders instead of grey blocks. */
-  html.dark .ring-gray-700, html.dark .dark\:ring-gray-700 { --tw-ring-color: rgba(255,255,255,0.14); }
-  html.dark .dark\:border-gray-700 { border-color: rgba(255,255,255,0.14); }
-  html.dark .dark\:border-gray-800 { border-color: rgba(255,255,255,0.10); }
-
-  /* Global, restrained motion — everything eases rather than snaps. */
   a, button, input, textarea, select, [role="switch"], [role="button"] {
-    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
-    transition-duration: 160ms;
-    transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+    transition-property: color, background-color, border-color, box-shadow, opacity;
+    transition-duration: 180ms;
+    transition-timing-function: ease;
   }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
   }
 
-  /* Sleeker scrollbars in dark mode. */
-  html.dark * {
-    scrollbar-color: #2a2a30 transparent;
+  * { scrollbar-color: var(--sx-line-2) transparent; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--sx-line-2); border-radius: 0; }
+  ::selection { background: var(--sx-data); color: var(--sx-on-fill); }
+
+  :focus-visible { outline: 1px solid var(--sx-ink); outline-offset: 2px; }
+
+  .h-safe-area-inset-bottom { height: env(safe-area-inset-bottom, 0px); }
+}
+
+/* ── named components (used directly in new markup) ───────────────────────── */
+@layer components {
+  .sx-brand {
+    font: 600 13px/1 theme('fontFamily.cond');
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--sx-ink);
+    white-space: nowrap;
   }
-  html.dark ::-webkit-scrollbar { width: 8px; height: 8px; }
-  html.dark ::-webkit-scrollbar-thumb { background: #26262c; border-radius: 8px; }
+  /* The logo is a black tile in both themes: on white it reads as a framed
+     badge, on black the hairline keeps its edge. */
+  .sx-logo { border-radius: 2px; background: #000; box-shadow: 0 0 0 1px var(--sx-line-2); }
 
-  ::selection { background: rgba(143, 182, 255, 0.35); }
+  .sx-live {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--sx-bad);
+    box-shadow: 0 0 10px var(--sx-bad); animation: sx-blink 1.6s infinite;
+  }
+  @keyframes sx-blink { 50% { opacity: 0.25; } }
 
-  html.dark input, html.dark textarea, html.dark select { color-scheme: dark; }
+  /* Side and overflow navigation — poland's #nav voice. */
+  .sx-nav {
+    position: relative;
+    font: 500 12px/1 theme('fontFamily.cond');
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--sx-ink-3);
+  }
+  .sx-nav:hover { color: var(--sx-ink); background: var(--sx-wash); }
+  .sx-nav.is-active { color: var(--sx-ink); background: var(--sx-wash); }
+  .sx-nav.is-active::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 1px; background: var(--sx-ink);
+  }
 
-  /* Respect safe areas on notched phones */
-  .h-safe-area-inset-bottom {
-    height: env(safe-area-inset-bottom, 0px);
+  /* Bottom tab bar on phones. */
+  .sx-tab { color: var(--sx-ink-3); position: relative; }
+  .sx-tab:hover { color: var(--sx-ink); }
+  .sx-tab.is-active { color: var(--sx-ink); }
+  .sx-tab.is-active::before {
+    content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 1px; background: var(--sx-ink);
+  }
+  .sx-tab-label {
+    font: 500 9px/1 theme('fontFamily.mono'); letter-spacing: 0.14em; text-transform: uppercase;
+  }
+
+  .sx-iconbtn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 2px; color: var(--sx-ink-3);
+  }
+  .sx-iconbtn:hover { color: var(--sx-ink); background: var(--sx-wash); }
+  .sx-iconbtn--boxed { border: 1px solid var(--sx-line-2); background: var(--sx-ground); }
+
+  .sx-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    padding: 12px 20px; border-radius: 2px; border: 1px solid var(--sx-line-2);
+    font: 500 12px/1 theme('fontFamily.cond'); letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--sx-ink); background: transparent; cursor: pointer; white-space: nowrap;
+  }
+  .sx-btn:hover { background: var(--sx-wash); border-color: var(--sx-ink); }
+  .sx-btn--primary { background: var(--sx-fill); color: var(--sx-on-fill); border-color: var(--sx-fill); }
+  .sx-btn--primary:hover { background: var(--sx-fill-hover); border-color: var(--sx-fill-hover); }
+
+  .sx-panel { position: relative; border-radius: 2px; }
+  .sx-panel::before {
+    content: ""; position: absolute; top: -1px; left: -1px; width: 14px; height: 14px; pointer-events: none;
+    border-top: 1px solid var(--sx-ink); border-left: 1px solid var(--sx-ink);
   }
 }
 
 @layer utilities {
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  /* Frosted panel used by the top bar / nav for the SpaceX chrome. */
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
   .glass {
-    @apply border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-white/10 dark:bg-black/75;
+    background: color-mix(in srgb, var(--sx-ground) 82%, transparent);
+    border-color: var(--sx-line);
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
   }
-  /* Small uppercase monospace label — the HUD voice for eyebrows and captions. */
   .hud-label {
     font-family: theme('fontFamily.mono');
     font-size: 10.5px;
     letter-spacing: 0.16em;
     text-transform: uppercase;
   }
-  /* HUD corner ticks for a framed panel. */
-  .hud-frame { position: relative; }
-  .hud-frame::before, .hud-frame::after {
-    content: ""; position: absolute; width: 10px; height: 10px; pointer-events: none;
-    border: 1px solid rgba(255,255,255,0.28);
-  }
-  .hud-frame::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
-  .hud-frame::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Translating the existing Tailwind markup into the system. These selectors
+   sit outside the layers so they win over the utility classes they restyle.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Surfaces: cards are see-through panels with a hairline, not grey slabs. */
+html.dark .dark\:bg-gray-800, html.dark .dark\:bg-gray-900, html.dark .dark\:bg-gray-950,
+html.dark .dark\:bg-ink-800, html.dark .dark\:bg-ink-900 { background-color: var(--sx-panel); }
+.bg-gray-50 { background-color: var(--sx-wash); }
+.bg-gray-100, html.dark .dark\:bg-gray-700, html.dark .dark\:bg-white\/5 { background-color: var(--sx-wash); }
+.border-gray-100, .border-gray-200, .border-gray-300,
+html.dark .dark\:border-gray-600, html.dark .dark\:border-gray-700, html.dark .dark\:border-gray-800,
+html.dark .dark\:border-white\/10 { border-color: var(--sx-line); }
+.ring-gray-100, .ring-gray-200, .ring-black\/5,
+html.dark .dark\:ring-gray-700, html.dark .dark\:ring-gray-800, html.dark .dark\:ring-white\/10 { --tw-ring-color: var(--sx-line); }
+.divide-gray-100 > * + *, .divide-gray-200 > * + *,
+html.dark .dark\:divide-gray-700 > * + *, html.dark .dark\:divide-gray-800 > * + * { border-color: var(--sx-line); }
+
+/* Text greys follow the three ink levels. */
+.text-gray-900, html.dark .dark\:text-gray-100, html.dark .dark\:text-white { color: var(--sx-ink); }
+.text-gray-700, .text-gray-600, html.dark .dark\:text-gray-200, html.dark .dark\:text-gray-300 { color: var(--sx-ink-2); }
+.text-gray-500, .text-gray-400, html.dark .dark\:text-gray-400, html.dark .dark\:text-gray-500 { color: var(--sx-ink-3); }
+
+/* Accents: the old violet becomes ink for actions and data blue for values. */
+/* Links and accents are ink, as in gravity and poland; blue is kept for values. */
+.text-primary-500, .text-primary-600, .text-primary-700,
+html.dark .dark\:text-primary-300, html.dark .dark\:text-primary-400 { color: var(--sx-ink); }
+a.text-primary-600, a.text-primary-500, button.text-primary-600, button.text-primary-500 {
+  text-decoration: underline; text-decoration-color: var(--sx-line-2); text-underline-offset: 3px;
+}
+a.text-primary-600:hover, button.text-primary-600:hover, a.text-primary-500:hover, button.text-primary-500:hover {
+  text-decoration-color: var(--sx-ink);
+}
+.bg-primary-50, .bg-primary-100, .bg-primary-600\/10,
+html.dark .dark\:bg-primary-900\/30, html.dark .dark\:bg-primary-900\/40, html.dark .dark\:bg-primary-500\/15 { background-color: var(--sx-wash); }
+.border-primary-200, .border-primary-300, .border-primary-500, .border-primary-600,
+html.dark .dark\:border-primary-700 { border-color: var(--sx-ink); }
+.ring-primary-500, .ring-primary-600, .ring-primary-600\/20, .focus\:ring-primary-500:focus { --tw-ring-color: var(--sx-ink); }
+
+/* Corners: 2px everywhere except true circles. */
+.rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl, .rounded { border-radius: 2px; }
+
+/* Cards get the gravity HUD tick in the top-left corner. */
+.rounded-xl.ring-1, .rounded-2xl.ring-1, .rounded-xl.border, .rounded-2xl.border { position: relative; }
+.rounded-xl.ring-1::before, .rounded-2xl.ring-1::before, .rounded-xl.border::before, .rounded-2xl.border::before {
+  content: ""; position: absolute; top: -1px; left: -1px; width: 12px; height: 12px; pointer-events: none;
+  border-top: 1px solid var(--sx-ink); border-left: 1px solid var(--sx-ink);
+}
+/* Drop drop-shadows but keep rings (Tailwind draws both through box-shadow). */
+.shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl { --tw-shadow: 0 0 #0000; --tw-shadow-colored: 0 0 #0000; }
+
+/* Primary buttons: solid ink, uppercase condensed, tracked. */
+button.bg-primary-600, a.bg-primary-600, button.bg-primary-500, a.bg-primary-500, button.bg-gray-900,
+html.dark button.dark\:bg-white {
+  background-color: var(--sx-fill); color: var(--sx-on-fill); border-color: var(--sx-fill);
+}
+button.bg-primary-600:hover, a.bg-primary-600:hover, button.bg-primary-500:hover, a.bg-primary-500:hover,
+button.hover\:bg-primary-700:hover { background-color: var(--sx-fill-hover); }
+button.bg-primary-600 svg, a.bg-primary-600 svg, button.bg-primary-500 svg { color: var(--sx-on-fill); }
+button.bg-primary-600:not(.rounded-full), a.bg-primary-600:not(.rounded-full),
+button.bg-primary-500:not(.rounded-full) {
+  font-family: theme('fontFamily.cond'); font-weight: 500; text-transform: uppercase; letter-spacing: 0.16em;
+}
+button.bg-primary-600:disabled, button.bg-primary-500:disabled { opacity: 0.35; }
+
+/* Confirm-type coloured buttons join the single primary style. */
+button.bg-green-500, button.bg-green-600, button.bg-emerald-500, button.bg-blue-500, button.bg-sky-500 {
+  background-color: var(--sx-fill); color: var(--sx-on-fill);
+}
+button.bg-green-500:hover, button.bg-green-600:hover, button.hover\:bg-green-700:hover,
+button.bg-blue-500:hover, button.bg-sky-500:hover { background-color: var(--sx-fill-hover); }
+button.bg-green-500 svg, button.bg-green-600 svg, button.bg-blue-500 svg, button.bg-sky-500 svg { color: var(--sx-on-fill); }
+
+/* Status colour: three signals only — good, warn, bad — plus data blue. */
+.bg-green-400, .bg-green-500, .bg-emerald-500, .bg-green-600 { background-color: var(--sx-good); }
+.bg-red-400, .bg-red-500 { background-color: var(--sx-bad); }
+.bg-amber-500, .bg-amber-600, .bg-orange-400, .bg-yellow-400 { background-color: var(--sx-warn); }
+.bg-blue-400, .bg-cyan-400 { background-color: var(--sx-data); }
+.bg-green-50, .bg-green-100, .bg-red-50, .bg-amber-50, .bg-orange-50, .bg-blue-50,
+html.dark .dark\:bg-green-900\/20, html.dark .dark\:bg-green-900\/30, html.dark .dark\:bg-red-900\/20,
+html.dark .dark\:bg-orange-900\/20, html.dark .dark\:bg-blue-900\/20, html.dark .dark\:bg-amber-900\/20,
+html.dark .dark\:bg-amber-950 { background-color: var(--sx-wash); }
+.hover\:bg-red-100:hover, .hover\:bg-green-100:hover { background-color: var(--sx-wash); }
+[class*="text-green-"], [class*="text-emerald-"] { color: var(--sx-good); }
+[class*="text-red-"] { color: var(--sx-bad); }
+[class*="text-amber-"], [class*="text-orange-"], [class*="text-yellow-"] { color: var(--sx-warn); }
+[class*="border-green-"] { border-color: var(--sx-good); }
+[class*="border-red-"] { border-color: var(--sx-bad); }
+[class*="border-amber-"], [class*="border-orange-"] { border-color: var(--sx-warn); }
+
+/* Secondary buttons: transparent, hairline, ink wash on hover. */
+button.bg-gray-100, html.dark button.dark\:bg-gray-800, html.dark button.dark\:bg-gray-700 {
+  background-color: transparent; box-shadow: inset 0 0 0 1px var(--sx-line-2);
+}
+button.bg-gray-100:hover, html.dark button.dark\:bg-gray-800:hover, html.dark button.dark\:bg-gray-700:hover,
+button.hover\:bg-gray-100:hover, button.hover\:bg-gray-200:hover, html.dark button.dark\:hover\:bg-gray-700:hover,
+html.dark button.dark\:hover\:bg-gray-800:hover, html.dark .dark\:hover\:bg-white\/5:hover, a.hover\:bg-gray-100:hover,
+.hover\:bg-gray-50:hover, html.dark .dark\:hover\:bg-gray-800:hover {
+  background-color: var(--sx-wash); color: var(--sx-ink);
+}
+
+/* Form fields: transparent with a hairline; focus turns the line to ink. */
+input:not([type]), input[type="text"], input[type="number"], input[type="email"], input[type="password"],
+input[type="search"], input[type="url"], input[type="time"], input[type="date"], input[type="datetime-local"],
+select, textarea {
+  background-color: transparent; color: var(--sx-ink);
+  border: 1px solid var(--sx-line-2); border-radius: 2px;
+}
+input[type="number"], input[type="time"], input[type="date"] { font-family: theme('fontFamily.mono'); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--sx-ink); box-shadow: none; --tw-ring-shadow: 0 0 #0000; }
+::placeholder { color: var(--sx-ink-3); }
+select option { background: var(--sx-ground); color: var(--sx-ink); }
+
+/* Checkboxes: gravity's square hairline box, ink fill when checked. */
+input[type="checkbox"]:not(.sr-only) {
+  appearance: none; -webkit-appearance: none; width: 14px; height: 14px; flex: none;
+  border: 1px solid var(--sx-line-2); border-radius: 1px; background: transparent;
+  cursor: pointer; position: relative; vertical-align: -2px;
+}
+input[type="checkbox"]:not(.sr-only):checked { background: var(--sx-fill); border-color: var(--sx-fill); }
+input[type="checkbox"]:not(.sr-only):checked::after {
+  content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
+  border: solid var(--sx-on-fill); border-width: 0 1.5px 1.5px 0; transform: rotate(45deg);
+}
+
+/* Range: a 2px line with a glowing round thumb. */
+input[type="range"] { -webkit-appearance: none; appearance: none; height: 2px; background: var(--sx-line-2); border: 0; }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--sx-ink); box-shadow: var(--sx-glow); cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: var(--sx-ink); }
+
+/* Switches: a hairline track; on = ink fill, knob in the opposite colour. */
+[role="switch"] { box-shadow: inset 0 0 0 1px var(--sx-line-2); }
+[role="switch"][aria-checked="true"] { background-color: var(--sx-fill) !important; }
+[role="switch"][aria-checked="true"] > span { background-color: var(--sx-on-fill) !important; }
+[role="switch"][aria-checked="false"] { background-color: transparent !important; }
+[role="switch"][aria-checked="false"] > span { background-color: var(--sx-ink-3) !important; }
+
+/* Progress bars: gravity's 2px line — track at 12%, fill in ink. */
+.overflow-hidden.rounded-full.h-1, .overflow-hidden.rounded-full.h-1\.5, .overflow-hidden.rounded-full.h-2,
+.overflow-hidden.rounded-full.h-2\.5, .overflow-hidden.rounded-full.h-3 {
+  height: 2px; border-radius: 0; background-color: var(--sx-track);
+}
+.overflow-hidden.rounded-full > div, .overflow-hidden.rounded-full > span { border-radius: 0; }
+.overflow-hidden.rounded-full > .bg-primary-500, .overflow-hidden.rounded-full > .bg-primary-600 { background-color: var(--sx-ink); }
+
+/* Small uppercase labels speak in the HUD's monospace. */
+.uppercase.tracking-wide, .uppercase.tracking-wider, .uppercase.tracking-widest {
+  font-family: theme('fontFamily.mono'); letter-spacing: 0.16em;
+}
+
+/* Pills and badges: squared, monospace. */
+span.rounded-full.px-2, span.rounded-full.px-1\.5, span.rounded-full.px-2\.5 {
+  border-radius: 1px; font-family: theme('fontFamily.mono'); letter-spacing: 0.06em;
+}
+
+/* Charts (Recharts): monospace ticks, hairline grid, flat tooltip. */
+.recharts-cartesian-grid line, .recharts-cartesian-grid-horizontal line, .recharts-cartesian-grid-vertical line { stroke: var(--sx-grid); }
+.recharts-cartesian-axis-line, .recharts-cartesian-axis-tick-line { stroke: var(--sx-line-2); }
+.recharts-cartesian-axis-tick-value, .recharts-text.recharts-label {
+  fill: var(--sx-ink-3); font-family: theme('fontFamily.mono'); font-size: 10px; letter-spacing: 0.06em;
+}
+.recharts-reference-line line { stroke: var(--sx-line-2); }
+.recharts-default-tooltip {
+  background: color-mix(in srgb, var(--sx-ground) 94%, transparent) !important;
+  border: 1px solid var(--sx-line-2) !important; border-radius: 2px !important;
+  font-family: theme('fontFamily.mono'); font-size: 11px;
+}
+.recharts-legend-item-text { font-family: theme('fontFamily.mono'); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sx-ink-2) !important; }
+.recharts-rectangle.recharts-tooltip-cursor { fill: var(--sx-wash); }

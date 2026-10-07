@@ -50,7 +50,7 @@ export default function Kategorie() {
               <RL wrapperStyle={{ fontSize: 12, paddingTop: 4 }} />
               {groups.map((g: any, i: number) => (
                 <RBar key={g} dataKey={g} stackId="s" fill={SERIES[i % 8]} name={g}
-                      radius={i === groups.length - 1 ? [4, 4, 0, 0] : 0} stroke="var(--surface-1)" strokeWidth={2} />
+                      radius={0} stroke="var(--surface-0)" strokeWidth={1} />
               ))}
             </BarChart>
           </ResponsiveContainer>
@@ -89,7 +89,7 @@ export default function Kategorie() {
                     <XAxis dataKey="label" {...axis} tickLine={false} angle={-40} textAnchor="end" height={44} interval={0} />
                     <YAxis {...axis} tickFormatter={(v) => `${Math.round(v / 1000)}k`} tickLine={false} axisLine={false} width={42} />
                     <RT content={<Tooltip />} cursor={{ fill: 'var(--surface-2)' }} />
-                    <RBar dataKey="total" name="Wydatki" fill="var(--series-1)" radius={[4, 4, 0, 0]} />
+                    <RBar dataKey="total" name="Wydatki" fill="var(--series-1)" radius={0} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

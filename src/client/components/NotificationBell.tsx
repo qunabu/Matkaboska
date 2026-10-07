@@ -1,3 +1,4 @@
+import Icon from './Icon'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -76,7 +77,7 @@ export default function NotificationBell() {
         aria-label={pl.notifications.title}
         className="relative flex h-10 w-10 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-100"
       >
-        <span className={`text-xl leading-none ${shake ? 'animate-bell-shake' : ''}`} aria-hidden="true">🔔</span>
+        <span className={`inline-block leading-none ${shake ? 'animate-bell-shake' : ''}`} aria-hidden="true"><Icon name="bell" size={18} /></span>
         {unread > 0 && (
           <>
             <span className="absolute right-1 top-1 flex h-2.5 w-2.5">

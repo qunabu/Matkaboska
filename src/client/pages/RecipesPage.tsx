@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
@@ -118,7 +119,7 @@ export default function RecipesPage() {
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300'
           }`}
         >
-          🐟 {pl.recipes.seafoodOnly}
+          <Icon name="fish" size={14} className="inline-block align-[-2px]" /> {pl.recipes.seafoodOnly}
         </button>
       </div>
 
@@ -138,7 +139,7 @@ export default function RecipesPage() {
               <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
                 <span>{CATEGORIES.find(c => c.value === recipe.category)?.label ?? recipe.category}</span>
                 {recipe.prep_minutes && <span>· {recipe.prep_minutes} {pl.common.minutes}</span>}
-                {recipe.is_seafood && <span>🐟</span>}
+                {recipe.is_seafood && <span><Icon name="fish" size={14} className="inline-block align-[-2px]" /></span>}
                 {recipe.macros && (
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <span className="font-medium text-orange-500">{Math.round(recipe.macros.kcal)} kcal</span>

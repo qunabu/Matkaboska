@@ -1,3 +1,4 @@
+import Icon from './Icon'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { habitsApi } from '../lib/api'
@@ -13,7 +14,7 @@ export const DEFAULT_HABITS: { name: string; remind_at: string | null }[] = [
 
 export function streakLabel(n: number) {
   if (n <= 0) return pl.habits.noStreak
-  return `🔥 ${n} ${n === 1 ? 'dzień' : 'dni'}`
+  return `${n} ${n === 1 ? 'dzień' : 'dni'}`
 }
 
 function HabitRow({ habit }: { habit: Habit }) {
@@ -29,7 +30,7 @@ function HabitRow({ habit }: { habit: Habit }) {
         <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{habit.name}</p>
         <p className="text-xs text-gray-400">
           {streakLabel(habit.streak)}
-          {habit.remind_at ? ` · ⏰ ${habit.remind_at}` : ''}
+          {habit.remind_at ? <> · <Icon name="clock" size={12} className="inline-block align-[-2px]" /> {habit.remind_at}</> : ''}
         </p>
       </div>
       <div className="flex shrink-0 gap-1.5">
@@ -41,7 +42,7 @@ function HabitRow({ habit }: { habit: Habit }) {
           }`}
           aria-label={`${habit.name}: ${pl.common.yes}`}
         >
-          ✅
+          <Icon name="check" size={14} />
         </button>
         <button
           onClick={() => checkin.mutate(false)}
@@ -51,7 +52,7 @@ function HabitRow({ habit }: { habit: Habit }) {
           }`}
           aria-label={`${habit.name}: ${pl.common.no}`}
         >
-          ❌
+          <Icon name="x" size={14} />
         </button>
       </div>
     </div>
@@ -84,7 +85,7 @@ export function SuggestedHabits({ card = false }: { card?: boolean }) {
             disabled={add.isPending}
             className="rounded-full border border-dashed border-gray-300 px-3 py-1.5 text-xs font-medium text-primary-600 hover:border-primary-400 hover:bg-primary-50 disabled:opacity-50 dark:border-gray-600 dark:text-primary-400 dark:hover:bg-primary-900/20"
           >
-            ➕ {d.name}{d.remind_at ? ` (${d.remind_at})` : ''}
+            <Icon name="plus" size={12} className="inline-block align-[-2px]" /> {d.name}{d.remind_at ? ` (${d.remind_at})` : ''}
           </button>
         ))}
       </div>
@@ -106,7 +107,7 @@ export default function HabitsCard({ bare = false }: { bare?: boolean }) {
       ? 'mt-4 border-t border-gray-100 pt-4 dark:border-gray-700'
       : 'rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700'}>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-semibold text-gray-900 dark:text-gray-100">🔁 {pl.habits.todayCard}</h2>
+        <h2 className="font-semibold text-gray-900 dark:text-gray-100">{pl.habits.todayCard}</h2>
         <Link to="/habits" className="text-xs text-primary-600 dark:text-primary-400">{pl.habits.manage}</Link>
       </div>
 

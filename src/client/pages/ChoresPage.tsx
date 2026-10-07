@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { choresApi } from '../lib/api'
@@ -114,7 +115,7 @@ function ChoreRow({ chore }: { chore: Chore }) {
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {chore.due && '🔔 '}{chore.name}
+            {chore.due && <><Icon name="bell" size={14} className="inline-block align-[-2px]" /> </>}{chore.name}
           </p>
           <p className="mt-0.5 text-xs text-gray-400">{recurrenceLabel(chore)} · {pl.chores.notifyOnce}</p>
           <p className="text-xs text-gray-400">
@@ -123,8 +124,8 @@ function ChoreRow({ chore }: { chore: Chore }) {
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <button onClick={() => remind.mutate()} disabled={remind.isPending} title={pl.supplements.remindNow}
-            className="rounded-lg bg-gray-100 px-2 py-1.5 text-xs text-gray-500 disabled:opacity-40 dark:bg-gray-700">🔔</button>
-          <button onClick={() => { if (confirm(pl.chores.deleteConfirm)) remove.mutate() }} className="text-gray-300 hover:text-red-400" aria-label={pl.common.delete}>🗑</button>
+            className="rounded-lg bg-gray-100 px-2 py-1.5 text-xs text-gray-500 disabled:opacity-40 dark:bg-gray-700"><Icon name="bell" size={14} /></button>
+          <button onClick={() => { if (confirm(pl.chores.deleteConfirm)) remove.mutate() }} className="text-gray-300 hover:text-red-400" aria-label={pl.common.delete}><Icon name="trash" size={16} /></button>
         </div>
       </div>
       <button
@@ -132,7 +133,7 @@ function ChoreRow({ chore }: { chore: Chore }) {
         disabled={done.isPending}
         className={`mt-2 w-full rounded-lg py-2 text-sm font-semibold disabled:opacity-50 ${chore.due ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200'}`}
       >
-        ✅ {pl.chores.markDone}
+        <Icon name="check" size={14} className="inline-block align-[-2px]" /> {pl.chores.markDone}
       </button>
     </div>
   )
@@ -144,7 +145,7 @@ export default function ChoresPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🧹 {pl.chores.title}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.chores.title}</h1>
       <p className="text-xs text-gray-400">{pl.chores.hint}</p>
 
       {isLoading ? (

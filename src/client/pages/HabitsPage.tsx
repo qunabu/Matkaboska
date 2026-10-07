@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { habitsApi } from '../lib/api'
@@ -54,7 +55,7 @@ function HabitCard({ habit }: { habit: Habit }) {
           <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{habit.name}</p>
           <p className="mt-0.5 text-xs text-gray-400">{streakLabel(habit.streak)}</p>
         </div>
-        <button onClick={() => { if (confirm(pl.habits.deleteConfirm)) remove.mutate() }} className="shrink-0 text-gray-300 hover:text-red-400" aria-label={pl.common.delete}>🗑</button>
+        <button onClick={() => { if (confirm(pl.habits.deleteConfirm)) remove.mutate() }} className="shrink-0 text-gray-300 hover:text-red-400" aria-label={pl.common.delete}><Icon name="trash" size={16} /></button>
       </div>
       <div className="mt-3 flex items-center gap-2">
         <span className="mr-1 text-xs text-gray-400">{pl.habits.todayQuestion}</span>
@@ -65,7 +66,7 @@ function HabitCard({ habit }: { habit: Habit }) {
             habit.today === 'yes' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200'
           }`}
         >
-          ✅ {pl.common.yes}
+          <Icon name="check" size={14} className="inline-block align-[-2px]" /> {pl.common.yes}
         </button>
         <button
           onClick={() => checkin.mutate(false)}
@@ -74,11 +75,11 @@ function HabitCard({ habit }: { habit: Habit }) {
             habit.today === 'no' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-200'
           }`}
         >
-          ❌ {pl.common.no}
+          <Icon name="x" size={14} className="inline-block align-[-2px]" /> {pl.common.no}
         </button>
       </div>
       <div className="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3 dark:border-gray-700">
-        <span className="text-xs text-gray-400">⏰ {pl.habits.reminderLabel}</span>
+        <span className="text-xs text-gray-400"><Icon name="clock" size={12} className="inline-block align-[-2px]" /> {pl.habits.reminderLabel}</span>
         <input
           type="time"
           value={habit.remind_at ?? ''}
@@ -103,7 +104,7 @@ export default function HabitsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🔁 {pl.habits.title}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.habits.title}</h1>
       <p className="text-xs text-gray-400">{pl.habits.hint}</p>
 
       <AddHabitForm />

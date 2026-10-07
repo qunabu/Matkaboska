@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { voiceNotesApi } from '../lib/api'
@@ -124,7 +125,7 @@ function Recorder() {
       >
         {saving ? pl.notes.saving
           : recording ? <><span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-white" /> {pl.notes.stop}</>
-          : <>🎙️ {pl.notes.record}</>}
+          : <><Icon name="notes" size={16} /> {pl.notes.record}</>}
       </button>
       {recording && (
         <p className="mt-3 min-h-[2.5rem] whitespace-pre-wrap rounded-lg bg-gray-50 p-2 text-sm text-gray-700 dark:bg-gray-900 dark:text-gray-200">
@@ -174,7 +175,7 @@ function NoteCard({ note }: { note: VoiceNote }) {
           className="text-gray-300 hover:text-red-400"
           aria-label={pl.common.delete}
         >
-          🗑
+          <Icon name="trash" size={16} />
         </button>
       </div>
 
@@ -218,7 +219,7 @@ export default function NotesPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">🎙️ {pl.notes.title}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.notes.title}</h1>
       <p className="text-xs text-gray-400">{pl.notes.hint}</p>
 
       <Recorder />

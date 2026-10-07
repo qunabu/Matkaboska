@@ -1,3 +1,4 @@
+import Icon from './Icon'
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { shoppingApi } from '../lib/api'
@@ -75,7 +76,7 @@ export default function FriscoSearchModal({ item, onClose, onPicked }: {
                       disabled={disabled}
                       className="shrink-0 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-40"
                     >
-                      🛒 {pl.shopping.friscoAddToCart}
+                      <Icon name="shopping" size={14} className="inline-block align-[-2px]" /> {pl.shopping.friscoAddToCart}
                     </button>
                   </li>
                 )

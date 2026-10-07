@@ -1,3 +1,4 @@
+import Icon from './Icon'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -6,12 +7,6 @@ import pl from '../i18n/pl'
 import type { MealPlanEntryFull, MealType, Recipe } from '../../shared/types'
 
 const MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack']
-const MEAL_ICONS: Record<MealType, string> = {
-  breakfast: '🌅',
-  lunch: '🍽',
-  dinner: '🌙',
-  snack: '🍎',
-}
 
 const DAY_NAMES = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota']
 const SHORT_DAYS = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb']
@@ -150,7 +145,7 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose, shareToken 
               onClick={copyShareLink}
               className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
             >
-              {copied ? `✓ ${pl.print.linkCopied}` : `🔗 ${pl.print.share}`}
+              {copied ? `✓ ${pl.print.linkCopied}` : <><Icon name="share" size={14} className="inline-block align-[-2px]" /> {pl.print.share}</>}
             </button>
           )}
           {onClose && (
@@ -165,7 +160,7 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose, shareToken 
             onClick={() => window.print()}
             className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
           >
-            🖨 {pl.print.print}
+            <Icon name="print" size={14} className="inline-block align-[-2px]" /> {pl.print.print}
           </button>
         </div>
       </div>
@@ -284,7 +279,7 @@ export default function WeekPrintView({ weekStart, weekEnd, onClose, shareToken 
                           <div className="mb-2 flex items-start justify-between gap-3 print:mb-1.5">
                             <div className="min-w-0">
                               <p className="mb-0.5 text-xs font-medium uppercase tracking-wide text-gray-400">
-                                {MEAL_ICONS[entry.meal_type]} {pl.plan.meals[entry.meal_type]}
+                                {pl.plan.meals[entry.meal_type]}
                               </p>
                               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
                                 <h4 className="text-base font-bold text-gray-900">{recipe.title}</h4>

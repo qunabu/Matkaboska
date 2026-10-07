@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -74,7 +75,7 @@ function ProductsRepo() {
                   className="shrink-0 text-gray-300 hover:text-red-400"
                   aria-label={pl.common.delete}
                 >
-                  🗑
+                  <Icon name="trash" size={16} />
                 </button>
               </div>
             ))}
@@ -269,14 +270,14 @@ export default function SettingsPage() {
       // whenever permission is granted, independent of server push / VAPID.
       if ('serviceWorker' in navigator) {
         const reg = await navigator.serviceWorker.ready
-        await reg.showNotification('Matka Boska 🌈', {
-          body: 'Powiadomienia działają! 🙏',
+        await reg.showNotification('Matka Boska', {
+          body: 'Powiadomienia działają!',
           icon: '/icons/icon-192.png',
           badge: '/icons/icon-192.png',
           tag: 'mbl-test',
         })
       } else {
-        new Notification('Matka Boska 🌈', { body: 'Powiadomienia działają! 🙏', icon: '/icons/icon-192.png' })
+        new Notification('Matka Boska', { body: 'Powiadomienia działają!', icon: '/icons/icon-192.png' })
       }
       setTestMsg('sent')
       // Best-effort server push too (for real cron reminders, if VAPID is set).
@@ -386,7 +387,7 @@ export default function SettingsPage() {
                   onClick={enableNotifications}
                   className="flex-1 rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white"
                 >
-                  🔔 {pl.settings.enableNotifications}
+                  <Icon name="bell" size={14} className="inline-block align-[-2px]" /> {pl.settings.enableNotifications}
                 </button>
                 <button
                   onClick={sendTestNotification}
@@ -560,7 +561,7 @@ export default function SettingsPage() {
               onClick={forceAppUpdate}
               className="mt-3 w-full rounded-lg bg-gray-100 py-2 text-sm font-medium text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"
             >
-              🔄 {pl.update.force}
+              <Icon name="habits" size={14} className="inline-block align-[-2px]" /> {pl.update.force}
             </button>
             <p className="mt-2 text-xs text-gray-400">{pl.update.forceHint}</p>
           </div>
@@ -569,14 +570,14 @@ export default function SettingsPage() {
               to="/admin"
               className="mt-3 block w-full rounded-xl bg-primary-600 py-3 text-center text-sm font-semibold text-white hover:bg-primary-700"
             >
-              🛠 {pl.admin.open}
+              <Icon name="admin" size={14} className="inline-block align-[-2px]" /> {pl.admin.open}
             </Link>
           )}
           <button
             onClick={async () => { await authApi.logout().catch(() => {}); window.location.reload() }}
             className="mt-3 w-full rounded-xl bg-gray-100 py-3 text-sm font-medium text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"
           >
-            🔒 {pl.auth.logout}
+            <Icon name="lock" size={14} className="inline-block align-[-2px]" /> {pl.auth.logout}
           </button>
         </section>
       </div>

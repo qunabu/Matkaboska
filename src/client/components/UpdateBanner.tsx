@@ -1,3 +1,4 @@
+import Icon from './Icon'
 import pl from '../i18n/pl'
 
 type Props = {
@@ -41,7 +42,7 @@ type ForceUpdateProps = {
 export function ForceUpdateScreen({ onUpdate }: ForceUpdateProps) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-white px-8 dark:bg-gray-900">
-      <div className="text-5xl">🔄</div>
+      <Icon name="habits" size={48} />
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
         {pl.update.required}
       </h1>

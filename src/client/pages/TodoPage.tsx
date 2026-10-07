@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { todosApi } from '../lib/api'
@@ -151,12 +152,12 @@ function TodoRow({ todo, onMoveUp, onMoveDown, canMoveUp, canMoveDown }: TodoRow
           >▼</button>
         </div>
       )}
-      <button onClick={startEdit} className="shrink-0 text-gray-300 hover:text-primary-500" aria-label={pl.common.edit}>✏️</button>
+      <button onClick={startEdit} className="shrink-0 text-gray-300 hover:text-primary-500" aria-label={pl.common.edit}><Icon name="edit" size={16} /></button>
       <button
         onClick={() => { if (confirm(pl.todos.deleteConfirm)) remove.mutate() }}
         className="shrink-0 text-gray-300 hover:text-red-400"
         aria-label={pl.common.delete}
-      >🗑</button>
+      ><Icon name="trash" size={16} /></button>
     </div>
   )
 }
@@ -185,7 +186,7 @@ export default function TodoPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">✅ {pl.todos.title}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.todos.title}</h1>
 
       <AddTodoForm />
 

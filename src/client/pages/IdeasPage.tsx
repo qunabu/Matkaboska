@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ideasApi } from '../lib/api'
@@ -129,12 +130,12 @@ function IdeaCard({ idea, onMoveUp, onMoveDown, canMoveUp, canMoveDown }: IdeaCa
           <button onClick={onMoveDown} disabled={!canMoveDown} aria-label="↓" className="px-1 text-xs text-gray-400 hover:text-primary-500 disabled:opacity-20">▼</button>
         </div>
       )}
-      <button onClick={startEdit} className="shrink-0 text-gray-300 hover:text-primary-500" aria-label={pl.common.edit}>✏️</button>
+      <button onClick={startEdit} className="shrink-0 text-gray-300 hover:text-primary-500" aria-label={pl.common.edit}><Icon name="edit" size={16} /></button>
       <button
         onClick={() => { if (confirm(pl.ideas.deleteConfirm)) remove.mutate() }}
         className="shrink-0 text-gray-300 hover:text-red-400"
         aria-label={pl.common.delete}
-      >🗑</button>
+      ><Icon name="trash" size={16} /></button>
     </div>
   )
 }
@@ -162,7 +163,7 @@ export default function IdeasPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">💡 {pl.ideas.title}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{pl.ideas.title}</h1>
 
       <AddIdeaForm />
 

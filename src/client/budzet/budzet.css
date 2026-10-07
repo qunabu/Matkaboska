@@ -3,13 +3,14 @@
 
 .bdz {
   color-scheme: light;
-  --surface-0:#f5f4f1; --surface-1:#fcfcfb; --surface-2:#efeeea;
-  --border:#dddcd6; --border-strong:#c6c5bd;
-  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#7d7c75;
-  --series-1:#2a78d6; --series-2:#eb6834; --series-3:#1baf7a; --series-4:#eda100;
-  --series-5:#e87ba4; --series-6:#008300; --series-7:#4a3aa7; --series-8:#e34948;
-  --good:#1a7f4b; --warn:#b06a00; --bad:#c23a39; --accent:#2a78d6;
-  --grid:#e7e6e1;
+  /* Jasny motyw to negatyw czarnego: biel, czarny tusz, cienkie linie. */
+  --surface-0:#ffffff; --surface-1:#ffffff; --surface-2:rgba(0,0,0,.04);
+  --border:rgba(0,0,0,.12); --border-strong:rgba(0,0,0,.28);
+  --text-primary:#000000; --text-secondary:rgba(0,0,0,.72); --text-muted:rgba(0,0,0,.5);
+  --series-1:#2a5bd7; --series-2:#d97a00; --series-3:#138a55; --series-4:#b98a00;
+  --series-5:#c2457a; --series-6:#3c8c3c; --series-7:#5b4bc4; --series-8:#d0213a;
+  --good:#138a55; --warn:#b86e00; --bad:#d0213a; --accent:#2a5bd7;
+  --grid:rgba(0,0,0,.07);
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --sans: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
   --cond: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
@@ -32,14 +33,23 @@ html.dark .bdz {
   --good:#5fd3a0; --warn:#ffb84a; --bad:#f03a4e; --accent:#8fb6ff;
   --grid:rgba(255,255,255,.08);
 }
-html.dark .bdz .btn { background: #fff; color: #000; }
-html.dark .bdz .btn.ghost { background: transparent; color: var(--text-primary); }
-html.dark .bdz .card { position: relative; }
-html.dark .bdz .card::before, html.dark .bdz .card::after {
-  content: ""; position: absolute; width: 10px; height: 10px; pointer-events: none;
-  border: 1px solid var(--border-strong); }
-html.dark .bdz .card::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
-html.dark .bdz .card::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+.bdz .btn { background: var(--text-primary); color: var(--surface-0); border-color: var(--text-primary); }
+html.dark .bdz .btn { color: #000; }
+.bdz .btn:hover { background: var(--sx-fill-hover); border-color: var(--sx-fill-hover); }
+.bdz .btn.ghost { background: transparent; color: var(--text-primary); border-color: var(--border-strong); }
+.bdz .btn.ghost:hover { background: var(--surface-2); border-color: var(--text-primary); }
+/* Panel z narożnikiem HUD jak w gravity: jeden znacznik w lewym górnym rogu. */
+.bdz .card { position: relative; }
+.bdz .card::before { content: ""; position: absolute; top: -1px; left: -1px; width: 14px; height: 14px;
+  pointer-events: none; border-top: 1px solid var(--text-primary); border-left: 1px solid var(--text-primary); }
+/* Kafle KPI jak w poland: siatka z 1px przerw zamiast osobnych kart. */
+.bdz .grid.g4:has(> .tile) { gap: 1px; background: var(--border); border: 1px solid var(--border); }
+.bdz .grid.g4:has(> .tile) > .tile { border: 0; }
+.bdz .grid.g4:has(> .tile) > .tile::before { display: none; }
+html.dark .bdz .grid.g4:has(> .tile) > .tile { background: rgba(0,0,0,.82); }
+.bdz tbody tr { transition: background .18s; }
+.bdz .tabs button { transition: color .18s, box-shadow .18s; }
+.bdz .tabs button:hover { background: none; color: var(--text-primary); }
 
 .bdz *, .bdz *::before, .bdz *::after { box-sizing: border-box; }
 .bdz h1, .bdz h2, .bdz h3 { margin: 0; font-family: var(--cond); font-weight: 500;
@@ -53,8 +63,7 @@ html.dark .bdz .card::after { bottom: -1px; right: -1px; border-left: none; bord
 .bdz .tabs button { white-space: nowrap; background: none; border: 0; border-radius: 0;
   padding: 9px 12px; font: 500 12px/1 var(--cond); letter-spacing: .16em; text-transform: uppercase;
   color: var(--text-muted); cursor: pointer; }
-.bdz .tabs button:hover { background: var(--surface-2); color: var(--text-primary); }
-.bdz .tabs button[aria-current="true"] { background: var(--surface-2); color: var(--text-primary);
+.bdz .tabs button[aria-current="true"] { background: none; color: var(--text-primary);
   box-shadow: inset 0 -1px 0 var(--text-primary); }
 
 .bdz .page-head { display: flex; align-items: baseline; justify-content: space-between;
@@ -111,8 +120,8 @@ html.dark .bdz .card::after { bottom: -1px; right: -1px; border-left: none; bord
 .bdz .btn:disabled { opacity: .5; cursor: default; }
 .bdz .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
 
-.bdz .bar-track { background: var(--surface-2); border-radius: 1px; height: 7px; overflow: hidden; min-width: 70px; }
-.bdz .bar-fill { height: 100%; border-radius: 1px; }
+.bdz .bar-track { background: var(--grid); border-radius: 0; height: 2px; overflow: hidden; min-width: 70px; }
+.bdz .bar-fill { height: 100%; border-radius: 0; }
 .bdz .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
 .bdz .legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: baseline; }
 

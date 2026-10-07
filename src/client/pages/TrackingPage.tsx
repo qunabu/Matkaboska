@@ -1,3 +1,4 @@
+import Icon from '../components/Icon'
 import { useState } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { foodLogApi, waterApi, recipesApi, settingsApi, addDays } from '../lib/api'
@@ -112,13 +113,13 @@ function WeekSummary({ date, kcalTarget, proteinTarget, ironTarget, waterTarget 
     { label: pl.tracking.carbs, values: carbs, target: 250, color: 'bg-yellow-400', unit: 'g' },
     { label: pl.tracking.fat, values: fat, target: 80, color: 'bg-red-400', unit: 'g' },
     { label: pl.tracking.iron, values: iron, target: ironTarget, color: 'bg-emerald-500', unit: ' mg' },
-    { label: `💧 ${pl.tracking.water.title}`, values: glasses, target: waterTarget, color: 'bg-cyan-400', unit: ` ${pl.tracking.glassesShort}` },
+    { label: pl.tracking.water.title, values: glasses, target: waterTarget, color: 'bg-cyan-400', unit: ` ${pl.tracking.glassesShort}` },
   ]
 
   return (
     <div className="mb-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="font-semibold text-gray-900 dark:text-gray-100">📊 {pl.tracking.weekSummary}</h2>
+        <h2 className="font-semibold text-gray-900 dark:text-gray-100">{pl.tracking.weekSummary}</h2>
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setWeekEnd(addDays(weekEnd, -7))}
@@ -177,7 +178,7 @@ function AveragesSummary({ kcalTarget, proteinTarget, ironTarget, waterTarget }:
     { label: pl.tracking.carbs, key: 'carbs_g', unit: ' g', target: 250 },
     { label: pl.tracking.fat, key: 'fat_g', unit: ' g', target: 80 },
     { label: pl.tracking.iron, key: 'iron_mg', unit: ' mg', target: ironTarget },
-    { label: `💧 ${pl.tracking.water.title}`, key: 'glasses', unit: ` ${pl.tracking.glassesShort}`, target: waterTarget },
+    { label: pl.tracking.water.title, key: 'glasses', unit: ` ${pl.tracking.glassesShort}`, target: waterTarget },
   ]
 
   const windows: Array<{ title: string; w: AverageWindow | undefined; sub: string }> = [
@@ -200,7 +201,7 @@ function AveragesSummary({ kcalTarget, proteinTarget, ironTarget, waterTarget }:
 
   return (
     <div className="mb-4 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 dark:bg-gray-800 dark:ring-gray-700">
-      <h2 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">📈 {pl.tracking.avgTitle}</h2>
+      <h2 className="mb-3 font-semibold text-gray-900 dark:text-gray-100">{pl.tracking.avgTitle}</h2>
       {data && data.all.days === 0 ? (
         <p className="text-sm text-gray-400">{pl.tracking.avgNoData}</p>
       ) : (
@@ -662,7 +663,7 @@ export default function TrackingPage() {
                     : 'bg-gray-100 text-gray-600 hover:bg-primary-100 hover:text-primary-700 dark:bg-gray-700 dark:text-gray-200'
                 }`}
               >
-                {copiedId === entry.id ? `✓ ${pl.tracking.copied}` : `📋 ${pl.tracking.copyBtn}`}
+                {copiedId === entry.id ? `✓ ${pl.tracking.copied}` : <><Icon name="copy" size={12} className="inline-block align-[-2px]" /> {pl.tracking.copyBtn}</>}
               </button>
               <button
                 onClick={() => deleteEntry.mutate(entry.id)}
@@ -715,7 +716,7 @@ export default function TrackingPage() {
                 disabled={copyEntry.isPending || !copyDate}
                 className="flex-1 rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
               >
-                📋 {pl.tracking.copyBtn}
+                <Icon name="copy" size={14} className="inline-block align-[-2px]" /> {pl.tracking.copyBtn}
               </button>
             </div>
           </div>
