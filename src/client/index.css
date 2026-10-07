@@ -14,19 +14,39 @@
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 antialiased dark:text-gray-100;
+    @apply bg-gray-50 font-sans text-gray-900 antialiased dark:text-gray-100;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
-  /* SpaceX-style near-black canvas with a faint top glow in dark mode. */
+  /* SpaceX style (as in gravity / poland): pure black, a faint cold glow. */
   html.dark body {
-    background-color: #050506;
-    background-image:
-      radial-gradient(80rem 40rem at 50% -12rem, rgba(124, 58, 237, 0.14), transparent 60%),
-      radial-gradient(60rem 30rem at 100% 0, rgba(37, 99, 235, 0.08), transparent 55%);
+    background-color: #000;
+    background-image: radial-gradient(120% 70% at 70% -10%, #070b12 0%, #000 65%);
     background-attachment: fixed;
   }
+
+  /* Headings: condensed, uppercase, slightly tracked. */
+  h1, h2, h3 {
+    font-family: theme('fontFamily.cond');
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* Telemetry numerals everywhere they line up in columns. */
+  .num, .tabular-nums { font-family: theme('fontFamily.mono'); font-variant-numeric: tabular-nums; }
+
+  /* Primary actions: white fill with black text, as in the SpaceX chrome. */
+  html.dark .bg-primary-600 { background-color: #fff; color: #000; }
+  html.dark .bg-primary-600 svg { color: #000; }
+  html.dark .hover\:bg-primary-700:hover, html.dark .bg-primary-700 { background-color: #d9d9d9; color: #000; }
+  html.dark .bg-primary-600:disabled { background-color: rgba(255,255,255,0.28); }
+
+  /* Hairline rings and borders instead of grey blocks. */
+  html.dark .ring-gray-700, html.dark .dark\:ring-gray-700 { --tw-ring-color: rgba(255,255,255,0.14); }
+  html.dark .dark\:border-gray-700 { border-color: rgba(255,255,255,0.14); }
+  html.dark .dark\:border-gray-800 { border-color: rgba(255,255,255,0.10); }
 
   /* Global, restrained motion — everything eases rather than snaps. */
   a, button, input, textarea, select, [role="switch"], [role="button"] {
@@ -45,7 +65,9 @@
   html.dark ::-webkit-scrollbar { width: 8px; height: 8px; }
   html.dark ::-webkit-scrollbar-thumb { background: #26262c; border-radius: 8px; }
 
-  ::selection { background: rgba(124, 58, 237, 0.35); }
+  ::selection { background: rgba(143, 182, 255, 0.35); }
+
+  html.dark input, html.dark textarea, html.dark select { color-scheme: dark; }
 
   /* Respect safe areas on notched phones */
   .h-safe-area-inset-bottom {
@@ -59,6 +81,21 @@
   }
   /* Frosted panel used by the top bar / nav for the SpaceX chrome. */
   .glass {
-    @apply border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-white/10 dark:bg-ink-800/70;
+    @apply border-gray-200/80 bg-white/80 backdrop-blur-xl dark:border-white/10 dark:bg-black/75;
   }
+  /* Small uppercase monospace label — the HUD voice for eyebrows and captions. */
+  .hud-label {
+    font-family: theme('fontFamily.mono');
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+  /* HUD corner ticks for a framed panel. */
+  .hud-frame { position: relative; }
+  .hud-frame::before, .hud-frame::after {
+    content: ""; position: absolute; width: 10px; height: 10px; pointer-events: none;
+    border: 1px solid rgba(255,255,255,0.28);
+  }
+  .hud-frame::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+  .hud-frame::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
 }

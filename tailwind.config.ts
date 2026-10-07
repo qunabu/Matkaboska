@@ -8,28 +8,66 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      // SpaceX-style system, shared with the gravity and poland apps: pure black,
+      // hairline borders, condensed uppercase headings, monospace telemetry numbers.
+      fontFamily: {
+        sans: ['Barlow', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        cond: ['"Barlow Semi Condensed"', 'Barlow', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SF Mono', 'Menlo', 'monospace'],
+      },
       colors: {
-        // Tęczowa Madonna — violet accent
+        // Cool technical blue for live values and accents (gravity's --data).
         primary: {
-          50: '#f5f3ff',
-          100: '#ede9fe',
-          200: '#ddd6fe',
-          300: '#c4b5fd',
-          400: '#a78bfa',
-          500: '#8b5cf6',
-          600: '#7c3aed',
-          700: '#6d28d9',
-          800: '#5b21b6',
-          900: '#4c1d95',
+          50: '#eef4ff',
+          100: '#dde8ff',
+          200: '#c2d6ff',
+          300: '#8fb6ff',
+          400: '#6a9bf5',
+          500: '#4a7fe0',
+          600: '#3566c4',
+          700: '#2a52a0',
+          800: '#22427f',
+          900: '#1b3463',
         },
-        // SpaceX-ish near-black surfaces for dark mode.
+        // Neutral greys without the blue cast; the dark end is near-pure black.
+        gray: {
+          50: '#f7f7f7',
+          100: '#ededed',
+          200: '#dcdcdc',
+          300: '#bdbdbd',
+          400: '#8c8c8c',
+          500: '#6b6b6b',
+          600: '#4d4d4d',
+          700: '#262626',
+          800: '#0d0d0e',
+          900: '#060607',
+          950: '#000000',
+        },
         ink: {
-          900: '#050506',
-          800: '#0a0a0c',
-          700: '#111114',
-          600: '#17171b',
-          500: '#1e1e24',
+          900: '#000000',
+          800: '#050608',
+          700: '#0a0b0e',
+          600: '#111317',
+          500: '#181a1f',
         },
+      },
+      // Square, technical corners; only `rounded-full` stays round.
+      borderRadius: {
+        sm: '1px',
+        DEFAULT: '2px',
+        md: '2px',
+        lg: '3px',
+        xl: '4px',
+        '2xl': '4px',
+        '3xl': '6px',
+      },
+      boxShadow: {
+        sm: 'none',
+        DEFAULT: 'none',
+        md: 'none',
+        lg: '0 0 0 1px rgba(255,255,255,0.14)',
+        xl: '0 0 0 1px rgba(255,255,255,0.14)',
+        '2xl': '0 0 0 1px rgba(255,255,255,0.18)',
       },
       keyframes: {
         'fade-in-up': {
