@@ -11,6 +11,18 @@ import { suggestCategories } from '../budzet/classify-ai'
 import { resolveAnthropicKey } from './settings'
 
 const app = new Hono<AppEnv>()
+
+// Budżet to dane bankowe. Logowanie jest otwarte dla każdego konta Google, więc
+// moduł jest dostępny tylko z listy BUDZET_EMAILS (domyślnie: administratorzy).
+export function budzetAllowed(env: AppEnv['Bindings'], userId: string): boolean {
+  const list = String(env.BUDZET_EMAILS || env.ADMIN_EMAILS || 'qunabu.com@gmail.com')
+    .split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
+  return !!userId && list.includes(userId.toLowerCase())
+}
+app.use('*', async (c, next) => {
+  if (!budzetAllowed(c.env, c.var.userId)) return c.json({ error: 'forbidden' }, 403)
+  return next()
+})
 const store = (c: { env: { DB: unknown }; var: { userId: string } }) =>
   new Store(c.env.DB as never, c.var.userId)
 
@@ -115,9 +127,9 @@ app.get('/review-queue', async (c) => c.json(await A.reviewQueue(store(c))))
  * kategorii bankowych, więc dla danych z API to jedyne wsparcie poza regułami.
  */
 app.post('/ai-suggest', async (c) => {
-  // Klucz trzymany jest w ustawieniach użytkownika (tak jak dla makroskładników),
-  // a nie w sekretach Workera — sekret to tylko awaryjny fallback.
-  const apiKey = (await resolveAnthropicKey(c.env, c.var.userId)) || c.env.ANTHROPIC_API_KEY
+  // Klucz wyłącznie z ustawień użytkownika (tak jak dla makroskładników). Bez
+  // fallbacku na sekret Workera — inaczej każde konto płaciłoby Twoim kluczem.
+  const apiKey = await resolveAnthropicKey(c.env, c.var.userId)
   if (!apiKey) {
     return c.json({ error: 'Brak klucza Anthropic — uzupełnij go w Ustawieniach aplikacji' }, 400)
   }

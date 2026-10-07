@@ -52,8 +52,8 @@ app.get('/', async (c) => {
   const rows = await db
     .select({ entry: meal_plan_entries, recipe: recipes, product: products })
     .from(meal_plan_entries)
-    .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
-    .leftJoin(products, eq(meal_plan_entries.product_id, products.id))
+    .leftJoin(recipes, and(eq(meal_plan_entries.recipe_id, recipes.id), eq(recipes.user_id, meal_plan_entries.user_id)))
+    .leftJoin(products, and(eq(meal_plan_entries.product_id, products.id), eq(products.user_id, meal_plan_entries.user_id)))
     .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, from, to)))
     .orderBy(meal_plan_entries.date, meal_plan_entries.meal_type)
 
@@ -69,8 +69,8 @@ export async function loadFullPlan(env: Env, userId: string, from: string, to: s
   const rows = await db
     .select({ entry: meal_plan_entries, recipe: recipes, product: products })
     .from(meal_plan_entries)
-    .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
-    .leftJoin(products, eq(meal_plan_entries.product_id, products.id))
+    .leftJoin(recipes, and(eq(meal_plan_entries.recipe_id, recipes.id), eq(recipes.user_id, meal_plan_entries.user_id)))
+    .leftJoin(products, and(eq(meal_plan_entries.product_id, products.id), eq(products.user_id, meal_plan_entries.user_id)))
     .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, from, to)))
     .orderBy(meal_plan_entries.date, meal_plan_entries.meal_type)
 
@@ -166,7 +166,7 @@ app.put('/:date/:meal_type', async (c) => {
   }).returning()
 
   let product = null
-  if (row.product_id) { [product] = await db.select().from(products).where(eq(products.id, row.product_id)) }
+  if (row.product_id) { [product] = await db.select().from(products).where(and(eq(products.id, row.product_id), eq(products.user_id, userId))) }
   return c.json(parsePlanRow(row, null, product))
 })
 
@@ -186,7 +186,7 @@ app.patch('/:id/status', async (c) => {
   await db.delete(food_log).where(and(eq(food_log.portion, tag), eq(food_log.user_id, userId)))
 
   if (status === 'eaten' && row.recipe_id) {
-    const [recipe] = await db.select().from(recipes).where(eq(recipes.id, row.recipe_id))
+    const [recipe] = await db.select().from(recipes).where(and(eq(recipes.id, row.recipe_id), eq(recipes.user_id, userId)))
     if (recipe?.macros) {
       const m = JSON.parse(recipe.macros) as Macros
       const mult = row.servings ?? 1
@@ -204,7 +204,7 @@ app.patch('/:id/status', async (c) => {
       })
     }
   } else if (status === 'eaten' && row.product_id) {
-    const [product] = await db.select().from(products).where(eq(products.id, row.product_id))
+    const [product] = await db.select().from(products).where(and(eq(products.id, row.product_id), eq(products.user_id, userId)))
     if (product) {
       const g = row.grams ?? product.serving_g ?? 100
       const f = g / 100
@@ -223,7 +223,7 @@ app.patch('/:id/status', async (c) => {
   }
 
   let product = null
-  if (row.product_id) { [product] = await db.select().from(products).where(eq(products.id, row.product_id)) }
+  if (row.product_id) { [product] = await db.select().from(products).where(and(eq(products.id, row.product_id), eq(products.user_id, userId))) }
   return c.json(parsePlanRow(row, null, product))
 })
 

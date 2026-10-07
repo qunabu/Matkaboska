@@ -78,12 +78,20 @@ const ALL_NAV_ITEMS = [
 // Menu główne: cztery najważniejsze sekcje; cała reszta trafia pod „Więcej”.
 const MOBILE_PRIMARY = ['/', '/plan', '/tracking', '/budzet']
 
+// Budżet widzą tylko konta z dostępem (serwer i tak odpowiada 403 pozostałym).
+function useNavItems(modules: ReturnType<typeof useModuleSettings>) {
+  const { data: me } = useQuery({ queryKey: ['auth'], queryFn: authApi.me })
+  return ALL_NAV_ITEMS.filter(i =>
+    (!i.moduleKey || modules[i.moduleKey as keyof typeof modules]) &&
+    (i.to !== '/budzet' || me?.budzet !== false))
+}
+
 function BottomNav() {
   const location = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
   const modules = useModuleSettings()
 
-  const navItems = ALL_NAV_ITEMS.filter(i => !i.moduleKey || modules[i.moduleKey as keyof typeof modules])
+  const navItems = useNavItems(modules)
 
   // Pull the mobile-primary items to the front (keeping their order); anything hidden
   // by module settings just leaves its slot to the next item in nav order.
@@ -163,7 +171,7 @@ function BottomNav() {
 
 function SideNav() {
   const modules = useModuleSettings()
-  const navItems = ALL_NAV_ITEMS.filter(i => !i.moduleKey || modules[i.moduleKey as keyof typeof modules])
+  const navItems = useNavItems(modules)
 
   return (
     <aside className="glass hidden w-60 shrink-0 border-r md:flex md:flex-col">

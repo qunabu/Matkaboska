@@ -50,7 +50,7 @@ export function mapTransaction(t: EbTransaction, accountId: string, accountKey: 
 }
 
 /** Ostatnie cztery cyfry z etykiety rachunku — dla kart to jedyny wspólny
- *  mianownik między maską z wyciągu („5396********1087") a danymi z API. */
+ *  mianownik między maską z wyciągu („1234********5678") a danymi z API. */
 const last4 = (s?: string | null) => {
   const groups = (s ?? '').match(/\d{4,}/g)
   return groups?.length ? groups[groups.length - 1]!.slice(-4) : null

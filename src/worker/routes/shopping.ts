@@ -72,7 +72,7 @@ app.get('/:id/recipe-sources', async (c) => {
   if (from && to) {
     const items = await db.select().from(shopping_items).where(eq(shopping_items.list_id, listId))
     const planRows = await db.select({ recipe: recipes }).from(meal_plan_entries)
-      .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
+      .leftJoin(recipes, and(eq(meal_plan_entries.recipe_id, recipes.id), eq(recipes.user_id, meal_plan_entries.user_id)))
       .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, from, to)))
     const byKey = new Map<string, Map<number, { id: number; title: string; slug: string }>>()
     for (const { recipe } of planRows) {
@@ -208,7 +208,7 @@ async function aggregateShoppingItems(
 ): Promise<AggregatedItem[]> {
   const planRows = await db.select({ entry: meal_plan_entries, recipe: recipes })
     .from(meal_plan_entries)
-    .leftJoin(recipes, eq(meal_plan_entries.recipe_id, recipes.id))
+    .leftJoin(recipes, and(eq(meal_plan_entries.recipe_id, recipes.id), eq(recipes.user_id, meal_plan_entries.user_id)))
     .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, from, to)))
 
   const aggregated = new Map<string, { name: string; category: ShopCategory; units: Map<string, number> }>()
@@ -256,7 +256,7 @@ async function aggregateShoppingItems(
 
   const prodRows = await db.select({ entry: meal_plan_entries, product: products })
     .from(meal_plan_entries)
-    .innerJoin(products, eq(meal_plan_entries.product_id, products.id))
+    .innerJoin(products, and(eq(meal_plan_entries.product_id, products.id), eq(products.user_id, meal_plan_entries.user_id)))
     .where(and(eq(meal_plan_entries.user_id, userId), between(meal_plan_entries.date, from, to)))
   const prodAgg = new Map<number, { name: string; count: number; frisco: string | null }>()
   for (const { product } of prodRows) {

@@ -336,7 +336,7 @@ export const pushApi = {
 // ── Auth (CF Access / Google) ────────────────────────────────────────────────
 
 export const authApi = {
-  me: () => req<{ authed: boolean; email: string; isAdmin?: boolean }>('/auth/me'),
+  me: () => req<{ authed: boolean; email: string; isAdmin?: boolean; budzet?: boolean; googleEnabled?: boolean }>('/auth/me'),
   logout: () => req<ApiOk>('/auth/logout', { method: 'POST' }),
 }
 

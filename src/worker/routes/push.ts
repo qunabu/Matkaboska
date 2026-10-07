@@ -43,7 +43,13 @@ app.post('/subscribe', async (c) => {
   const userId = c.var.userId
   const body = await c.req.json()
   const parsed = z.object({
-    endpoint: z.string().url(),
+    // Tylko prawdziwe usługi push — inaczej serwer wysyłałby żądania pod dowolny adres.
+    endpoint: z.string().url().refine((u) => {
+      try {
+        const h = new URL(u)
+        return h.protocol === 'https:' && /(^|\.)(fcm\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.apple\.com)$/.test(h.hostname)
+      } catch { return false }
+    }, 'unsupported push endpoint'),
     keys: z.object({ p256dh: z.string(), auth: z.string() }),
     userAgent: z.string().optional(),
   }).safeParse(body)
@@ -284,7 +290,7 @@ export async function sendPushNotification(
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new PushError(`Push ${res.status} ${text}`.trim(), res.status)
+    throw new PushError(`Push ${res.status}`, res.status)
   }
 }
 

@@ -32,7 +32,9 @@ app.get('/:token', async (c) => {
   const items = await db.select().from(shopping_items)
     .where(eq(shopping_items.list_id, list.id))
     .orderBy(shopping_items.sort_order, shopping_items.category)
-  return c.json({ ...list, items })
+  // Anonimowy odbiorca linku nie potrzebuje e-maila właściciela ani samego tokenu.
+  const { user_id: _owner, share_token: _token, ...publicList } = list
+  return c.json({ ...publicList, items })
 })
 
 // POST /api/s/:token/items — add an item to a shared list

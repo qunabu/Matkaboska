@@ -21,6 +21,8 @@ export type Env = {
   ALLOWED_GOOGLE_EMAILS?: string        // comma list of exact emails; empty = not restricted
   // Used in local dev when Google OAuth is not configured
   DEV_USER_EMAIL?: string
+  /** Kto ma dostęp do modułu Budżet (lista e-maili po przecinku). Domyślnie ADMIN_EMAILS. */
+  BUDZET_EMAILS?: string
   // Account whose recipes new/empty users may import as a starter set.
   STARTER_RECIPES_USER?: string
   // Comma-separated admin emails (see the admin panel + delete accounts).

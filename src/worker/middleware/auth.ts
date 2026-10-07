@@ -45,16 +45,26 @@ function deviceAllowed(method: string, path: string): boolean {
   return false
 }
 
-// Resolve the tenant (userId = Google email) from the session cookie, or fall
-// back to DEV_USER_EMAIL when Google OAuth isn't configured (local dev).
+// Resolve the tenant (userId = Google email) from the session cookie.
 // Protected endpoints require a session; public ones pass through.
+//
+// Without Google OAuth configured, only a request to localhost is signed in as
+// DEV_USER_EMAIL. Anywhere else it stays anonymous: a production deploy that
+// lost its OAuth secrets must lock everyone out, not hand every visitor the
+// owner's account (and the budget with it).
+const isLocalHost = (hostname: string) =>
+  hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'
+
 export const accessAuth = createMiddleware<AppEnv>(async (c, next) => {
-  const path = new URL(c.req.url).pathname
+  const url = new URL(c.req.url)
+  const path = url.pathname
   let userId = ''
   let authKind: 'session' | 'device' | 'none' = 'none'
   if (!googleEnabled(c.env)) {
-    userId = c.env.DEV_USER_EMAIL || 'dev@localhost'
-    authKind = 'session'
+    if (isLocalHost(url.hostname)) {
+      userId = c.env.DEV_USER_EMAIL || 'dev@localhost'
+      authKind = 'session'
+    }
   } else {
     const token = readCookie(c.req.raw, 'sid')
     if (token) userId = (await sessionEmail(c.env, token)) || ''

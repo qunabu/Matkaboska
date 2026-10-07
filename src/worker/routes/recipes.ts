@@ -240,7 +240,7 @@ app.delete('/:id/notes/:noteId', async (c) => {
   const [recipe] = await db.select({ id: recipes.id }).from(recipes)
     .where(and(eq(recipes.id, recipe_id), eq(recipes.user_id, userId)))
   if (!recipe) return c.json({ error: 'Not found' }, 404)
-  await db.delete(recipe_notes).where(eq(recipe_notes.id, noteId))
+  await db.delete(recipe_notes).where(and(eq(recipe_notes.id, noteId), eq(recipe_notes.recipe_id, recipe_id)))
   return c.json({ ok: true })
 })
 

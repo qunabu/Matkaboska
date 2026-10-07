@@ -22,6 +22,11 @@ const USER_TABLES = [
   'supplements', 'shopping_lists', 'reminders', 'todos', 'ideas', 'sessions',
   'chores', 'habits', 'pantry_items', 'voice_notes', 'push_subscriptions',
   'notifications', 'settings', 'products',
+  'block_rules', 'block_devices', 'block_usage', 'block_stats',
+  // Dane finansowe — usunięcie konta musi je zabrać razem z resztą.
+  'budzet_transactions', 'budzet_accounts', 'budzet_imports', 'budzet_rules', 'budzet_budgets',
+  'budzet_settings', 'budzet_net_worth_items', 'budzet_accruals', 'budzet_reserves',
+  'budzet_category_targets', 'budzet_bank_connections', 'budzet_bank_accounts',
 ]
 
 async function groupCount(db: D1Database, table: string): Promise<Map<string, number>> {

@@ -1,5 +1,4 @@
 import { Hono } from 'hono'
-import { cors } from 'hono/cors'
 import type { AppEnv } from './types'
 import { BUILD_SHA, BUILD_VERSION, BUILT_AT } from '../shared/build-info'
 import { accessAuth } from './middleware/auth'
@@ -39,7 +38,6 @@ import { DEFAULT_SETTINGS } from '../shared/types'
 
 const api = new Hono<AppEnv>()
 
-api.use('*', cors())
 api.use('*', accessAuth)
 
 // Shared shopping list — any authenticated user with the token can view/add items
@@ -84,6 +82,39 @@ api.route('/api/chores', choresRouter)
 api.route('/api/budzet', budzetRouter)
 
 type AssetsBinding = { fetch: (r: Request) => Promise<Response> }
+
+// The app holds bank data, so the browser gets the strict defaults: no framing,
+// no sniffing, no referrer leaking paths, HTTPS only, and a CSP that allows
+// scripts from this origin alone. Styles allow 'unsafe-inline' for React style
+// props; fonts come from Google Fonts. The microphone is used by voice notes.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' blob:",
+  "connect-src 'self'",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ')
+
+function withSecurityHeaders(res: Response, html: boolean): Response {
+  const out = new Response(res.body, res)
+  const h = out.headers
+  h.set('X-Content-Type-Options', 'nosniff')
+  h.set('X-Frame-Options', 'DENY')
+  h.set('Referrer-Policy', 'no-referrer')
+  h.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  h.set('Permissions-Policy', 'camera=(), geolocation=(), payment=(), microphone=(self)')
+  h.set('Cross-Origin-Opener-Policy', 'same-origin')
+  if (html) h.set('Content-Security-Policy', CSP)
+  return out
+}
 
 type BatchItem = { payload: PushPayload; commit: () => Promise<void> }
 
@@ -135,7 +166,7 @@ export default {
     const url = new URL(request.url)
 
     if (url.pathname.startsWith('/api/')) {
-      return api.fetch(request, env, ctx)
+      return withSecurityHeaders(await api.fetch(request, env, ctx), false)
     }
 
     const assets = env.ASSETS as unknown as AssetsBinding
@@ -157,7 +188,7 @@ export default {
       res.headers.set('Cache-Control', 'no-store, must-revalidate')
     }
 
-    return res
+    return withSecurityHeaders(res, ct.includes('text/html'))
   },
 
   async scheduled(_event: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {

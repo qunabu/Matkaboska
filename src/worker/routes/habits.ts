@@ -135,6 +135,11 @@ app.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'))
   const userId = c.var.userId
   const db = getDb(c.env.DB)
+  // Check-ins carry no user_id, so ownership is proven on the habit first —
+  // otherwise any account could wipe another's history by guessing ids.
+  const [own] = await db.select({ id: habits.id }).from(habits)
+    .where(and(eq(habits.id, id), eq(habits.user_id, userId)))
+  if (!own) return c.json({ error: 'Not found' }, 404)
   await db.delete(habit_checkins).where(eq(habit_checkins.habit_id, id))
   await db.delete(habits).where(and(eq(habits.id, id), eq(habits.user_id, userId)))
   return c.json({ ok: true })
