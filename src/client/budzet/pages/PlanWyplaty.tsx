@@ -177,11 +177,21 @@ export default function PlanWyplaty({ months }: any) {
                         ? <> — odkładasz o {pln2(p.subkonto.vs_provision)} więcej, niż narosło.</>
                         : <> — dokładnie tyle.</>}
                   </>
+                ) : p.subkonto.mode === 'top_up' ? (
+                  <>Dopełnienie do należności: subkonto ma mieć {pln2(p.subkonto.required)} (VAT narosły w kwartale,
+                    PIT i ZUS do najbliższego terminu, faktury za biuro i stałe opłaty), a ma {pln2(p.subkonto.balance)}.
+                    {p.subkonto.total === 0 && <> Saldo wystarcza — nic nie przelewasz.</>}</>
                 ) : (
                   <>Podatki narosłe w tym miesiącu: VAT od tej faktury, PIT-28, ZUS
                     i rata na zobowiązania z terminem.</>
                 )}
               </Step>
+              {p.subkonto.sweep > 0 && (
+                <Step n="1b" title={`${A('tax', 'Subkonto')} → ${A('hub', 'konto prywatne')} (nadwyżka)`}
+                      amount={p.subkonto.sweep} tone="pos">
+                  Subkonto ma więcej, niż wynoszą należności — nadwyżka wraca do oszczędności.
+                </Step>
+              )}
               <Step n="2" title={`Zostaw na ${A('business', 'koncie firmowym')}`} amount={p.company.keep}>
                 Mediana kosztów firmowych opłacanych bezpośrednio z rachunku bieżącego (paliwo, narzędzia, usługi).
                 Docelowy bufor: {pln(p.company.buffer_target)}.
@@ -203,7 +213,7 @@ export default function PlanWyplaty({ months }: any) {
               <Step n="7" title={`Zostaw na ${A('hub', 'konto prywatne')} na własne wydatki`} amount={p.private.pko_spend}>
                 Suma kategorii przypisanych do tego konta w zakładce <strong>Struktura kont</strong>.
               </Step>
-              <Step n="8" title="Zostaje jako oszczędności" amount={p.private.savings}
+              <Step n="8" title="Zostaje jako oszczędności" amount={p.private.savings_with_sweep ?? p.private.savings}
                     tone={p.private.savings >= 0 ? 'pos' : 'neg'}>
                 {p.private.savings < 0
                   ? 'Ujemne — w tym miesiącu nie odłożysz nic i musisz sięgnąć do zapasu.'
@@ -220,6 +230,12 @@ export default function PlanWyplaty({ months }: any) {
                   <tr style={{ borderTop: '2px solid var(--border-strong)' }}>
                     <td><strong>Narosło w tym miesiącu</strong></td>
                     <td className="num"><strong>{pln2(p.subkonto.provision)}</strong></td></tr>
+                  {p.subkonto.mode === 'top_up' && (<>
+                    <tr><td>Należne na dziś (z VAT-em całego kwartału)</td><td className="num">{pln2(p.subkonto.required)}</td></tr>
+                    <tr><td>Saldo subkonta</td><td className="num">−{pln2(p.subkonto.balance)}</td></tr>
+                    <tr><td><strong>Przelewasz</strong></td>
+                      <td className="num"><strong className="warnc">{pln2(p.subkonto.total)}</strong></td></tr>
+                  </>)}
                   {p.subkonto.mode === 'fixed' && (
                     <tr><td><strong>Przelewasz (stała kwota)</strong></td>
                       <td className="num"><strong className="warnc">{pln2(p.subkonto.total)}</strong></td></tr>

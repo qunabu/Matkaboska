@@ -174,7 +174,7 @@ export async function outstandingAccruals(s: Store) {
 
 /** Ile z zobowiązań powinno już leżeć na rezerwie w danym miesiącu. */
 export async function accrualSchedule(s: Store, month: string) {
-  let requiredSoFar = 0, monthlyInstalment = 0
+  let requiredSoFar = 0, monthlyInstalment = 0, dueNow = 0
   const items = []
   for (const a of await accruals(s)) {
     if (a.settled) continue
@@ -187,12 +187,17 @@ export async function accrualSchedule(s: Store, month: string) {
     const done = Math.min(a.instalments!, Math.max(0, monthDiff(a.save_from, month) + 1))
     // Rata spłacająca wychodzi z subkonta od razu, więc nic nie musi tam na nią leżeć.
     const req = a.pays_down ? 0 : a.instalment! * done
-    if (month <= a.due_month && month >= a.save_from) { requiredSoFar += req; monthlyInstalment += a.instalment! }
+    if (month <= a.due_month && month >= a.save_from) {
+      requiredSoFar += req; monthlyInstalment += a.instalment!
+      if (a.pays_down) dueNow += a.instalment!
+    }
     items.push({ name: a.name, due_month: a.due_month, instalment: round(a.instalment!),
       instalments: a.instalments, instalments_done: done, pays_down: a.pays_down,
       required_so_far: round(req), total_at_due: round(a.total_at_due) })
   }
-  return { month, required_so_far: round(requiredSoFar), monthly_instalment: round(monthlyInstalment), items }
+  return { month, required_so_far: round(requiredSoFar), monthly_instalment: round(monthlyInstalment),
+    /** Raty spłacające, które wychodzą z subkonta w tym miesiącu. */
+    due_now: round(dueNow), items }
 }
 
 /* ---------------- rezerwy cykliczne ---------------- */
@@ -707,6 +712,10 @@ export async function payoutDefaults(s: Store) {
   const nMonths = completeMonths(await monthlyWaterfall(s)).length || 1
   const adhocHousehold = otherHhRows.reduce((a, b) => a + b.t, 0) / nMonths
 
+  // Tylko ostatnie miesiące: opłaty przenoszone na inne konto (np. polisa) długo
+  // wisiałyby w medianie z całej historii jako zapas, którego subkonto nie potrzebuje.
+  const allMonths = await months(s)
+  const recentFrom = monthAdd(allMonths[allMonths.length - 1] || new Date().toISOString().slice(0, 7), -3)
   const subkontoOther = cfg.account_tax
     ? await medianMonthlySpend(s,
         `SELECT month, -SUM(amount) t FROM budzet_transactions
@@ -718,7 +727,8 @@ export async function payoutDefaults(s: Store) {
                                      WHERE user_id = ?1 AND active = 1 AND target = 'tax')
             AND category_id NOT IN (SELECT category_id FROM budzet_accruals
                                      WHERE user_id = ?1 AND settled = 0 AND pays_down = 1)
-          GROUP BY month`, [s.userId, cfg.account_tax])
+            AND month >= ?3
+          GROUP BY month`, [s.userId, cfg.account_tax, recentFrom])
     : 0
 
   const zusRows = await s.all<{ z: number }>(
@@ -801,13 +811,17 @@ export async function subkontoReserve(s: Store, o: { planMonth?: string; planned
     : null
   const balance = bal?.b ?? null
 
-  const required = Math.max(0, vatDue - vatPaid) + pitDue + d.zus_monthly + d.subkonto_other_monthly + sched.required_so_far
+  // Faktury płacone z subkonta w tym miesiącu: raty zaległości i rezerwy subkonta (np. bieżąca faktura za biuro).
+  const rp = await reservesPlan(s, month)
+  const billsNow = sched.due_now + (rp.by_target.tax ?? 0)
+  const required = Math.max(0, vatDue - vatPaid) + pitDue + d.zus_monthly + d.subkonto_other_monthly
+    + sched.required_so_far + billsNow
   return {
     plan_month: month, quarter: quarterLabel(month), quarter_gross: round(quarterGross),
     vat_cleared_through: clearedThrough,
     vat_due: round(Math.max(0, vatDue - vatPaid)), pit_due: round(pitDue),
     zus_due: round(d.zus_monthly), other_due: round(d.subkonto_other_monthly),
-    accrued_liabilities: round(sched.required_so_far), accrual_schedule: sched,
+    accrued_liabilities: round(sched.required_so_far), bills_now: round(billsNow), accrual_schedule: sched,
     required: round(required), balance,
     transfer: balance == null ? null : round(Math.max(0, required - balance)),
     surplus: balance == null ? null : round(Math.max(0, balance - required)),
@@ -850,7 +864,12 @@ export async function payoutPlan(s: Store, o: {
   // (np. rozłożenie zobowiązania na więcej miesięcy niż do terminu), nie
   // wypadkowa historii. Tak samo działa `household_fixed`.
   const fixedSub = cfgAll.subkonto_fixed !== '' ? num(cfgAll.subkonto_fixed, 0) : null
-  const toSubkonto = fixedSub ?? provision
+  // Domyślnie subkonto trzyma tylko to, co już jest należne (VAT narosły w kwartale,
+  // PIT i ZUS do najbliższego terminu, faktury płacone z subkonta). Przelew dopełnia
+  // saldo do tej kwoty, a nadwyżka wraca na konto prywatne — bez poduszki na subkoncie.
+  const topUp = res.transfer
+  const sweep = fixedSub == null && res.surplus != null ? res.surplus : 0
+  const toSubkonto = fixedSub ?? topUp ?? provision
 
   const keepCompany = round(d.company_costs_monthly + resFor('business'))
   const toPrivate = round(gross - toSubkonto - keepCompany)
@@ -924,7 +943,10 @@ export async function payoutPlan(s: Store, o: {
     subkonto: {
       total: round(toSubkonto), provision, provision_steady: steadyProvision, catch_up: catchUp,
       /** Skąd wzięła się kwota: sztywne ustawienie czy prowizja za ten miesiąc. */
-      mode: fixedSub == null ? 'provision' : 'fixed',
+      mode: fixedSub != null ? 'fixed' : topUp != null ? 'top_up' : 'provision',
+      /** Nadwyżka subkonta ponad należności — do przelania na konto prywatne. */
+      sweep: round(sweep),
+      required: res.required, balance: res.balance,
       fixed: fixedSub,
       /** Ile musiałoby wejść, żeby subkonto pokrywało całe naliczone zobowiązanie. */
       required_transfer: res.transfer,
@@ -943,7 +965,9 @@ export async function payoutPlan(s: Store, o: {
       ],
     },
     company: { keep: keepCompany, buffer_target: d.company_buffer_target },
-    private: { total: toPrivate, ing: toIng, adhoc: toHouseholdAdhoc, mbank: toMbank, pko_spend: pkoSpend, savings },
+    private: { total: toPrivate, ing: toIng, adhoc: toHouseholdAdhoc, mbank: toMbank, pko_spend: pkoSpend, savings,
+      /** Oszczędności razem z nadwyżką odesłaną z subkonta. */
+      savings_with_sweep: round(savings + sweep) },
     steady: {
       savings: savingsSteady,
       pko_spend: round(pkoSpend),
@@ -959,7 +983,7 @@ export async function payoutPlan(s: Store, o: {
       plan_vs_actual: round(plannedSpend - avgSpendNoTravel),
       // Gdy stała kwota jest niższa od narosłych podatków, `savings` jest zawyżone
       // o tę różnicę: te pieniądze zostały na koncie, ale są już komuś należne.
-      subkonto_underfunded: round(Math.max(0, provision - toSubkonto)),
+      subkonto_underfunded: fixedSub == null ? 0 : round(Math.max(0, provision - toSubkonto)),
     },
   }
 }
