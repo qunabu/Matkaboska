@@ -24,17 +24,23 @@ try {
   const input = readFileSync(source)
   const readOpts = source.endsWith('.svg') ? { density: 512 } : {}
   const pngOpts = { quality: 82, compressionLevel: 9, effort: 10 }
-  // The master is fine line art; scaled down it vanishes. Smaller sizes use
-  // pre-thickened copies (icon-master-small/-tiny.png) when they exist.
-  const variant = (name) => (existsSync(join(iconsDir, name)) ? readFileSync(join(iconsDir, name)) : input)
-  const small = source === masterPng ? variant('icon-master-small.png') : input
-  const tiny = source === masterPng ? variant('icon-master-tiny.png') : input
-  for (const [size, img] of [[192, small], [512, input]]) {
-    const png = await sharp(img, readOpts).resize(size, size).png(pngOpts).toBuffer()
-    writeFileSync(join(iconsDir, `icon-${size}.png`), png)
+  // The artwork runs almost to the edges; Android crops icons to a circle or
+  // squircle (maskable safe zone = the central 80%). A black margin keeps the
+  // hands and the halo inside it on every launcher.
+  const PAD = 0.12
+  const padded = async (size) => {
+    const inner = Math.round(size * (1 - 2 * PAD))
+    const art = await sharp(input, readOpts).resize(inner, inner).toBuffer()
+    const off = Math.round((size - inner) / 2)
+    return sharp({ create: { width: size, height: size, channels: 3, background: '#000000' } })
+      .composite([{ input: art, left: off, top: off }]).png(pngOpts).toBuffer()
+  }
+  for (const size of [192, 512]) {
+    writeFileSync(join(iconsDir, `icon-${size}.png`), await padded(size))
     console.log(`  ✓ public/icons/icon-${size}.png`)
   }
-  const fav = await sharp(tiny, readOpts).resize(48, 48).png({ compressionLevel: 9 }).toBuffer()
+  // The favicon is never masked, so it uses the whole square.
+  const fav = await sharp(input, readOpts).resize(48, 48).png({ compressionLevel: 9 }).toBuffer()
   writeFileSync(join(iconsDir, 'favicon-48.png'), fav)
   console.log('  ✓ public/icons/favicon-48.png')
 } catch (err) {
