@@ -1,5 +1,6 @@
 import React from 'react';
 import { pln, pct } from './api.js';
+import Loader from '../components/Loader';
 
 export const Card = ({ title, children, style, actions }: any) => (
   <div className="card" style={style}>
@@ -55,3 +56,6 @@ export function Tooltip({ active, payload, label, fmt = pln, labelFmt = (l: any)
     </div>
   );
 }
+
+/** Ładowanie w module Budżet — ta sama orbita z paskiem co w reszcie aplikacji. */
+export const Loading = () => <Loader className="py-16" />;

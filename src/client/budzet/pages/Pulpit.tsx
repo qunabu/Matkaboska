@@ -1,12 +1,12 @@
 import React from 'react';
 import { BarChart, Bar as RBar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RT, Cell, ReferenceLine, ComposedChart, Line } from 'recharts';
-import { Card, Tile, Money, Tooltip, Legend, Empty } from '../ui';
+import { Card, Tile, Money, Tooltip, Legend, Loading } from '../ui';
 import { pln, pct, MONTH_LABEL } from '../api';
 
 const axis = { stroke: 'var(--text-muted)', fontSize: 11 };
 
 export default function Pulpit({ data }: any) {
-  if (!data) return <Empty>Ładowanie…</Empty>;
+  if (!data) return <Loading />;
   const { waterfall, ratios, safe_to_save, emergency, coverage, complete_months,
           accruals = [], outstanding_accruals } = data;
   const openAccruals = accruals.filter((a: any) => !a.settled);

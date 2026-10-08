@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Empty } from '../ui';
+import { Card, Loading } from '../ui';
 import { get, patch, pln2, MONTH_LABEL } from '../api';
 
 export default function Transakcje({ categories, months, accounts, initialMerchant }: any) {
@@ -43,7 +43,7 @@ export default function Transakcje({ categories, months, accounts, initialMercha
         {d && <span className="muted">{d.total} pozycji · suma {pln2(d.sum)}</span>}
       </div>
       <Card>
-        {!d ? <Empty>Ładowanie…</Empty> : (
+        {!d ? <Loading /> : (
           <div className="tallscroll" style={{ maxHeight: 700 }}>
             <table>
               <thead><tr><th>Data</th><th>Konto</th><th>Sprzedawca / opis</th><th className="num">Kwota</th><th style={{ minWidth: 180 }}>Kategoria</th><th>Typ</th></tr></thead>

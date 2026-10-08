@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Card, Empty } from '../ui';
+import { Card, Loading } from '../ui';
 import { get, put, post, del, pln } from '../api';
 
 const LABELS = {
@@ -36,7 +36,7 @@ export default function Ustawienia({ onChanged }: any) {
     get('/api/bank/status').then(setBank).catch(() => setBank({ configured: false, connections: [] }));
   };
   useEffect(() => { load(); }, []);
-  if (!s) return <Empty>Ładowanie…</Empty>;
+  if (!s) return <Loading />;
 
   const save = async (k: string, v: any) => { await put('/api/settings', { [k]: v }); setS({ ...s, [k]: v }); onChanged?.(); };
 
@@ -85,7 +85,7 @@ export default function Ustawienia({ onChanged }: any) {
         <p>Co miesiąc pobierz nowe wyciągi i wrzuć je tutaj. Duplikaty są wykrywane po numerze referencyjnym, więc nakładające się okresy nie zaburzą danych — możesz spokojnie wgrać cały rok jeszcze raz.</p></div></div>
 
       <Card title="Automatyczne pobieranie z banku" style={{ marginBottom: 12 }}>
-        {!bank ? <p className="muted">Ładowanie…</p> : !bank.configured ? (
+        {!bank ? <Loading /> : !bank.configured ? (
           <p className="muted" style={{ marginTop: 0, fontSize: 12.5 }}>
             Integracja nie jest skonfigurowana. Wymaga aplikacji w Enable Banking
             (identyfikator + klucz prywatny ustawione jako sekrety Workera).

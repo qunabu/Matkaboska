@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Empty } from '../ui';
+import { Card, Empty, Loading } from '../ui';
 import { get, pln, MONTH_LABEL } from '../api';
 
 export default function Anomalie({ months }: any) {
   const [m, setM] = useState('');
   const [d, setD] = useState<any>(null);
   useEffect(() => { get(`/api/anomalies${m ? `?month=${m}` : ''}`).then(setD); }, [m]);
-  if (!d) return <Empty>Ładowanie…</Empty>;
+  if (!d) return <Loading />;
   const up = d.items.filter((i: any) => i.delta > 0);
   const down = d.items.filter((i: any) => i.delta < 0);
 

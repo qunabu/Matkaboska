@@ -1,6 +1,7 @@
 import { useEffect, useState, lazy, Suspense } from 'react'
 import { get } from './api'
 import './budzet.css'
+import { Loading } from './ui'
 
 const Pulpit = lazy(() => import('./pages/Pulpit'))
 const PlanWyplaty = lazy(() => import('./pages/PlanWyplaty'))
@@ -96,7 +97,9 @@ export default function BudzetShell() {
         </div>
       )}
 
-      <Suspense fallback={<div className="muted" style={{ padding: 24 }}>Ładowanie…</div>}>
+      {/* Zakładka wchodzi tak samo jak strona: uniesienie, wyostrzenie, kaskada bloków. */}
+      <div key={tab} className="sx-route">
+      <Suspense fallback={<Loading />}>
         {tab === 'pulpit' && <Pulpit data={overview} />}
         {tab === 'plan' && <PlanWyplaty months={months} />}
         {tab === 'kategorie' && <Kategorie />}
@@ -111,6 +114,7 @@ export default function BudzetShell() {
         {tab === 'struktura' && <Struktura onChanged={reload} />}
         {tab === 'ustawienia' && <Ustawienia onChanged={reload} />}
       </Suspense>
+      </div>
     </div>
   )
 }

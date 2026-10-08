@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Empty, Tile, Money } from '../ui';
+import { Card, Empty, Tile, Money, Loading } from '../ui';
 import Przeplyw from '../Przeplyw';
 import { get, post, pln, pln2, MONTH_LABEL } from '../api';
 
@@ -44,7 +44,7 @@ export default function PlanWyplaty({ months }: any) {
     }).then(setPlan);
   }, [amount, month, bonus, JSON.stringify(ov)]);
 
-  if (!base) return <Empty>Ładowanie…</Empty>;
+  if (!base) return <Loading />;
   const p = plan;
   // Nazwa rachunku z danych banku; fallback, gdy rola konta nie jest ustawiona.
   const A = (k: string, fallback: string) => p?.accounts?.[k] || fallback;

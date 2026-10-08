@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Empty, Bar, Tile } from '../ui';
+import { Card, Empty, Bar, Tile, Loading } from '../ui';
 import { get, put, del, pln, MONTH_LABEL } from '../api';
 
 export default function Budzety({ months }: any) {
@@ -8,7 +8,7 @@ export default function Budzety({ months }: any) {
   const [draft, setDraft] = useState<any>({});
   const load = () => get(`/api/budgets${m ? `?month=${m}` : ''}`).then(setD);
   useEffect(() => { load(); }, [m]);
-  if (!d) return <Empty>Ładowanie…</Empty>;
+  if (!d) return <Loading />;
 
   const applyAll = async () => {
     await put('/api/budgets', { items: d.suggested.map((s: any) => ({ category_id: s.category_id, monthly_limit: s.suggested, source: 'suggested' })) });

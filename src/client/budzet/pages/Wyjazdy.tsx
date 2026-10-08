@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Empty, Tile } from '../ui';
+import { Card, Empty, Tile, Loading } from '../ui';
 import { get, pln } from '../api';
 
 export default function Wyjazdy() {
   const [rows, setRows] = useState<any>(null);
   useEffect(() => { get('/api/trips').then(setRows); }, []);
-  if (!rows) return <Empty>Ładowanie…</Empty>;
+  if (!rows) return <Loading />;
   const trips = rows.filter((r: any) => r.type === 'wyjazd');
   const bookings = rows.filter((r: any) => r.type === 'rezerwacja');
   const total = rows.reduce((a: any, b: any) => a + b.travel_cost, 0);

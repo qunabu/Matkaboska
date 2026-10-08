@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Empty } from '../ui';
+import { Card, Empty, Loading } from '../ui';
 import { get, post, pln } from '../api';
 
 export default function Kolejka({ categories, onChanged }: any) {
@@ -10,7 +10,7 @@ export default function Kolejka({ categories, onChanged }: any) {
   const [aiMsg, setAiMsg] = useState<string | null>(null);
   const load = () => get('/api/review-queue').then(setRows);
   useEffect(() => { load(); }, []);
-  if (!rows) return <Empty>Ładowanie…</Empty>;
+  if (!rows) return <Loading />;
   if (!rows.length) return (<><div className="page-head"><h1>Do sklasyfikowania</h1></div><Empty>Wszystko sklasyfikowane.</Empty></>);
 
   const askAi = async () => {

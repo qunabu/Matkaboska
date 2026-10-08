@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BarChart, Bar as RBar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RT, Legend as RL } from 'recharts';
-import { Card, Empty, Bar, Tooltip } from '../ui';
+import { Card, Empty, Bar, Tooltip, Loading } from '../ui';
 import { get, pln, MONTH_LABEL, SERIES } from '../api';
 
 const axis = { stroke: 'var(--text-muted)', fontSize: 11 };
@@ -14,7 +14,7 @@ export default function Kategorie() {
   useEffect(() => { get(`/api/categories${scope === '' ? '' : `?business=${scope}`}`).then(setD); }, [scope]);
   useEffect(() => { if (open) get(`/api/category/${open}`).then(setDetail); else setDetail(null); }, [open]);
 
-  if (!d) return <Empty>Ładowanie…</Empty>;
+  if (!d) return <Loading />;
   // Transfery to przepływy, nie konsumpcja — pokazujemy je osobno, żeby nie
   // przytłaczały rankingu (przelew do gospodarstwa jest większy niż wszystko inne).
   const transfers = d.breakdown.filter((r: any) => r.group === 'Transfery');

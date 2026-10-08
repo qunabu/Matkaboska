@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Empty, Tile } from '../ui';
+import { Card, Empty, Tile, Loading } from '../ui';
 import { get, post, del, patch, pln, MONTH_LABEL } from '../api';
 
 export default function Majatek({ onChanged }: any) {
@@ -12,7 +12,7 @@ export default function Majatek({ onChanged }: any) {
   const [af, setAf] = useState({ name: '', start_month: '', amount_net: '', vat_rate: '0.23' });
   const load = () => { get('/api/net-worth').then(setNw); get('/api/accounts').then(setAcc); get('/api/accruals').then(setAcr); get('/api/reserves').then(setRsv); };
   useEffect(() => { load(); }, []);
-  if (!nw) return <Empty>Ładowanie…</Empty>;
+  if (!nw) return <Loading />;
 
   const saveBalance = async (id: string, v: any) => { await patch(`/api/accounts/${id}`, { current_balance: Number(v) }); load(); onChanged?.(); };
   const add = async () => {
@@ -81,7 +81,7 @@ export default function Majatek({ onChanged }: any) {
           <input type="number" step="0.01" placeholder="VAT" value={af.vat_rate} onChange={(e: any) => setAf({ ...af, vat_rate: e.target.value })} style={{ width: 80 }} />
           <button className="btn" onClick={addAccrual}>Dodaj</button>
         </div>
-        {!acr ? <Empty>Ładowanie…</Empty> : !acr.items.length ? <Empty>Brak zobowiązań.</Empty> : (
+        {!acr ? <Loading /> : !acr.items.length ? <Empty>Brak zobowiązań.</Empty> : (
           <div className="scroll"><table>
             <thead><tr><th>Pozycja</th><th>Okres</th><th className="num">Mies.</th><th className="num">Netto/mies.</th>
               <th className="num">Brutto razem</th><th className="num">VAT (odzyskiwalny)</th><th className="num">Realny koszt</th><th></th></tr></thead>
@@ -131,7 +131,7 @@ export default function Majatek({ onChanged }: any) {
           <button className="btn" onClick={() => addReserve()}>Dodaj</button>
         </div>
 
-        {!rsv ? <Empty>Ładowanie…</Empty> : !rsv.plan.items.length ? (
+        {!rsv ? <Loading /> : !rsv.plan.items.length ? (
           <Empty>Brak rezerw. Dodaj powyżej albo wybierz z podpowiedzi poniżej.</Empty>
         ) : (
           <div className="scroll"><table>

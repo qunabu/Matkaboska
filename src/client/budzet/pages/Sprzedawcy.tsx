@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Empty, Bar } from '../ui';
+import { Card, Bar, Loading } from '../ui';
 import { get, pln, pln2 } from '../api';
 
 export default function Sprzedawcy({ onDrill }: any) {
@@ -7,7 +7,7 @@ export default function Sprzedawcy({ onDrill }: any) {
   const [scope, setScope] = useState('0');
   const [q, setQ] = useState('');
   useEffect(() => { get(`/api/merchants?limit=150${scope === '' ? '' : `&business=${scope}`}`).then(setRows); }, [scope]);
-  if (!rows) return <Empty>Ładowanie…</Empty>;
+  if (!rows) return <Loading />;
   const f = rows.filter((r: any) => r.merchant.toLowerCase().includes(q.toLowerCase()));
   const max = Math.max(...rows.map((r: any) => r.total), 1);
 

@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Empty, Tile } from '../ui';
+import { Card, Tile, Loading } from '../ui';
 import { get, pln, MONTH_LABEL } from '../api';
 
 export default function Cykliczne() {
   const [d, setD] = useState<any>(null);
   const [hideTransfers, setHide] = useState(true);
   useEffect(() => { get('/api/recurring').then(setD); }, []);
-  if (!d) return <Empty>Ładowanie…</Empty>;
+  if (!d) return <Loading />;
 
   const SKIP = ['transfer_gospod', 'podatek_vat', 'podatek_pit', 'zus'];
   const items = d.items.filter((i: any) => !hideTransfers || !SKIP.includes(i.category_id));

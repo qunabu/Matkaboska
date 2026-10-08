@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Empty } from '../ui';
+import { Card, Loading } from '../ui';
 import { get, put, pln } from '../api';
 
 export default function Struktura({ onChanged }: any) {
@@ -7,7 +7,7 @@ export default function Struktura({ onChanged }: any) {
   const [dirty, setDirty] = useState<any>({});
   const load = () => get('/api/structure').then(setD);
   useEffect(() => { load(); }, []);
-  if (!d) return <Empty>Ładowanie…</Empty>;
+  if (!d) return <Loading />;
 
   const save = async () => {
     const items = Object.entries(dirty).map(([category_id, target]) => ({ category_id, target }));
