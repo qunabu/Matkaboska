@@ -12,6 +12,8 @@ import { useTheme } from './lib/theme'
 import { syncPushSubscription } from './lib/push'
 import pl from './i18n/pl'
 import Icon, { type IconName } from './components/Icon'
+import Loader from './components/Loader'
+import { hidePreloader } from './lib/preloader'
 import { BUILD_VERSION } from '../shared/build-info'
 
 const queryClient = new QueryClient({
@@ -46,10 +48,32 @@ const AdminPage = lazy(() => import('./pages/AdminPage'))
 const SharedListPage = lazy(() => import('./pages/SharedListPage'))
 
 function PageFallback() {
+  return <Loader className="py-16" />
+}
+
+/** Drops the boot screen once a gate has decided what to show. */
+function BootDone() {
+  useEffect(() => { hidePreloader() }, [])
+  return null
+}
+
+/**
+ * Page transition: each section of the app enters with a short rise-and-focus,
+ * its blocks cascade in, and a scan line sweeps under the top bar. Keyed by the
+ * first path segment, so moving inside a section (e.g. week to week in the
+ * plan) keeps the page mounted instead of replaying the entrance.
+ */
+function RouteStage({ children }: { children: ReactNode }) {
+  const location = useLocation()
+  const section = location.pathname.split('/')[1] || 'today'
+  useEffect(() => {
+    document.querySelector('main')?.scrollTo({ top: 0 })
+  }, [section])
   return (
-    <div className="flex items-center justify-center p-8 text-gray-400">
-      {pl.common.loading}
-    </div>
+    <>
+      <span key={`scan-${section}`} className="sx-scan" aria-hidden="true" />
+      <div key={section} className="sx-route">{children}</div>
+    </>
   )
 }
 
@@ -300,9 +324,11 @@ function AppShell() {
   return (
     <div className="flex h-dvh flex-col md:flex-row">
       <SideNav />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="relative flex flex-1 flex-col overflow-hidden">
         <TopBar />
+        <BootDone />
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+          <RouteStage>
           <Suspense fallback={<PageFallback />}>
             <Routes>
               <Route path="/" element={<TodayPage />} />
@@ -329,6 +355,7 @@ function AppShell() {
               <Route path="/admin" element={<AdminPage />} />
             </Routes>
           </Suspense>
+          </RouteStage>
         </main>
       </div>
       <BottomNav />
@@ -361,14 +388,14 @@ function AppShell() {
 
 function LoginGate({ children }: { children: ReactNode }) {
   const { data, isLoading } = useQuery({ queryKey: ['auth'], queryFn: authApi.me, retry: false })
-  if (isLoading) {
-    return <div className="flex h-dvh items-center justify-center text-gray-400">{pl.common.loading}</div>
-  }
+  // While the session is checked the boot screen is still up — render nothing.
+  if (isLoading) return null
   if (data?.authed) return <>{children}</>
 
   const err = new URLSearchParams(window.location.search).get('error')
   return (
     <div className="flex h-dvh flex-col items-center justify-center gap-5 p-6">
+      <BootDone />
       <img src="/icons/logo-mark.png" alt="" className="sx-logo h-28 w-28" />
       <h1 className="text-3xl">{pl.auth.title}</h1>
       <p className="max-w-xs text-center text-sm text-[var(--sx-ink-2)]">{pl.auth.googleHint}</p>
@@ -383,11 +410,9 @@ function LoginGate({ children }: { children: ReactNode }) {
 function OnboardingGate({ children }: { children: ReactNode }) {
   const qc = useQueryClient()
   const { data, isLoading } = useQuery({ queryKey: ['onboarding-status'], queryFn: onboardingApi.status, retry: false })
-  if (isLoading) {
-    return <div className="flex h-dvh items-center justify-center text-gray-400">{pl.common.loading}</div>
-  }
+  if (isLoading) return null
   if (data?.needsOnboarding) {
-    return <OnboardingPage onDone={() => qc.invalidateQueries()} />
+    return <><BootDone /><OnboardingPage onDone={() => qc.invalidateQueries()} /></>
   }
   return <>{children}</>
 }
@@ -407,6 +432,7 @@ function AppRoutes() {
   if (location.pathname.startsWith('/s/')) {
     return (
       <Suspense fallback={<PageFallback />}>
+        <BootDone />
         <Routes>
           <Route path="/s/:token" element={<SharedListPage />} />
         </Routes>
@@ -416,7 +442,7 @@ function AppRoutes() {
   if (location.pathname.startsWith('/p/')) {
     return (
       <Routes>
-        <Route path="/p/:token/:weekStart" element={<SharedPlanView />} />
+        <Route path="/p/:token/:weekStart" element={<><BootDone /><SharedPlanView /></>} />
       </Routes>
     )
   }

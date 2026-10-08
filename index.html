@@ -13,9 +13,58 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600&family=Barlow+Semi+Condensed:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap" />
-    <title>Matka Boska 🌈</title>
+    <title>Matka Boska</title>
+    <style>
+      /* Boot screen — the gravity preloader in Matka Boska's colours: the mark
+         at the centre of a thin orbit, a rainbow satellite going round it, the
+         brand pulsing, a telemetry line and a 2px progress line. Lives in the
+         HTML so it shows before any JavaScript arrives; main.tsx removes it.
+         Always black: it is the launch screen in both themes. */
+      #boot { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 30px; background: #000; color: #fff;
+        transition: opacity .5s ease, visibility .5s; }
+      #boot.is-done { opacity: 0; visibility: hidden; }
+      #boot .b-orbit { position: relative; width: 132px; height: 132px; }
+      #boot .b-ring { position: absolute; inset: 0; border: 1px solid rgba(255,255,255,.14); border-radius: 50%; }
+      #boot .b-ring.b-outer { inset: -18px; border-style: dashed; border-color: rgba(255,255,255,.08);
+        animation: boot-spin 14s linear infinite reverse; }
+      #boot .b-mark { position: absolute; inset: 30px; width: 72px; height: 72px; object-fit: contain;
+        animation: boot-breathe 2.4s ease-in-out infinite; }
+      #boot .b-sat { position: absolute; inset: 0; animation: boot-spin 1.8s cubic-bezier(.5,.1,.5,.9) infinite; }
+      #boot .b-sat::before { content: ''; position: absolute; top: -4px; left: 50%; width: 8px; height: 8px;
+        margin-left: -4px; border-radius: 50%; background: #fff;
+        box-shadow: 0 0 10px 2px rgba(255,255,255,.55), 0 0 22px 6px rgba(240,58,78,.35); }
+      #boot .b-brand { font: 600 13px/1 "Barlow Semi Condensed", Barlow, system-ui, sans-serif;
+        letter-spacing: .55em; text-indent: .55em; text-transform: uppercase; color: #e8edf5;
+        animation: boot-pulse 1.8s ease-in-out infinite; }
+      #boot .b-tele { display: flex; align-items: center; gap: 10px;
+        font: 400 10px/1 "JetBrains Mono", ui-monospace, Menlo, monospace; letter-spacing: .18em;
+        text-transform: uppercase; color: rgba(255,255,255,.46); }
+      #boot .b-tele i { width: 6px; height: 6px; border-radius: 50%; background: #f03a4e;
+        box-shadow: 0 0 10px #f03a4e; animation: boot-blink 1.6s infinite; }
+      #boot .b-bar { width: 160px; height: 2px; background: rgba(255,255,255,.12); overflow: hidden; }
+      #boot .b-bar b { display: block; height: 100%; width: 40%; background: #fff;
+        animation: boot-scan 1.3s cubic-bezier(.6,0,.4,1) infinite; }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @keyframes boot-pulse { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
+      @keyframes boot-breathe { 0%,100% { opacity: .82; transform: scale(.97); } 50% { opacity: 1; transform: scale(1); } }
+      @keyframes boot-blink { 50% { opacity: .25; } }
+      @keyframes boot-scan { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+      @media (prefers-reduced-motion: reduce) { #boot * { animation: none !important; } }
+    </style>
   </head>
   <body>
+    <div id="boot" role="status" aria-label="Ładowanie aplikacji">
+      <div class="b-orbit">
+        <div class="b-ring b-outer"></div>
+        <div class="b-ring"></div>
+        <img class="b-mark" src="/icons/logo-mark.png" alt="" />
+        <div class="b-sat"></div>
+      </div>
+      <div class="b-brand">Matka Boska</div>
+      <div class="b-tele"><i></i><span>Tęczowa Madonna · start systemu</span></div>
+      <div class="b-bar"><b></b></div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/client/main.tsx"></script>
   </body>

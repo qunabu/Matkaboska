@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 import { initTheme } from './lib/theme'
+import { hidePreloader } from './lib/preloader'
 
 // Apply the saved theme before the first paint to avoid a flash.
 initTheme()
@@ -17,6 +18,9 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 const root = document.getElementById('root')
 if (!root) throw new Error('Root element not found')
+
+// Safety net: never leave the boot screen up if something upstream stalls.
+setTimeout(hidePreloader, 12_000)
 
 createRoot(root).render(
   <StrictMode>
