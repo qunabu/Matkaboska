@@ -782,10 +782,25 @@ function quarterLabel(month: string) {
   return `${y} Q${Math.floor((m - 1) / 3) + 1}`
 }
 
+/**
+ * Miesiąc, który rozpisujemy domyślnie. Faktura wpływa na początku miesiąca,
+ * a przelewy robi się zaraz po niej — więc jeśli faktura za ostatni miesiąc
+ * danych już jest, planujemy TEN miesiąc. Wcześniej brany był zawsze następny:
+ * w październiku ekran pokazywał listopad przy październikowym saldzie, czyli
+ * VAT trzech faktur bez żadnej z płatności, które z subkonta zejdą po drodze
+ * (23 tys. zamiast ~13 tys.).
+ */
+async function defaultPlanMonth(s: Store, all: string[]) {
+  const last = all[all.length - 1] || new Date().toISOString().slice(0, 7)
+  const inv = await s.first<{ m: string | null }>(
+    `SELECT MAX(month) m FROM budzet_transactions WHERE user_id = ? AND category_id = 'przychod_firmowy'`, s.userId)
+  return inv?.m === last ? last : monthAdd(last, 1)
+}
+
 export async function subkontoReserve(s: Store, o: { planMonth?: string; plannedGross?: number } = {}) {
   const plannedGross = o.plannedGross ?? 0
   const all = await months(s)
-  const month = o.planMonth || monthAdd(all[all.length - 1] || new Date().toISOString().slice(0, 7), 1)
+  const month = o.planMonth || await defaultPlanMonth(s, all)
   const cfg = await getSettings(s)
   const vatRate = num(cfg.vat_rate, 0.23)
   const d = await payoutDefaults(s)
