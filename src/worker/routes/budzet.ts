@@ -70,10 +70,10 @@ app.get('/overview', async (c) => {
     outstanding_accruals: await A.outstandingAccruals(s),
     settings: await getSettings(s),
     bank: await s.all(
-      `SELECT id, aspsp_name, valid_until, last_sync_at, last_error,
+      `SELECT id, aspsp_name, aspsp_country, psu_type, status, valid_until, last_sync_at, last_error,
               CAST(julianday(valid_until) - julianday('now') AS INTEGER) AS days_left
          FROM budzet_bank_connections
-        WHERE user_id = ? AND status = 'AUTHORIZED' ORDER BY valid_until`, c.var.userId),
+        WHERE user_id = ? AND status IN ('AUTHORIZED', 'EXPIRED') ORDER BY valid_until`, c.var.userId),
   })
 })
 
@@ -367,7 +367,7 @@ app.get('/bank/status', async (c) => {
   const s = store(c)
   const configured = !!ebConfig(c.env)
   const connections = await s.all(
-    `SELECT c.id, c.aspsp_name, c.aspsp_country, c.status, c.valid_until, c.last_sync_at, c.last_error,
+    `SELECT c.id, c.aspsp_name, c.aspsp_country, c.psu_type, c.status, c.valid_until, c.last_sync_at, c.last_error,
             (SELECT COUNT(*) FROM budzet_bank_accounts a WHERE a.connection_id = c.id AND a.user_id = c.user_id) accounts
        FROM budzet_bank_connections c WHERE c.user_id = ? ORDER BY c.id DESC`, c.var.userId)
   return c.json({ configured, connections })
@@ -388,6 +388,7 @@ app.post('/bank/connect', async (c) => {
   if (!cfg) return c.json({ error: 'Enable Banking nie jest skonfigurowane' }, 400)
   const b = await c.req.json<{ aspsp_name: string; country?: string; valid_days?: number; psu_type?: 'personal' | 'business' }>()
   const country = b.country || 'PL'
+  const psuType = b.psu_type === 'business' ? 'business' : 'personal'
   const days = Math.min(180, Math.max(1, b.valid_days ?? 90))
   const validUntil = new Date(Date.now() + days * 86400000).toISOString().replace(/\.\d+Z$/, '.000Z')
   const state = crypto.randomUUID()
@@ -399,10 +400,10 @@ app.post('/bank/connect', async (c) => {
   const redirectUrl = `${origin}/api/budzet/bank/callback`
   // Stan trzymamy w KV (TTL 15 min) — chroni przed CSRF i wiąże powrót z kontem.
   await c.env.KV.put(`budzet:ebstate:${state}`,
-    JSON.stringify({ userId: c.var.userId, aspsp: b.aspsp_name, country, validUntil, psu }),
+    JSON.stringify({ userId: c.var.userId, aspsp: b.aspsp_name, country, psuType, validUntil, psu }),
     { expirationTtl: 900 })
   try {
-    const r = await startAuth(cfg, { aspspName: b.aspsp_name, country, redirectUrl, state, validUntil, psu, psuType: b.psu_type ?? 'personal' })
+    const r = await startAuth(cfg, { aspspName: b.aspsp_name, country, redirectUrl, state, validUntil, psu, psuType })
     return c.json({ url: r.url })
   } catch (e) { return c.json({ error: (e as Error).message }, 502) }
 })
@@ -417,7 +418,7 @@ app.get('/bank/callback', async (c) => {
   if (!rawState) return back('stan-wygasl')
   await c.env.KV.delete(`budzet:ebstate:${state}`)
   const st = JSON.parse(rawState) as {
-    userId: string; aspsp: string; country: string; validUntil: string
+    userId: string; aspsp: string; country: string; psuType?: 'personal' | 'business'; validUntil: string
     psu?: { ip?: string; userAgent?: string }
   }
   // Powrót z banku musi trafić do tego samego konta, które rozpoczęło autoryzację.
@@ -426,19 +427,22 @@ app.get('/bank/callback', async (c) => {
   const s = store(c)
   try {
     const sess = await createSession(cfg, code, st.psu)
+    const psuType = st.psuType ?? 'personal'
     const ins = await s.run(
-      `INSERT INTO budzet_bank_connections(user_id, aspsp_name, aspsp_country, session_id, status, valid_until, created_at, psu_ip, psu_user_agent)
-       VALUES(?,?,?,?,'AUTHORIZED',?,?,?,?)`,
-      c.var.userId, st.aspsp, st.country, sess.session_id,
+      `INSERT INTO budzet_bank_connections(user_id, aspsp_name, aspsp_country, psu_type, session_id, status, valid_until, created_at, psu_ip, psu_user_agent)
+       VALUES(?,?,?,?,?,'AUTHORIZED',?,?,?,?)`,
+      c.var.userId, st.aspsp, st.country, psuType, sess.session_id,
       sess.access?.valid_until ?? st.validUntil, new Date().toISOString(),
       st.psu?.ip ?? null, st.psu?.userAgent ?? null)
     const connId = (ins.meta as { last_row_id?: number })?.last_row_id as number
     // Odnowienie zgody tworzy nowe połączenie — poprzednie dla tego samego banku
-    // musi przestać być aktywne, inaczej pobieranie i przypomnienia dublują się.
+    // i typu konta (osobiste/firmowe) musi przestać być aktywne, inaczej pobieranie
+    // i przypomnienia dublują się. Drugie połączenie w tym samym banku zostaje.
     await s.run(
       `UPDATE budzet_bank_connections SET status = 'REPLACED'
-        WHERE user_id = ? AND aspsp_name = ? AND aspsp_country = ? AND id <> ? AND status = 'AUTHORIZED'`,
-      c.var.userId, st.aspsp, st.country, connId)
+        WHERE user_id = ? AND aspsp_name = ? AND aspsp_country = ? AND psu_type = ? AND id <> ?
+          AND status IN ('AUTHORIZED', 'EXPIRED')`,
+      c.var.userId, st.aspsp, st.country, psuType, connId)
     await s.run(
       `DELETE FROM budzet_bank_accounts WHERE user_id = ? AND connection_id IN (
          SELECT id FROM budzet_bank_connections WHERE user_id = ? AND status = 'REPLACED')`,

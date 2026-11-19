@@ -68,6 +68,12 @@ export default function Ustawienia({ onChanged }: any) {
       window.location.href = r.url; }
     catch (e: any) { setBankMsg(e.message); }
   };
+  const renew = async (cn: any) => {
+    setBankMsg(`Przekierowuję do ${cn.aspsp_name}…`);
+    try { const r: any = await post('/api/bank/connect', { aspsp_name: cn.aspsp_name, country: cn.aspsp_country || 'PL', valid_days: 90, psu_type: cn.psu_type || 'personal' });
+      window.location.href = r.url; }
+    catch (e: any) { setBankMsg(e.message); }
+  };
   const syncBank = async (connection_id?: number) => {
     setBusy(true); setBankMsg('Pobieram transakcje…');
     try { const r: any = await post('/api/bank/sync', connection_id ? { connection_id } : {});
@@ -101,12 +107,16 @@ export default function Ustawienia({ onChanged }: any) {
                 <thead><tr><th>Bank</th><th>Status</th><th>Kont</th><th>Zgoda do</th><th>Ostatnie pobranie</th><th></th></tr></thead>
                 <tbody>{bank.connections.map((cn: any) => (
                   <tr key={cn.id}>
-                    <td><strong>{cn.aspsp_name}</strong>{cn.last_error && <div className="neg" style={{ fontSize: 11 }}>{cn.last_error}</div>}</td>
+                    <td><strong>{cn.aspsp_name}</strong>{cn.psu_type === 'business' && <span className="muted"> · firmowe</span>}{cn.last_error && <div className="neg" style={{ fontSize: 11 }}>{cn.last_error}</div>}</td>
                     <td><span className={`chip ${cn.status === 'AUTHORIZED' ? 'g' : 'w'}`}>{cn.status}</span></td>
                     <td className="num">{cn.accounts}</td>
                     <td className="muted">{(cn.valid_until || '').slice(0, 10) || '—'}</td>
                     <td className="muted">{(cn.last_sync_at || '').slice(0, 16).replace('T', ' ') || 'nigdy'}</td>
                     <td style={{ whiteSpace: 'nowrap' }}>
+                      {cn.status === 'EXPIRED' || cn.status === 'AUTHORIZED' ? (
+                        <button className="btn ghost" style={{ padding: '3px 8px', marginRight: 4 }}
+                          onClick={() => renew(cn)}>Odnów</button>
+                      ) : null}
                       <button className="btn ghost" style={{ padding: '3px 8px' }} disabled={busy}
                         onClick={() => syncBank(cn.id)}>Pobierz</button>
                       <button className="btn ghost" style={{ padding: '3px 8px', marginLeft: 4 }}

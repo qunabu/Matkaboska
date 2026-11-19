@@ -1,5 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from 'react'
-import { get } from './api'
+import { get, post } from './api'
 import './budzet.css'
 import { Loading } from './ui'
 
@@ -54,8 +54,21 @@ export default function BudzetShell() {
   const empty = overview && (overview.months?.length ?? 0) === 0
   // Zgoda PSD2 wygasa i trzeba ją odnowić ręcznie — po terminie pobieranie
   // po prostu milknie, więc ostrzegamy z wyprzedzeniem.
-  const expiring = (overview?.bank ?? []).filter((b: any) => b.days_left != null && b.days_left <= 21)
-  const failing = (overview?.bank ?? []).filter((b: any) => b.last_error)
+  const expiring = (overview?.bank ?? []).filter((b: any) =>
+    b.status === 'EXPIRED' || (b.days_left != null && b.days_left <= 21))
+  const failing = (overview?.bank ?? []).filter((b: any) => b.last_error && b.status !== 'EXPIRED')
+  const [renewErr, setRenewErr] = useState<string | null>(null)
+  // Odnowienie = nowa zgoda w tym samym banku i dla tego samego typu konta;
+  // od razu przekierowuje do banku.
+  const renew = async (b: any) => {
+    setRenewErr(null)
+    try {
+      const r: any = await post('/api/bank/connect', {
+        aspsp_name: b.aspsp_name, country: b.aspsp_country || 'PL', valid_days: 90, psu_type: b.psu_type || 'personal',
+      })
+      window.location.href = r.url
+    } catch (e) { setRenewErr(`${b.aspsp_name}: ${(e as Error).message}`) }
+  }
 
   const drill = (m: string) => { setMerchant(m); setTab('transakcje') }
 
@@ -76,13 +89,14 @@ export default function BudzetShell() {
       {expiring.map((b: any) => (
         <div key={b.id} className="note"
              style={{ borderLeftColor: b.days_left <= 3 ? 'var(--bad)' : 'var(--warn)' }}>
-          <strong>{b.aspsp_name}</strong>: zgoda bankowa {b.days_left <= 0 ? 'wygasła'
+          <strong>{b.aspsp_name}{b.psu_type === 'business' ? ' (firmowe)' : ''}</strong>: zgoda bankowa {b.status === 'EXPIRED' || b.days_left <= 0 ? 'wygasła'
             : `wygasa za ${b.days_left} ${b.days_left === 1 ? 'dzień' : 'dni'}`} ({String(b.valid_until).slice(0, 10)}).
           Bez odnowienia transakcje przestaną się pobierać.{' '}
           <button className="btn" style={{ padding: '3px 10px', marginLeft: 6 }}
-                  onClick={() => setTab('ustawienia')}>Odnów połączenie</button>
+                  onClick={() => renew(b)}>Odnów połączenie</button>
         </div>
       ))}
+      {renewErr && <div className="note" style={{ borderLeftColor: 'var(--bad)' }}>Nie udało się rozpocząć odnowienia — {renewErr}</div>}
 
       {failing.map((b: any) => (
         <div key={'e' + b.id} className="note" style={{ borderLeftColor: 'var(--bad)' }}>
