@@ -200,6 +200,7 @@ const pl = {
       tracking: 'Dziennik',
       budzet: 'Budżet',
       supplements: 'Suplementy',
+      english: 'Angielski — słówko na start',
     },
     integrations: 'Integracje',
     integrationsHint: 'Dane logowania są zapisywane tylko dla Twojego konta.',

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-export const MODULE_KEYS = ['plan', 'shopping', 'tracking', 'supplements', 'budzet'] as const
+export const MODULE_KEYS = ['plan', 'shopping', 'tracking', 'supplements', 'budzet', 'english'] as const
 export type ModuleKey = typeof MODULE_KEYS[number]
 
 export type ModuleSettings = Record<ModuleKey, boolean>
@@ -13,6 +13,7 @@ const defaults: ModuleSettings = {
   tracking: true,
   supplements: true,
   budzet: true,
+  english: true,
 }
 
 export function getModuleSettings(): ModuleSettings {

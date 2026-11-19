@@ -13,6 +13,7 @@ import { syncPushSubscription } from './lib/push'
 import pl from './i18n/pl'
 import Icon, { type IconName } from './components/Icon'
 import Loader from './components/Loader'
+import EnglishWordCard from './components/EnglishWordCard'
 import { hidePreloader } from './lib/preloader'
 import { BUILD_VERSION } from '../shared/build-info'
 
@@ -359,6 +360,7 @@ function AppShell() {
         </main>
       </div>
       <BottomNav />
+      <EnglishWordCard />
       {installEvt && !installDismissed && (
         <div className="fixed bottom-20 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 md:bottom-4">
           <button
