@@ -6,6 +6,9 @@ import { ebConfig, getTransactions, getBalances, getSession, type EbTransaction,
 type Env = { EB_APPLICATION_ID?: string; EB_PRIVATE_KEY?: string }
 
 const clean = (s?: string | null) => (s ?? '').replace(/\s+/g, ' ').trim()
+// API podaje polskie IBAN-y z prefiksem „PL”, wyciągi CSV i budzet_accounts bez
+// niego. Trzymamy jeden zapis, inaczej przelewy własne nie łączą się w pary.
+const cleanIban = (s?: string | null) => clean(s).replace(/\s/g, '').replace(/^PL(?=\d{26}$)/i, '') || null
 /** IBAN-y z API mają prefiks kraju („PL46…"), a te z wyciągów CSV zwykle nie.
  *  Porównujemy po samych cyfrach, inaczej powstałyby zdublowane rachunki. */
 const ibanDigits = (s?: string | null) => (s ?? '').replace(/\D/g, '')
@@ -39,8 +42,8 @@ export function mapTransaction(t: EbTransaction, accountId: string, accountKey: 
     counterparty_norm: normaliseMerchant(counterparty),
     description,
     address: null,
-    src_iban: clean(t.debtor_account?.iban) || null,
-    dst_iban: clean(t.creditor_account?.iban) || null,
+    src_iban: cleanIban(t.debtor_account?.iban),
+    dst_iban: cleanIban(t.creditor_account?.iban),
     bank_category: '',
     op_type: opType || null,
     reference,
